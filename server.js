@@ -1,18 +1,16 @@
 // ===============================
-// 🌍 GAMING CONTINENTAL SERVER
+// 🌍 GAMING CONTINENTAL SERVER (No Token Version)
 // ===============================
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const app = express();
 
 // ---------- Config ----------
-const JWT_SECRET = process.env.JWT_SECRET || "gamingcontinental_secret_2025";
 const MONGO_URI =
   process.env.MONGO_URI ||
   "mongodb+srv://olaoluwa705_db_user:olaoluwanishola_1@cluster0.r4pqjm5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
@@ -23,8 +21,7 @@ app.use(
   cors({
     origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
+    allowedHeaders: ["Content-Type"],
   })
 );
 app.use(express.json());
@@ -40,39 +37,6 @@ const Match = require("./models/Match");
 const Bet = require("./models/Bet");
 const Withdraw = require("./models/Withdrawal");
 const History = require("./models/History");
-
-// ---------- JWT Middlewares ----------
-function verifyUser(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  if (!authHeader)
-    return res.status(401).json({ error: "No token provided" });
-
-  const token = authHeader.split(" ")[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch {
-    return res.status(403).json({ error: "Invalid or expired token" });
-  }
-}
-
-function verifyAdmin(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  if (!authHeader)
-    return res.status(401).json({ error: "No token provided" });
-
-  const token = authHeader.split(" ")[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (!decoded.isAdmin)
-      return res.status(403).json({ error: "Admin access required" });
-    req.admin = decoded;
-    next();
-  } catch {
-    return res.status(403).json({ error: "Invalid or expired token" });
-  }
-}
 
 // ---------- Seed Default Admins ----------
 async function seedAdmins() {
@@ -91,6 +55,40 @@ async function seedAdmins() {
   }
 }
 
+// ---------- Admin Login ----------
+let loggedInAdmins = new Set(); // simple in-memory session
+
+app.post("/admin/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const admin = await Admin.findOne({ email });
+    if (!admin) return res.status(400).json({ error: "Invalid credentials" });
+
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+
+    loggedInAdmins.add(email);
+    res.json({ message: "Admin login successful ✅", admin: { email } });
+  } catch (err) {
+    console.error("Admin login error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/admin/logout", (req, res) => {
+  const { email } = req.body;
+  loggedInAdmins.delete(email);
+  res.json({ message: "Admin logged out ✅" });
+});
+
+// ---------- Middleware: simple admin check ----------
+function requireAdmin(req, res, next) {
+  const { email } = req.body;
+  if (!loggedInAdmins.has(email))
+    return res.status(403).json({ error: "Admin not logged in" });
+  next();
+}
+
 // ---------- Routes ----------
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
@@ -104,28 +102,6 @@ const paymentRoutes = require("./routes/payment");
 const betRoutes = require("./routes/bet");
 const livestreamRoutes = require("./routes/livestream");
 
-// ---------- Admin Login (MUST BE ABOVE protected routes) ----------
-app.post("/admin/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const admin = await Admin.findOne({ email });
-    if (!admin) return res.status(400).json({ error: "Invalid credentials" });
-
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
-
-    const token = jwt.sign({ id: admin._id, isAdmin: true }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    res.json({ message: "Admin login successful ✅", token });
-  } catch (err) {
-    console.error("Admin login error:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-// ---------- Use Routes ----------
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
 app.use("/livescore", livescoreRoutes);
@@ -134,81 +110,28 @@ app.use("/deposit", depositRoutes);
 app.use("/payment", paymentRoutes);
 app.use("/bets", betRoutes);
 app.use("/livestream", livestreamRoutes);
-app.use("/admin/livestream", verifyAdmin, livestreamRoutes);
+app.use("/admin/livestream", requireAdmin, livestreamRoutes);
 app.use("/tournament", tournamentRoutes);
 app.use("/tournament/public", publicTournamentRoutes);
-app.use("/admin/tournament", verifyAdmin, tournamentRoutes);
-app.use("/admin", verifyAdmin, adminRoutes);
+app.use("/admin/tournament", requireAdmin, tournamentRoutes);
+app.use("/admin", requireAdmin, adminRoutes);
 
-// ---------- Health Check / Test ----------
+// ---------- Health Check ----------
 app.get("/auth/test", (req, res) => {
   res.json({ message: "Gaming Continental API is live ✅" });
 });
 
-// ---------- History (Sample + Real Data Fallback) ----------
-app.get("/user/transactions", async (req, res) => {
+// ---------- Withdrawals ----------
+app.post("/withdraw", async (req, res) => {
   try {
-    const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: "User ID is required" });
-
-    if (mongoose.connection.readyState !== 1) {
-      return res.json(createSampleHistory(userId));
-    }
-
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    let transactions = await History.find({ userId })
-      .populate("tournamentId", "title image")
-      .sort({ createdAt: -1 })
-      .limit(100);
-
-    if (transactions.length === 0) transactions = createSampleHistory(userId);
-    res.json(transactions);
-  } catch {
-    res.json(createSampleHistory(req.query.userId || "unknown"));
-  }
-});
-
-function createSampleHistory(userId) {
-  const now = new Date();
-  return [
-    {
-      _id: "1",
-      userId,
-      type: "deposit",
-      amount: 10000,
-      description: "Bank Transfer Deposit",
-      status: "completed",
-      createdAt: new Date(now - 7 * 24 * 60 * 60 * 1000),
-    },
-    {
-      _id: "2",
-      userId,
-      type: "tournament_registration",
-      amount: 2000,
-      description: "Registered for FIFA 24 Championship",
-      status: "completed",
-      createdAt: new Date(now - 5 * 24 * 60 * 60 * 1000),
-    },
-  ];
-}
-
-// ---------- Withdrawal Routes ----------
-app.post("/withdraw/", verifyUser, async (req, res) => {
-  try {
-    const { amount, method = "Bank Transfer" } = req.body;
-    const userId = req.user.id;
-
-    if (!amount || amount < 1000)
-      return res.status(400).json({ error: "Minimum withdrawal is ₦1000" });
+    const { userId, amount, method = "Bank Transfer" } = req.body;
+    if (!userId || !amount)
+      return res.status(400).json({ error: "Missing data" });
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
     if (user.balance < amount)
       return res.status(400).json({ error: "Insufficient balance" });
-    if (!user.bankDetails?.accountNumber)
-      return res.status(400).json({ error: "Add bank details first" });
 
     const withdraw = await Withdraw.create({
       userId,
@@ -223,7 +146,7 @@ app.post("/withdraw/", verifyUser, async (req, res) => {
       userId,
       type: "withdraw",
       amount,
-      description: `Withdrawal request - ${method}`,
+      description: `Withdrawal - ${method}`,
       status: "pending",
       transactionId: withdraw._id.toString(),
       createdAt: new Date(),
