@@ -74,25 +74,58 @@ function getUserToken() {
   return localStorage.getItem("token");
 }
 
-// Get user info
+// Get user ID from localStorage (SAME AS DASHBOARD)
+function getUserId() {
+  return localStorage.getItem("userId");
+}
+
+// Check if user is authenticated (SAME AS DASHBOARD)
+function isAuthenticated() {
+  const token = getUserToken();
+  const userId = getUserId();
+  return !!(token && userId);
+}
+
+// Get user info - FIXED TO MATCH DASHBOARD
 async function loadUserInfo() {
   const token = getUserToken();
-  if (!token) {
+  const userId = getUserId();
+  
+  if (!token || !userId) {
+    console.log("❌ No token or user ID found");
     document.getElementById("userBalance").textContent = "0.00";
     return;
   }
 
   try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: { "Authorization": `Bearer ${token}` }
+    // ✅ FIXED: Use the SAME endpoint as dashboard with userId parameter
+    const res = await fetch(`${API_BASE}/auth/me?userId=${userId}`, {
+      headers: { 
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      }
     });
-    if (res.ok) {
-      const user = await res.json();
-      document.getElementById("userBalance").textContent = fmt(user.balance || 0);
-      currentUser = user;
+
+    console.log("🔍 Bet page auth response status:", res.status);
+
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 404) {
+        console.log("❌ Authentication failed, clearing storage");
+        localStorage.clear();
+        window.location.href = "index.html";
+        return;
+      }
+      throw new Error(`HTTP error! status: ${res.status}`);
     }
+
+    const user = await res.json();
+    document.getElementById("userBalance").textContent = fmt(user.balance || 0);
+    currentUser = user;
+    console.log("✅ Bet page user loaded:", user.nickname);
+    
   } catch (err) {
-    console.error("Failed to load user info:", err);
+    console.error("❌ Failed to load user info:", err);
+    document.getElementById("userBalance").textContent = "0.00";
   }
 }
 
@@ -305,6 +338,13 @@ function createOddBtn(text, odd, matchStatus, onClick) {
 
 /* ---------- Betslip Functions ---------- */
 function addToSlip(matchId, marketKey, selectionKey, odd, label) {
+  // Check authentication first
+  if (!isAuthenticated()) {
+    alert("Please log in to add selections to your betslip");
+    window.location.href = "index.html";
+    return;
+  }
+  
   // First, check if match is closed by fetching current match data
   checkMatchStatus(matchId).then(isClosed => {
     if (isClosed) {
@@ -391,7 +431,9 @@ function updatePotentialWin() {
 /* ---------- Place Bet ---------- */
 async function placeBet() {
   const token = getUserToken();
-  if (!token) {
+  const userId = getUserId();
+  
+  if (!token || !userId) {
     alert("Please log in to place a bet");
     window.location.href = "index.html";
     return;
@@ -409,15 +451,22 @@ async function placeBet() {
   }
 
   try {
-    // Get user info first to check balance and get ID
-    const userRes = await fetch(`${API_BASE}/auth/me`, {
-      headers: { "Authorization": `Bearer ${token}` }
+    // ✅ FIXED: Use the SAME endpoint as dashboard with userId parameter
+    const userRes = await fetch(`${API_BASE}/auth/me?userId=${userId}`, {
+      headers: { 
+        "Authorization": "Bearer " + token,
+        "Content-Type": "application/json"
+      }
     });
     
     if (!userRes.ok) {
-      alert("Please log in again");
-      window.location.href = "index.html";
-      return;
+      if (userRes.status === 401 || userRes.status === 404) {
+        localStorage.clear();
+        alert("Session expired. Please login again.");
+        window.location.href = "index.html";
+        return;
+      }
+      throw new Error(`HTTP error! status: ${userRes.status}`);
     }
 
     const user = await userRes.json();
@@ -429,7 +478,7 @@ async function placeBet() {
     }
 
     const betData = {
-      userId: user._id, // Use the ID from the user profile
+      userId: userId, // Use the userId from localStorage
       selections: selections,
       stake: stake
     };
@@ -460,24 +509,12 @@ async function placeBet() {
   }
 }
 
-// Helper to get user ID from token
-async function getUserIdFromToken() {
-  try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
-      headers: { "Authorization": `Bearer ${getUserToken()}` }
-    });
-    if (res.ok) {
-      const user = await res.json();
-      return user._id;
-    }
-  } catch (err) {
-    console.error("Failed to get user ID:", err);
-  }
-  return null;
-}
-
 /* ---------- Initialize ---------- */
 document.addEventListener("DOMContentLoaded", function() {
+  console.log("🚀 Bet page loaded - checking authentication");
+  console.log("🔍 Token:", localStorage.getItem("token"));
+  console.log("🔍 User ID:", localStorage.getItem("userId"));
+  
   loadMatches();
   loadUserInfo();
   document.getElementById("stake").addEventListener("input", updatePotentialWin);
