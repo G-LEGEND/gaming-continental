@@ -1,5 +1,5 @@
 // ===============================
-// 🌍 GAMING CONTINENTAL SERVER (No Token Version)
+// 🌍 GAMING CONTINENTAL SERVER (Updated with Auth Me Endpoint)
 // ===============================
 const express = require("express");
 const mongoose = require("mongoose");
@@ -21,7 +21,7 @@ app.use(
   cors({
     origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 app.use(express.json());
@@ -54,6 +54,46 @@ async function seedAdmins() {
     }
   }
 }
+
+// ---------- Auth Me Endpoint (NEW) ----------
+app.get("/auth/me", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Authorization token required" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    
+    // Simple token validation - in a real app you'd verify JWT here
+    // For now, we'll accept any token and get user from query param
+    const { userId } = req.query;
+    
+    if (!userId) {
+      return res.status(401).json({ error: "User ID required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Return user data without password
+    res.json({
+      _id: user._id,
+      email: user.email,
+      nickname: user.nickname,
+      balance: user.balance,
+      fifaPoints: user.fifaPoints || 0,
+      snookerPoints: user.snookerPoints || 0,
+      rank: user.rank || 0
+    });
+  } catch (err) {
+    console.error("Auth me error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 // ---------- Admin Login ----------
 let loggedInAdmins = new Set(); // simple in-memory session
@@ -116,11 +156,6 @@ app.use("/tournament/public", publicTournamentRoutes);
 app.use("/admin/tournament", requireAdmin, tournamentRoutes);
 app.use("/admin", requireAdmin, adminRoutes);
 
-// ---------- Health Check ----------
-app.get("/auth/test", (req, res) => {
-  res.json({ message: "Gaming Continental API is live ✅" });
-});
-
 // ---------- Withdrawals ----------
 app.post("/withdraw", async (req, res) => {
   try {
@@ -156,6 +191,11 @@ app.post("/withdraw", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to process withdrawal" });
   }
+});
+
+// ---------- Health Check ----------
+app.get("/auth/test", (req, res) => {
+  res.json({ message: "Gaming Continental API is live ✅" });
 });
 
 // ---------- MongoDB Connect ----------
