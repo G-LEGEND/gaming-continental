@@ -16,18 +16,19 @@ const JWT_SECRET = process.env.JWT_SECRET || "gamingcontinental_secret_2025";
 const MONGO_URI =
   process.env.MONGO_URI ||
   "mongodb+srv://olaoluwa705_db_user:olaoluwanishola_1@cluster0.r4pqjm5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 // ---------- Middlewares ----------
-app.use(cors({
-  origin: "*", // 🔥 Allow all origins for now (fixes "Failed to fetch")
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "public")));
 
 // ---------- MongoDB Models ----------
 const Admin = require("./models/Admin");
@@ -138,6 +139,11 @@ app.post("/admin/login", async (req, res) => {
   }
 });
 
+// ---------- Health Check / Test ----------
+app.get("/auth/test", (req, res) => {
+  res.json({ message: "Gaming Continental API is live ✅" });
+});
+
 // ---------- History (Sample + Real Data Fallback) ----------
 app.get("/user/transactions", async (req, res) => {
   try {
@@ -242,6 +248,7 @@ mongoose
   .catch((err) => console.error("❌ MongoDB Error:", err.message));
 
 // ---------- Serve Frontend ----------
+app.use(express.static(path.join(__dirname, "public")));
 app.get("*", (req, res) =>
   res.sendFile(path.join(__dirname, "public", "index.html"))
 );
