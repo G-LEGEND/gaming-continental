@@ -361,6 +361,15 @@
   <script>
     const API_BASE = "https://gaming-continental.onrender.com";
 
+    // Debug function to check what's stored
+    function debugStorage() {
+      console.log("🔍 Storage Debug:");
+      console.log("Token:", localStorage.getItem("token"));
+      console.log("User ID:", localStorage.getItem("userId"));
+      console.log("User Email:", localStorage.getItem("userEmail"));
+      console.log("Nickname:", localStorage.getItem("nickname"));
+    }
+
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       
@@ -379,6 +388,8 @@
       submitBtn.classList.add('loading');
 
       try {
+        console.log("🔐 Attempting login for:", email);
+        
         const res = await fetch(`${API_BASE}/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -386,32 +397,42 @@
         });
 
         const data = await res.json();
+        console.log("🔐 Login response:", data);
+
         if (!res.ok) throw new Error(data.error || "Login failed");
 
-        // ✅ Save login info to localStorage
+        // ✅ Save login info to localStorage with verification
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.user._id);
         localStorage.setItem("userEmail", data.user.email);
         localStorage.setItem("nickname", data.user.nickname || "");
 
+        // Verify storage
+        console.log("✅ Login successful, storage set:");
+        debugStorage();
+
         // Show success message
         msg.textContent = "✅ Login successful! Redirecting...";
         msg.className = "message success";
 
-        // ✅ Wait before redirecting
+        // ✅ Wait before redirecting with verification
         setTimeout(() => {
           const token = localStorage.getItem("token");
           const userId = localStorage.getItem("userId");
 
+          console.log("🔄 Redirect verification - Token:", token, "User ID:", userId);
+
           if (token && userId) {
+            console.log("✅ Redirecting to dashboard");
             window.location.href = "/dashboard.html";
           } else {
+            console.log("❌ Storage verification failed");
             msg.textContent = "❌ Error saving session. Please login again.";
             msg.className = "message error";
           }
         }, 1200);
       } catch (err) {
-        console.error("Login error:", err);
+        console.error("❌ Login error:", err);
         msg.textContent = "❌ " + (err.message || "Something went wrong. Try again.");
         msg.className = "message error";
       } finally {
@@ -432,6 +453,16 @@
       if (e.key === 'Enter') {
         document.getElementById('loginForm').dispatchEvent(new Event('submit'));
       }
+    });
+
+    // Debug: Check storage on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log("🚀 Login page loaded");
+      debugStorage();
+      
+      // Auto-clear storage for testing (optional)
+      // localStorage.clear();
+      // console.log("🧹 Storage cleared for testing");
     });
   </script>
 </body>
