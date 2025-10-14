@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
   <style>
     body {
@@ -14,7 +15,7 @@
     }
 
     .center {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
     }
 
@@ -24,6 +25,7 @@
       color: gold;
     }
 
+    /* Admin Navigation */
     .admin-nav {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
@@ -66,6 +68,7 @@
       font-size: 13px;
     }
 
+    /* Summary */
     .summary-card {
       background: #1e293b;
       padding: 16px;
@@ -73,6 +76,12 @@
       margin-bottom: 20px;
       font-size: 18px;
       color: #f8fafc;
+      box-shadow: 0 0 10px rgba(255,215,0,0.3);
+    }
+
+    /* Table */
+    .table-container {
+      overflow-x: auto;
     }
 
     table {
@@ -84,18 +93,58 @@
       color: #f8fafc;
     }
 
-    table th, table td {
+    th, td {
       padding: 10px;
       text-align: left;
       border-bottom: 1px solid #334155;
     }
 
-    table th {
+    th {
       background: #0f172a;
+      font-weight: bold;
     }
 
-    table tr:hover {
+    tr:hover {
       background: #334155;
+    }
+
+    .muted {
+      color: #9ca3af;
+      font-size: 12px;
+    }
+
+    .logout-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+
+    .logout-btn:hover {
+      background: #b91c1c;
+    }
+
+    .admin-info {
+      background: #1e293b;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      text-align: center;
+      color: #9ca3af;
+    }
+
+    @media (max-width: 600px) {
+      th, td {
+        font-size: 12px;
+        padding: 8px;
+      }
+      h1 {
+        font-size: 20px;
+      }
     }
   </style>
 </head>
@@ -103,48 +152,46 @@
   <div class="center">
     <h1>⚜️ Admin Dashboard</h1>
 
-    <!-- Admin Navigation -->
+    <!-- Admin Info -->
+    <div class="admin-info" id="adminInfo">
+      Loading...
+    </div>
+
+    <!-- Logout Button -->
+    <button class="logout-btn" onclick="logoutAdmin()">🚪 Logout</button>
+
+    <!-- Navigation -->
     <div class="admin-nav">
       <button class="admin-btn" onclick="goPage('admin-dashboard.html')">
         <div class="circle">🏠</div><span>Dashboard</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('admin-account.html')">
         <div class="circle">👤</div><span>Accounts</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('admin-bet.html')">
         <div class="circle">🎲</div><span>Bets</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('admin-deposit.html')">
         <div class="circle">💳</div><span>Deposits</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('admin-payment-method.html')">
-        <div class="circle">🏦</div><span>Payment Method</span>
+        <div class="circle">🏦</div><span>Payment</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('admin-withdraw.html')">
         <div class="circle">🏧</div><span>Withdrawals</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('admin-live.html')">
-        <div class="circle">🎦</div><span>YouTube Live</span>
+        <div class="circle">🎦</div><span>YouTube</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('admin-tournament.html')">
         <div class="circle">🎮</div><span>Tournaments</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('admin-rank.html')">
         <div class="circle">📊</div><span>Ranking</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('admin-livescores.html')">
         <div class="circle">📺</div><span>Live Scores</span>
       </button>
-
       <button class="admin-btn" onclick="goPage('settings.html')">
         <div class="circle">⚙️</div><span>Settings</span>
       </button>
@@ -156,57 +203,148 @@
     </div>
 
     <!-- User Table -->
-    <table id="usersTable">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>User ID</th>
-          <th>Nickname</th>
-          <th>Email</th>
-          <th>Balance</th>
-          <th>Rank</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="table-container">
+      <table id="usersTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>User ID</th>
+            <th>Nickname</th>
+            <th>Email</th>
+            <th>Balance (₦)</th>
+            <th>Rank</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 
   <script>
+    const API_BASE = "https://gaming-continental.onrender.com";
+
+    // ✅ Simple session check without tokens
+    function checkAdminSession() {
+      const isLoggedIn = localStorage.getItem("adminLoggedIn");
+      const adminEmail = localStorage.getItem("adminEmail");
+      
+      console.log("🔍 Checking admin session:");
+      console.log("adminLoggedIn:", isLoggedIn);
+      console.log("adminEmail:", adminEmail);
+      
+      if (!isLoggedIn || !adminEmail) {
+        console.log("❌ No admin session found, redirecting to login");
+        alert("Please login as admin first");
+        window.location.href = "admin.html";
+        return false;
+      }
+      
+      console.log("✅ Admin session valid");
+      return true;
+    }
+
     function goPage(page) {
+      if (!checkAdminSession()) return;
       window.location.href = page;
     }
 
-    async function loadUsers() {
-      try {
-        const res = await fetch("/user/all");
-        const users = await res.json();
+    function logoutAdmin() {
+      localStorage.removeItem("adminLoggedIn");
+      localStorage.removeItem("adminEmail");
+      window.location.href = "admin.html";
+    }
 
+    function updateAdminInfo() {
+      const adminEmail = localStorage.getItem("adminEmail");
+      const adminInfoEl = document.getElementById("adminInfo");
+      
+      if (adminEmail) {
+        adminInfoEl.textContent = `Logged in as: ${adminEmail}`;
+        adminInfoEl.style.color = "#4ade80";
+      } else {
+        adminInfoEl.textContent = "Not logged in";
+        adminInfoEl.style.color = "#f87171";
+      }
+    }
+
+    async function loadUsers() {
+      // Check session first
+      if (!checkAdminSession()) return;
+
+      try {
+        console.log("📡 Loading users from API...");
+        
+        // ✅ FIXED: Remove Authorization header since we're not using tokens
+        const res = await fetch(`${API_BASE}/user/all`);
+
+        if (!res.ok) {
+          throw new Error(`Failed to load users: ${res.status}`);
+        }
+
+        const users = await res.json();
         const tbody = document.querySelector("#usersTable tbody");
         tbody.innerHTML = "";
+
+        console.log("✅ Users loaded:", users);
+
         let total = 0;
+        
+        if (!users || users.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align: center; color: #9ca3af;">
+                No users found
+              </td>
+            </tr>
+          `;
+          document.getElementById("totalBalance").textContent = "₦0";
+          return;
+        }
 
         users.forEach((u, i) => {
           total += u.balance || 0;
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${i + 1}</td>
-            <td>${u._id}</td>
-            <td>${u.nickname}</td>
-            <td>${u.email}</td>
-            <td>${u.balance}</td>
+            <td class="muted">${u._id ? u._id.substring(0, 8) + '...' : 'N/A'}</td>
+            <td>${u.nickname || "—"}</td>
+            <td>${u.email || "—"}</td>
+            <td>₦${(u.balance || 0).toLocaleString()}</td>
             <td>${u.rank || "-"}</td>
           `;
           tbody.appendChild(tr);
         });
 
-        document.getElementById("totalBalance").textContent = total.toFixed(2);
+        document.getElementById("totalBalance").textContent = 
+          `₦${total.toLocaleString()}`;
+
       } catch (err) {
-        console.error("Failed to load users:", err);
+        console.error("❌ Failed to load users:", err);
         document.getElementById("totalBalance").textContent = "Error loading data";
+        
+        const tbody = document.querySelector("#usersTable tbody");
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align: center; color: #f87171;">
+              Error loading users: ${err.message}
+            </td>
+          </tr>
+        `;
       }
     }
 
-    document.addEventListener("DOMContentLoaded", loadUsers);
+    document.addEventListener("DOMContentLoaded", function() {
+      console.log("🚀 Admin dashboard loaded");
+      
+      // Check session on page load
+      if (!checkAdminSession()) return;
+      
+      // Update admin info display
+      updateAdminInfo();
+      
+      // Load users
+      loadUsers();
+    });
   </script>
 </body>
 </html>
