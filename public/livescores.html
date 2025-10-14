@@ -310,8 +310,16 @@
       `;
 
       try {
-        const res = await fetch("/livescore");
+        // ✅ FIXED: Use the full API_BASE URL
+        const res = await fetch(`${API_BASE}/livescore`);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
         const scores = await res.json();
+        
+        console.log("✅ Live scores loaded:", scores); // Debug log
         
         list.innerHTML = "";
         
@@ -329,9 +337,14 @@
         scores.forEach(score => {
           const scoreCard = document.createElement("div");
           scoreCard.className = "score-card";
+          
+          // ✅ FIXED: Better error handling for missing data
+          const tournamentName = score.tournament || score.name || 'Live Match';
+          const streamLink = score.link || score.streamUrl || '#';
+          
           scoreCard.innerHTML = `
-            <div class="tournament-name">${score.tournament || 'Live Match'}</div>
-            <a href="${score.link}" target="_blank" class="watch-btn">
+            <div class="tournament-name">${tournamentName}</div>
+            <a href="${streamLink}" target="_blank" class="watch-btn">
               📺 Watch Live
             </a>
           `;
@@ -339,12 +352,13 @@
         });
 
       } catch (err) {
-        console.error("Error loading scores:", err);
+        console.error("❌ Error loading scores:", err);
         list.innerHTML = `
           <div class="no-scores">
             <i>❌</i>
             <h3>Failed to Load</h3>
             <p>Please check your connection</p>
+            <p style="font-size: 12px; margin-top: 8px;">Error: ${err.message}</p>
           </div>
         `;
       }
@@ -380,6 +394,7 @@
     }
 
     document.addEventListener("DOMContentLoaded", function() {
+      console.log("🚀 Live scores page loaded");
       loadScores();
       setActiveTab();
       setupNavigation();
