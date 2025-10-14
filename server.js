@@ -7,11 +7,11 @@ const cors = require("cors");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-
-// ---------- Config ----------
 require("dotenv").config();
+
 const app = express();
 
+// ---------- Config ----------
 const JWT_SECRET = process.env.JWT_SECRET || "gamingcontinental_secret_2025";
 const MONGO_URI =
   process.env.MONGO_URI ||
@@ -104,6 +104,27 @@ const paymentRoutes = require("./routes/payment");
 const betRoutes = require("./routes/bet");
 const livestreamRoutes = require("./routes/livestream");
 
+// ---------- Admin Login (MUST BE ABOVE protected routes) ----------
+app.post("/admin/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const admin = await Admin.findOne({ email });
+    if (!admin) return res.status(400).json({ error: "Invalid credentials" });
+
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+
+    const token = jwt.sign({ id: admin._id, isAdmin: true }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({ message: "Admin login successful ✅", token });
+  } catch (err) {
+    console.error("Admin login error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ---------- Use Routes ----------
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
@@ -118,26 +139,6 @@ app.use("/tournament", tournamentRoutes);
 app.use("/tournament/public", publicTournamentRoutes);
 app.use("/admin/tournament", verifyAdmin, tournamentRoutes);
 app.use("/admin", verifyAdmin, adminRoutes);
-
-// ---------- Admin Login ----------
-app.post("/admin/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const admin = await Admin.findOne({ email });
-    if (!admin) return res.status(400).json({ error: "Invalid credentials" });
-
-    const isMatch = await bcrypt.compare(password, admin.password);
-    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
-
-    const token = jwt.sign({ id: admin._id, isAdmin: true }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
-    res.json({ message: "Admin login successful ✅", token });
-  } catch (err) {
-    console.error("Admin login error:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
 
 // ---------- Health Check / Test ----------
 app.get("/auth/test", (req, res) => {
