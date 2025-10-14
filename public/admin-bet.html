@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin - Manage Matches</title>
+  <link rel="stylesheet" href="admin-bet.css">
+  <style>
+    .goal-controls button {
+      padding: 2px 8px;
+      margin: 0 2px;
+    }
+    .score {
+      font-weight: bold;
+      margin: 0 5px;
+    }
+    .status.live { color: red; font-weight: bold; }
+    .status.off { color: gray; }
+    .status.open { color: green; }
+    .status.closed { color: orange; }
+    .status.finished { color: blue; }
+    .actions button {
+      margin: 2px;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    .btn-live { background: #ff4444; color: white; }
+    .btn-close { background: #ffaa00; color: white; }
+    .btn-finish { background: #0088cc; color: white; }
+    .btn-edit { background: #00aa00; color: white; }
+    .btn-delete { background: #cc0000; color: white; }
+    
+    /* Edit Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      margin: 5% auto;
+      padding: 20px;
+      width: 80%;
+      max-width: 600px;
+      border-radius: 10px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .close-modal {
+      background: #cc0000;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-buttons">
+      <h2>⚽ Admin - Manage Matches</h2>
+      <button onclick="window.location='admin-bet-history.html'">📜 View Bet History</button>
+    </div>
+
+    <!-- Upload Match -->
+    <label>Home Team</label>
+    <input id="home" placeholder="Enter Home team" />
+
+    <label>Away Team</label>
+    <input id="away" placeholder="Enter Away team" />
+
+    <label>Date</label>
+    <input id="date" type="date" />
+
+    <label>Time</label>
+    <input id="time" type="time" />
+
+    <!-- 1X2 Market -->
+    <div class="section">
+      <h3>1X2 Odds</h3>
+      <div class="odds-grid">
+        <input id="home_odd" placeholder="Home (1)" />
+        <input id="draw_odd" placeholder="Draw (X)" />
+        <input id="away_odd" placeholder="Away (2)" />
+      </div>
+    </div>
+
+    <!-- GG / NG -->
+    <div class="section">
+      <h3>GG / NG (Both Teams to Score)</h3>
+      <div class="odds-grid">
+        <input id="gg_yes" placeholder="GG Yes Odd" />
+        <input id="gg_no" placeholder="GG No Odd" />
+      </div>
+    </div>
+
+    <!-- Over/Under -->
+    <div class="section">
+      <h3>Over / Under Goals</h3>
+      <div class="odds-grid">
+        <input id="over_1_5" placeholder="Over 1.5" />
+        <input id="under_1_5" placeholder="Under 1.5" />
+        <input id="over_2_5" placeholder="Over 2.5" />
+        <input id="under_2_5" placeholder="Under 2.5" />
+        <input id="over_3_5" placeholder="Over 3.5" />
+        <input id="under_3_5" placeholder="Under 3.5" />
+        <input id="over_4_5" placeholder="Over 4.5" />
+        <input id="under_4_5" placeholder="Under 4.5" />
+        <input id="over_5_5" placeholder="Over 5.5" />
+        <input id="under_5_5" placeholder="Under 5.5" />
+        <input id="over_6_5" placeholder="Over 6.5" />
+        <input id="under_6_5" placeholder="Under 6.5" />
+        <input id="over_7_5" placeholder="Over 7.5" />
+        <input id="under_7_5" placeholder="Under 7.5" />
+        <input id="over_8_5" placeholder="Over 8.5" />
+        <input id="under_8_5" placeholder="Under 8.5" />
+        <input id="over_9_5" placeholder="Over 9.5" />
+        <input id="under_9_5" placeholder="Under 9.5" />
+        <input id="over_10_5" placeholder="Over 10.5" />
+        <input id="under_10_5" placeholder="Under 10.5" />
+      </div>
+    </div>
+
+    <button class="btn-main" onclick="uploadMatch()">Upload Match</button>
+    <p id="message"></p>
+
+    <!-- Uploaded Matches -->
+    <div class="history">
+      <h3>📋 Uploaded Matches</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Match</th>
+            <th>Date</th>
+            <th>Score</th>
+            <th>Live</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="matchBody">
+          <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Edit Match Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Edit Match Odds</h3>
+        <button class="close-modal" onclick="closeEditModal()">✖ Close</button>
+      </div>
+      
+      <div id="editForm">
+        <!-- Edit form will be dynamically inserted here -->
+      </div>
+      
+      <button class="btn-main" onclick="saveEditedMatch()">💾 Save Changes</button>
+      <button class="btn-close" onclick="closeEditModal()">❌ Cancel</button>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = "http://localhost:5000/api/match";
+  const BET_API_BASE = "http://localhost:5000/bets";
+  let currentEditMatchId = null;
+
+  // Get admin token from localStorage
+  function getAdminToken() {
+    return localStorage.getItem("adminToken");
+  }
+
+  // Headers with admin auth
+  function getHeaders() {
+    const token = getAdminToken();
+    return {
+      "Content-Type": "application/json",
+      "Authorization": token ? `Bearer ${token}` : ""
+    };
+  }
+
+  // Check if admin is logged in
+  function checkAdminAuth() {
+    if (!getAdminToken()) {
+      alert("❌ Please log in as admin first");
+      window.location.href = "admin.html";
+      return false;
+    }
+    return true;
+  }
+
+  async function uploadMatch() {
+    if (!checkAdminAuth()) return;
+    
+    const msg = document.getElementById("message");
+    msg.innerHTML = "";
+
+    // Build odds object
+    const odds = {
+      "1X2": {
+        home: parseFloat(document.getElementById("home_odd").value) || 1.5,
+        draw: parseFloat(document.getElementById("draw_odd").value) || 1.5,
+        away: parseFloat(document.getElementById("away_odd").value) || 1.5
+      },
+      "GG/NG": {
+        yes: parseFloat(document.getElementById("gg_yes").value) || 1.5,
+        no: parseFloat(document.getElementById("gg_no").value) || 1.5
+      },
+      "O/U": {}
+    };
+
+    // Add Over/Under odds
+    const lines = [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5];
+    lines.forEach(line => {
+      const overVal = document.getElementById(`over_${line.toString().replace('.', '_')}`).value;
+      const underVal = document.getElementById(`under_${line.toString().replace('.', '_')}`).value;
+      if (overVal) odds["O/U"][`over_${line}`] = parseFloat(overVal);
+      if (underVal) odds["O/U"][`under_${line}`] = parseFloat(underVal);
+    });
+
+    const payload = {
+      home: document.getElementById("home").value.trim(),
+      away: document.getElementById("away").value.trim(),
+      date: document.getElementById("date").value,
+      time: document.getElementById("time").value,
+      odds: odds,
+      isLive: false
+    };
+
+    // Validation
+    if (!payload.home || !payload.away) {
+      msg.className = "error";
+      msg.innerText = "❌ Please enter both team names";
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/create`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        msg.className = "success";
+        msg.innerText = "✅ Match uploaded successfully!";
+        clearForm();
+        await loadMatches();
+      } else {
+        msg.className = "error";
+        msg.innerText = "❌ " + (data.error || "Upload failed");
+      }
+    } catch (err) {
+      msg.className = "error";
+      msg.innerText = "⚠️ Connection error: " + err.message;
+    }
+  }
+
+  function clearForm() {
+    document.getElementById("home").value = "";
+    document.getElementById("away").value = "";
+    document.getElementById("date").value = "";
+    document.getElementById("time").value = "";
+    // Clear odds inputs
+    document.querySelectorAll('input[type="text"]').forEach(input => {
+      if (input.id.includes('_odd') || input.id.includes('gg_') || input.id.includes('over_') || input.id.includes('under_')) {
+        input.value = "";
+      }
+    });
+  }
+
+  async function loadMatches() {
+    if (!checkAdminAuth()) return;
+    
+    const body = document.getElementById("matchBody");
+    body.innerHTML = "<tr><td colspan='6'>Loading...</td></tr>";
+
+    try {
+      const res = await fetch(`${API_BASE}`, {
+        headers: getHeaders()
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      const matches = await res.json();
+      const list = Array.isArray(matches) ? matches : [];
+
+      if (list.length === 0) {
+        body.innerHTML = "<tr><td colspan='6'>No matches yet.</td></tr>";
+        return;
+      }
+
+      body.innerHTML = "";
+      list.forEach(m => {
+        const row = `
+          <tr>
+            <td><strong>${m.home}</strong> vs <strong>${m.away}</strong></td>
+            <td>${m.date || 'N/A'} ${m.time || ''}</td>
+            <td class="goal-controls">
+              <button onclick="updateGoal('${m._id}', 'home', -1)">-</button>
+              <span class="score">${m.homeGoals ?? 0}</span>
+              <button onclick="updateGoal('${m._id}', 'home', 1)">+</button>
+              &nbsp;–&nbsp;
+              <button onclick="updateGoal('${m._id}', 'away', -1)">-</button>
+              <span class="score">${m.awayGoals ?? 0}</span>
+              <button onclick="updateGoal('${m._id}', 'away', 1)">+</button>
+            </td>
+            <td><span class="status ${m.isLive ? 'live' : 'off'}">${m.isLive ? "LIVE" : "OFF"}</span></td>
+            <td><span class="status ${m.status}">${m.status || 'open'}</span></td>
+            <td class="actions">
+              <button class="btn-live" onclick="toggleLive('${m._id}')">${m.isLive ? '❌ Stop' : '🔴 Go Live'}</button>
+              <button class="btn-close" onclick="toggleClose('${m._id}')">${m.status === 'closed' ? '📂 Open' : '🔒 Close'}</button>
+              <button class="btn-finish" onclick="finishMatch('${m._id}')">🏁 Finish</button>
+              <button class="btn-edit" onclick="openEditModal('${m._id}')" ${m.status !== 'closed' ? 'disabled' : ''}>✏️ Edit</button>
+              <button class="btn-delete" onclick="deleteMatch('${m._id}')">🗑️ Delete</button>
+            </td>
+          </tr>
+        `;
+        body.innerHTML += row;
+      });
+    } catch (err) {
+      console.error("Error loading matches:", err);
+      body.innerHTML = `<tr><td colspan='6' style='color:red;'>Error loading matches: ${err.message}</td></tr>`;
+    }
+  }
+
+  // DELETE MATCH FUNCTION
+  async function deleteMatch(matchId) {
+    if (!checkAdminAuth()) return;
+    
+    if (!confirm("Are you sure you want to delete this match? It will be removed from the betting page but will remain in history for users who placed bets.")) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE}/${matchId}`, {
+        method: "DELETE",
+        headers: getHeaders()
+      });
+      
+      if (res.ok) {
+        alert("✅ Match deleted successfully!");
+        await loadMatches();
+      } else {
+        const data = await res.json();
+        alert("❌ " + (data.error || "Failed to delete match"));
+      }
+    } catch (err) {
+      console.error("Delete match error:", err);
+      alert("Error deleting match");
+    }
+  }
+
+  // EDIT MATCH FUNCTIONS
+  async function openEditModal(matchId) {
+    if (!checkAdminAuth()) return;
+    
+    try {
+      const res = await fetch(`${API_BASE}`, { headers: getHeaders() });
+      const matches = await res.json();
+      const match = matches.find(m => m._id === matchId);
+      
+      if (!match) {
+        alert("Match not found");
+        return;
+      }
+
+      if (match.status !== 'closed') {
+        alert("❌ Please close the bet first before editing odds!");
+        return;
+      }
+
+      currentEditMatchId = matchId;
+      
+      // Create edit form
+      const editForm = document.getElementById("editForm");
+      editForm.innerHTML = `
+        <div class="section">
+          <h4>${match.home} vs ${match.away}</h4>
+          
+          <label>1X2 Odds</label>
+          <div class="odds-grid">
+            <input id="edit_home_odd" placeholder="Home (1)" value="${match.odds?.["1X2"]?.home || ''}" />
+            <input id="edit_draw_odd" placeholder="Draw (X)" value="${match.odds?.["1X2"]?.draw || ''}" />
+            <input id="edit_away_odd" placeholder="Away (2)" value="${match.odds?.["1X2"]?.away || ''}" />
+          </div>
+        </div>
+
+        <div class="section">
+          <label>GG / NG Odds</label>
+          <div class="odds-grid">
+            <input id="edit_gg_yes" placeholder="GG Yes" value="${match.odds?.["GG/NG"]?.yes || ''}" />
+            <input id="edit_gg_no" placeholder="GG No" value="${match.odds?.["GG/NG"]?.no || ''}" />
+          </div>
+        </div>
+
+        <div class="section">
+          <label>Over / Under Odds</label>
+          <div class="odds-grid">
+            ${generateOverUnderInputs(match.odds?.["O/U"] || {})}
+          </div>
+        </div>
+      `;
+
+      document.getElementById("editModal").style.display = "block";
+    } catch (err) {
+      console.error("Open edit modal error:", err);
+      alert("Error loading match data for editing");
+    }
+  }
+
+  function generateOverUnderInputs(ouOdds) {
+    const lines = [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5];
+    let html = '';
+    
+    lines.forEach(line => {
+      const overVal = ouOdds[`over_${line}`] || '';
+      const underVal = ouOdds[`under_${line}`] || '';
+      
+      html += `
+        <input id="edit_over_${line.toString().replace('.', '_')}" placeholder="Over ${line}" value="${overVal}" />
+        <input id="edit_under_${line.toString().replace('.', '_')}" placeholder="Under ${line}" value="${underVal}" />
+      `;
+    });
+    
+    return html;
+  }
+
+  function closeEditModal() {
+    document.getElementById("editModal").style.display = "none";
+    currentEditMatchId = null;
+  }
+
+  async function saveEditedMatch() {
+    if (!currentEditMatchId) return;
+    
+    try {
+      // Build updated odds object
+      const updatedOdds = {
+        "1X2": {
+          home: parseFloat(document.getElementById("edit_home_odd").value) || 1.5,
+          draw: parseFloat(document.getElementById("edit_draw_odd").value) || 1.5,
+          away: parseFloat(document.getElementById("edit_away_odd").value) || 1.5
+        },
+        "GG/NG": {
+          yes: parseFloat(document.getElementById("edit_gg_yes").value) || 1.5,
+          no: parseFloat(document.getElementById("edit_gg_no").value) || 1.5
+        },
+        "O/U": {}
+      };
+
+      // Add Over/Under odds
+      const lines = [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5];
+      lines.forEach(line => {
+        const overVal = document.getElementById(`edit_over_${line.toString().replace('.', '_')}`).value;
+        const underVal = document.getElementById(`edit_under_${line.toString().replace('.', '_')}`).value;
+        if (overVal) updatedOdds["O/U"][`over_${line}`] = parseFloat(overVal);
+        if (underVal) updatedOdds["O/U"][`under_${line}`] = parseFloat(underVal);
+      });
+
+      const updatePayload = {
+        odds: updatedOdds
+      };
+
+      const res = await fetch(`${API_BASE}/${currentEditMatchId}`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify(updatePayload)
+      });
+
+      if (res.ok) {
+        alert("✅ Match odds updated successfully!");
+        closeEditModal();
+        await loadMatches();
+      } else {
+        const data = await res.json();
+        alert("❌ " + (data.error || "Failed to update match odds"));
+      }
+    } catch (err) {
+      console.error("Save edited match error:", err);
+      alert("Error saving match changes");
+    }
+  }
+
+  async function toggleLive(id) {
+    if (!checkAdminAuth()) return;
+    
+    try {
+      const res = await fetch(`${API_BASE}/${id}/live`, {
+        method: "PUT",
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        await loadMatches();
+      } else {
+        alert("Failed to toggle live status");
+      }
+    } catch (err) {
+      console.error("Toggle live error:", err);
+      alert("Error toggling live status");
+    }
+  }
+
+  async function toggleClose(id) {
+    if (!checkAdminAuth()) return;
+    
+    try {
+      const res = await fetch(`${API_BASE}/${id}/close`, {
+        method: "PUT",
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        await loadMatches();
+      } else {
+        alert("Failed to toggle close status");
+      }
+    } catch (err) {
+      console.error("Toggle close error:", err);
+      alert("Error toggling close status");
+    }
+  }
+
+  // ✅ UPDATED: FINISH MATCH - CHECK BETS BUT WAIT FOR ALL MATCHES
+  async function finishMatch(id) {
+    if (!checkAdminAuth()) return;
+    
+    if (!confirm("Are you sure you want to finish this match? This will update bet statuses but won't pay out until ALL matches in each bet finish.")) {
+      return;
+    }
+    
+    try {
+      // Step 1: Mark match as finished
+      const finishRes = await fetch(`${API_BASE}/${id}/finish`, {
+        method: "PUT",
+        headers: getHeaders()
+      });
+      
+      if (!finishRes.ok) {
+        const data = await finishRes.json();
+        throw new Error(data.error || "Failed to finish match");
+      }
+
+      // Step 2: ✅ CHECK BETS (but don't settle until all matches finish)
+      const checkRes = await fetch(`${BET_API_BASE}/check/${id}`, {
+        method: "POST",
+        headers: getHeaders()
+      });
+
+      let checkMessage = "";
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        checkMessage = `\n\n📊 Bet Check: ${checkData.message}`;
+        console.log("Bet check summary:", checkData.summary);
+      } else {
+        checkMessage = "\n\n⚠️ Bet check may need manual review";
+      }
+
+      alert("✅ Match finished successfully!" + checkMessage + "\n\n💰 Payouts will happen automatically when ALL matches in each bet finish.");
+      await loadMatches();
+      
+    } catch (err) {
+      console.error("Finish match error:", err);
+      alert("❌ " + (err.message || "Failed to finish match"));
+    }
+  }
+
+  async function updateGoal(id, team, change) {
+    if (!checkAdminAuth()) return;
+    
+    try {
+      // Get current match data
+      const res = await fetch(`${API_BASE}`, { headers: getHeaders() });
+      const matches = await res.json();
+      const match = matches.find(m => m._id === id);
+      
+      if (!match) {
+        alert("Match not found");
+        return;
+      }
+
+      let homeGoals = match.homeGoals || 0;
+      let awayGoals = match.awayGoals || 0;
+
+      if (team === "home") {
+        homeGoals = Math.max(0, homeGoals + change);
+      } else {
+        awayGoals = Math.max(0, awayGoals + change);
+      }
+
+      const updateRes = await fetch(`${API_BASE}/${id}/goals`, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify({ homeGoals, awayGoals })
+      });
+
+      if (updateRes.ok) {
+        await loadMatches();
+      } else {
+        alert("Failed to update goals");
+      }
+    } catch (err) {
+      console.error("Goal update error:", err);
+      alert("Error updating goals");
+    }
+  }
+
+  // Load matches when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    if (checkAdminAuth()) {
+      loadMatches();
+    }
+  });
+</script>
+  
+</body>
+</html>

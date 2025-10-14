@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tournaments - Gaming Continental</title>
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: "Poppins", Arial, sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+      padding: 16px;
+      color: #222;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.5rem;
+      margin-bottom: 18px;
+      color: #111;
+    }
+
+    #tournamentList {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card {
+      background: #722F37;
+      color: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease;
+      position: relative;
+    }
+
+    .card:active {
+      transform: scale(0.98);
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 1.1rem;
+      color: #fff;
+    }
+
+    .card p {
+      font-size: 0.9rem;
+      margin: 6px 0;
+      line-height: 1.4;
+    }
+
+    .card img {
+      width: 100%;
+      border-radius: 8px;
+      margin: 8px 0;
+      object-fit: cover;
+      max-height: 180px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #1766d1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.2s ease;
+    }
+
+    button:active {
+      background: #0f4da5;
+      transform: scale(0.99);
+    }
+
+    button:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-open { background: #10b981; color: white; }
+    .status-closed { background: #f59e0b; color: white; }
+    .status-full { background: #ef4444; color: white; }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 3px;
+      margin: 8px 0;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #10b981;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .players-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.9);
+    }
+
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 14px;
+      width: 90%;
+      max-width: 400px;
+      color: #333;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #2d3748;
+    }
+
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #6b7280;
+      padding: 5px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .balance-info {
+      background: #f0f9ff;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      border-left: 4px solid #667eea;
+    }
+
+    .balance-amount {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #065f46;
+    }
+
+    .error-message {
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border-left: 4px solid #dc2626;
+      display: none;
+    }
+
+    .success-message {
+      background: #f0fdf4;
+      color: #065f46;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border-left: 4px solid #10b981;
+      display: none;
+    }
+
+    .amount-range {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-top: 5px;
+    }
+
+    #footerContainer {
+      margin-top: 30px;
+    }
+
+    @media (min-width: 600px) {
+      body {
+        max-width: 480px;
+        margin: 0 auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>🏆 Available Tournaments</h1>
+  <div id="tournamentList"></div>
+
+  <!-- Registration Modal -->
+  <div id="registrationModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Register for Tournament</h3>
+        <button class="close-modal" onclick="closeRegistrationModal()">×</button>
+      </div>
+      
+      <div id="modalError" class="error-message"></div>
+      <div id="modalSuccess" class="success-message"></div>
+      
+      <div class="balance-info">
+        <strong>Your Balance:</strong>
+        <span class="balance-amount" id="userBalance">₦0.00</span>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Tournament</label>
+        <input type="text" id="modalTournamentName" class="form-input" readonly>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Entry Amount (₦)</label>
+        <input type="number" id="registrationAmount" class="form-input" 
+               min="0" step="0.01" placeholder="Enter amount">
+        <div class="amount-range">
+          Min: <span id="minAmount">0</span> - Max: <span id="maxAmount">0</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Available Slots</label>
+        <input type="text" id="availableSlots" class="form-input" readonly>
+      </div>
+      
+      <button id="registerBtn" class="btn-primary" onclick="registerForTournament()">
+        Register Now
+      </button>
+    </div>
+  </div>
+<script>
+    const listDiv = document.getElementById("tournamentList");
+    const API_BASE = "http://localhost:5000";
+    let currentUser = null;
+    let currentTournaments = [];
+    let selectedTournament = null;
+
+    // DOM Elements for modal
+    const registrationModal = document.getElementById("registrationModal");
+    const modalError = document.getElementById("modalError");
+    const modalSuccess = document.getElementById("modalSuccess");
+
+    // Initialize
+    document.addEventListener("DOMContentLoaded", function() {
+      checkAuth();
+      loadTournaments();
+    });
+
+    // Check authentication - SIMPLE VERSION (ID only)
+    function checkAuth() {
+      const userId = localStorage.getItem("userId");
+      
+      console.log("Auth check - UserID:", userId);
+      
+      if (userId) {
+        currentUser = {
+          id: userId
+        };
+        console.log("✅ User is logged in. ID:", userId);
+      } else {
+        console.log("❌ User is not logged in");
+        currentUser = null;
+      }
+    }
+
+    async function loadTournaments() {
+      try {
+        const res = await fetch(`${API_BASE}/tournament/public`);
+        const tournaments = await res.json();
+
+        listDiv.innerHTML = "";
+        if (!Array.isArray(tournaments) || tournaments.length === 0) {
+          listDiv.innerHTML = "<p style='text-align:center;'>No tournaments available yet.</p>";
+          return;
+        }
+
+        // Filter out deleted tournaments
+        currentTournaments = tournaments.filter(t => t.status !== 'deleted');
+        
+        if (currentTournaments.length === 0) {
+          listDiv.innerHTML = "<p style='text-align:center;'>No tournaments available yet.</p>";
+          return;
+        }
+
+        currentTournaments.forEach(t => {
+          const progress = ((t.registeredPlayers || 0) / t.maxPlayers) * 100;
+          const isFull = (t.registeredPlayers || 0) >= t.maxPlayers;
+          const isClosed = t.status === 'closed';
+          
+          let status = 'open';
+          let statusText = 'OPEN';
+          
+          if (isClosed) {
+            status = 'closed';
+            statusText = 'CLOSED';
+          } else if (isFull) {
+            status = 'full';
+            statusText = 'FULL';
+          }
+
+          let buttonHtml = '';
+          if (!currentUser) {
+            buttonHtml = `<button onclick="redirectToLogin()">Login to Register</button>`;
+          } else if (isClosed) {
+            buttonHtml = `<button disabled>Registration Closed</button>`;
+          } else if (isFull) {
+            buttonHtml = `<button disabled>Tournament Full</button>`;
+          } else {
+            buttonHtml = `<button onclick="openRegistrationModal('${t._id}')">Register Now</button>`;
+          }
+
+          listDiv.innerHTML += `
+            <div class="card">
+              <div class="status-badge status-${status}">${statusText}</div>
+              <h3>${escapeHtml(t.title)}</h3>
+              ${t.image ? `<img src="${escapeHtml(t.image)}" alt="${escapeHtml(t.title)}" onerror="this.style.display='none'"/>` : ""}
+              <p>${escapeHtml(t.description)}</p>
+              
+              <div class="players-info">
+                <span>Players: ${t.registeredPlayers || 0}/${t.maxPlayers}</span>
+                <span>${Math.round(progress)}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${progress}%"></div>
+              </div>
+              
+              <p><b>Entry Fee:</b> ₦${t.minAmount} - ₦${t.maxAmount}</p>
+              ${buttonHtml}
+            </div>
+          `;
+        });
+      } catch (err) {
+        console.error("Load tournaments error:", err);
+        listDiv.innerHTML = "<p style='color:red;text-align:center;'>Failed to load tournaments.</p>";
+      }
+    }
+
+    // Redirect to login page
+    function redirectToLogin() {
+      window.location.href = "index.html"; // Change this to your login page
+    }
+
+    // Open registration modal
+    function openRegistrationModal(tournamentId) {
+      if (!currentUser) {
+        alert("Please log in to register for tournaments.");
+        redirectToLogin();
+        return;
+      }
+
+      selectedTournament = currentTournaments.find(t => t._id === tournamentId);
+      if (!selectedTournament) {
+        showModalError("Tournament not found");
+        return;
+      }
+
+      // Check if tournament is open and has slots
+      if (selectedTournament.status !== 'open') {
+        showModalError("This tournament is not open for registration");
+        return;
+      }
+
+      if (selectedTournament.registeredPlayers >= selectedTournament.maxPlayers) {
+        showModalError("This tournament is full");
+        return;
+      }
+
+      // Load user balance
+      loadUserBalance();
+
+      // Update modal content
+      document.getElementById("modalTournamentName").value = selectedTournament.title;
+      document.getElementById("minAmount").textContent = selectedTournament.minAmount;
+      document.getElementById("maxAmount").textContent = selectedTournament.maxAmount;
+      document.getElementById("registrationAmount").value = selectedTournament.minAmount;
+      document.getElementById("registrationAmount").min = selectedTournament.minAmount;
+      document.getElementById("registrationAmount").max = selectedTournament.maxAmount;
+      
+      const availableSlots = selectedTournament.maxPlayers - (selectedTournament.registeredPlayers || 0);
+      document.getElementById("availableSlots").value = `${availableSlots} slots available`;
+
+      // Clear messages
+      hideModalMessages();
+      
+      // Show modal
+      registrationModal.style.display = "block";
+    }
+
+    // Close registration modal
+    function closeRegistrationModal() {
+      registrationModal.style.display = "none";
+      selectedTournament = null;
+      hideModalMessages();
+    }
+
+    // Load user balance - SIMPLE VERSION (No token)
+    async function loadUserBalance() {
+      if (!currentUser) return;
+
+      try {
+        const userId = localStorage.getItem("userId");
+        console.log("Loading balance for user:", userId);
+        
+        const response = await fetch(`${API_BASE}/user/${userId}`);
+        
+        console.log("Balance response status:", response.status);
+        
+        if (response.ok) {
+          const userData = await response.json();
+          document.getElementById("userBalance").textContent = `₦${(userData.balance || 0).toLocaleString()}`;
+          console.log("Balance loaded:", userData.balance);
+        } else {
+          console.error("Failed to load balance:", response.status);
+        }
+      } catch (error) {
+        console.error("Error loading user balance:", error);
+      }
+    }
+
+    // Register for tournament - SIMPLE VERSION (No token)
+    async function registerForTournament() {
+      if (!currentUser) {
+        showModalError("Please login to register");
+        redirectToLogin();
+        return;
+      }
+
+      const amountInput = document.getElementById("registrationAmount");
+      const amount = parseFloat(amountInput.value);
+
+      // Validation
+      if (!amount || isNaN(amount)) {
+        showModalError("Please enter a valid amount");
+        return;
+      }
+
+      if (amount < selectedTournament.minAmount || amount > selectedTournament.maxAmount) {
+        showModalError(`Amount must be between ₦${selectedTournament.minAmount} and ₦${selectedTournament.maxAmount}`);
+        return;
+      }
+
+      const registerBtn = document.getElementById("registerBtn");
+      registerBtn.disabled = true;
+      registerBtn.textContent = "Registering...";
+
+      try {
+        const userId = localStorage.getItem("userId");
+        const response = await fetch(`${API_BASE}/tournament/register/${selectedTournament._id}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            userId: userId,
+            amount: amount
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          showModalSuccess("Registration successful! You have been registered for the tournament.");
+          
+          // Reload tournaments after successful registration
+          setTimeout(() => {
+            closeRegistrationModal();
+            loadTournaments();
+          }, 2000);
+        } else {
+          showModalError(result.error || "Registration failed. Please try again.");
+        }
+      } catch (error) {
+        console.error("Registration error:", error);
+        showModalError("Network error. Please check your connection and try again.");
+      } finally {
+        registerBtn.disabled = false;
+        registerBtn.textContent = "Register Now";
+      }
+    }
+
+    // Utility functions
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function showModalError(message) {
+      modalError.textContent = message;
+      modalError.style.display = "block";
+      modalSuccess.style.display = "none";
+    }
+
+    function showModalSuccess(message) {
+      modalSuccess.textContent = message;
+      modalSuccess.style.display = "block";
+      modalError.style.display = "none";
+    }
+
+    function hideModalMessages() {
+      modalError.style.display = "none";
+      modalSuccess.style.display = "none";
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      if (event.target === registrationModal) {
+        closeRegistrationModal();
+      }
+    }
+
+    // Debug function to check login status
+    function checkLoginStatus() {
+      console.log("=== LOGIN STATUS ===");
+      console.log("userId:", localStorage.getItem("userId"));
+      console.log("currentUser:", currentUser);
+      console.log("====================");
+    }
+
+    // Call this to debug
+    checkLoginStatus();
+</script>
+  
+
+  <div id="footerContainer"></div>
+  <script src="footer.js"></script>
+</body>
+</html>

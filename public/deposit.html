@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Deposit Funds</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+      line-height: 1.5;
+    }
+    
+    .container {
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      color: white;
+    }
+    
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .header p {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #2d3748;
+      font-size: 1rem;
+    }
+    
+    .input-wrapper {
+      position: relative;
+    }
+    
+    .input-wrapper::before {
+      content: '₦';
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #4a5568;
+      font-weight: 600;
+      z-index: 2;
+      font-size: 1.1rem;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 16px 16px 16px 40px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      background: white;
+      transition: all 0.3s ease;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .form-input::placeholder {
+      color: #a0aec0;
+      font-weight: normal;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 18px 24px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+    }
+    
+    .btn-primary:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-success:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-secondary {
+      background: #007bff;
+      color: white;
+      font-size: 0.9rem;
+      padding: 10px 16px;
+      border-radius: 8px;
+    }
+    
+    .btn-secondary:active {
+      background: #0056b3;
+      transform: translateY(1px);
+    }
+    
+    .methods-section {
+      margin-top: 24px;
+    }
+    
+    .methods-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .methods-header h2 {
+      font-size: 1.4rem;
+      color: #2d3748;
+      font-weight: 700;
+    }
+    
+    .payment-method {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+      padding: 20px;
+      border-radius: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+    }
+    
+    .method-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    
+    .method-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    
+    .method-badge {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .method-detail {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .method-detail:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
+    
+    .detail-label {
+      font-weight: 600;
+      opacity: 0.9;
+      min-width: 120px;
+    }
+    
+    .detail-value {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    
+    .copy-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    
+    .account-number {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 12px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+    }
+    
+    .no-methods {
+      text-align: center;
+      padding: 40px 20px;
+      color: #718096;
+    }
+    
+    .no-methods i {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    .hidden { 
+      display: none; 
+    }
+    
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+      position: relative;
+    }
+    
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid #ffffff;
+      border-top: 2px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Success animation */
+    @keyframes successPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    
+    .success-pulse {
+      animation: successPulse 0.6s ease-in-out;
+    }
+    
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #10b981;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-weight: 600;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+    }
+    
+    .toast.show {
+      transform: translateX(0);
+    }
+    
+    .toast.error {
+      background: #dc2626;
+    }
+    
+    /* Responsive design */
+    @media (min-width: 768px) {
+      .container {
+        max-width: 400px;
+      }
+    }
+    
+    /* Touch-friendly sizes */
+    @media (max-width: 380px) {
+      .card {
+        padding: 20px;
+      }
+      
+      .btn {
+        padding: 16px 20px;
+        font-size: 1rem;
+      }
+      
+      .payment-method {
+        padding: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>💰 Deposit Funds</h1>
+      <p>Add money to your gaming account</p>
+    </div>
+
+    <!-- Deposit Amount Card -->
+    <div class="card">
+      <div class="form-group">
+        <label class="form-label">Enter Amount (₦)</label>
+        <div class="input-wrapper">
+          <input type="number" id="depositAmount" class="form-input" placeholder="5000" min="100" required />
+        </div>
+        <div style="text-align: center; margin-top: 8px;">
+          <small style="color: #718096;">Minimum deposit: ₦100</small>
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" onclick="showPaymentMethods()">
+        💳 Continue to Deposit
+      </button>
+    </div>
+
+    <!-- Payment Methods Section -->
+    <div id="paymentMethods" class="hidden">
+      <div class="card methods-section">
+        <div class="methods-header">
+          <h2>🏦 Select Payment Method</h2>
+          <p style="color: #718096; margin-top: 4px;">Choose your preferred bank</p>
+        </div>
+        
+        <div id="methodsList">
+          <!-- Payment methods will be loaded here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:5000";
+    const userId = localStorage.getItem("userId");
+    const token = localStorage.getItem("token");
+
+    // Show toast notification
+    function showToast(message, isError = false) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${isError ? 'error' : ''}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => toast.classList.add('show'), 100);
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => document.body.removeChild(toast), 300);
+      }, 3000);
+    }
+
+    async function showPaymentMethods() {
+      const amount = document.getElementById("depositAmount").value.trim();
+      if (!amount || amount <= 0) {
+        showToast("Please enter a valid deposit amount", true);
+        return;
+      }
+
+      if (amount < 100) {
+        showToast("Minimum deposit is ₦100", true);
+        return;
+      }
+
+      const btn = document.querySelector('.btn-primary');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = "🔄 Loading...";
+      btn.classList.add('loading');
+
+      try {
+        const res = await fetch(`${API_BASE}/payment/all`);
+        const data = await res.json();
+        const list = document.getElementById("methodsList");
+        const section = document.getElementById("paymentMethods");
+        list.innerHTML = "";
+
+        if (!res.ok || !Array.isArray(data) || data.length === 0) {
+          list.innerHTML = `
+            <div class="no-methods">
+              <i>🏦</i>
+              <h3>No Payment Methods</h3>
+              <p>Please try again later</p>
+            </div>
+          `;
+          section.classList.remove("hidden");
+          return;
+        }
+
+        data.forEach(method => {
+          const methodElement = document.createElement('div');
+          methodElement.className = 'payment-method';
+          methodElement.innerHTML = `
+            <div class="method-header">
+              <div class="method-title">${method.bankName}</div>
+              <div class="method-badge">Transfer</div>
+            </div>
+            
+            <div class="method-detail">
+              <span class="detail-label">Account Name:</span>
+              <span class="detail-value">${method.accountName}</span>
+            </div>
+            
+            <div class="method-detail">
+              <span class="detail-label">Account Number:</span>
+              <div class="copy-section">
+                <span class="account-number" id="acc-${method._id}">${method.accountNumber}</span>
+                <button class="btn-secondary" onclick="copyAccount('${method._id}')">
+                  📋 Copy
+                </button>
+              </div>
+            </div>
+            
+            <button class="btn btn-success" onclick="confirmPayment('${method._id}', ${amount})" style="margin-top: 16px;">
+              ✅ I Have Paid ₦${parseInt(amount).toLocaleString()}
+            </button>
+          `;
+          list.appendChild(methodElement);
+        });
+
+        section.classList.remove("hidden");
+        
+        // Scroll to payment methods
+        section.scrollIntoView({ behavior: 'smooth' });
+        
+      } catch (err) {
+        console.error("Error loading payment methods:", err);
+        showToast("Failed to load payment methods", true);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.classList.remove('loading');
+      }
+    }
+
+    function copyAccount(id) {
+      const text = document.getElementById(`acc-${id}`).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("✅ Account number copied!");
+        
+        // Add visual feedback to the copied button
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "✅ Copied!";
+        btn.style.background = '#10b981';
+        
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.background = '';
+        }, 2000);
+      }).catch(err => {
+        showToast("Failed to copy", true);
+      });
+    }
+
+    async function confirmPayment(methodId, amount) {
+      if (!userId || !token) {
+        showToast("Please login first", true);
+        setTimeout(() => window.location.href = "index.html", 2000);
+        return;
+      }
+
+      const btn = event.target;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = "🔄 Processing...";
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/deposit/create`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+          },
+          body: JSON.stringify({ userId, methodId, amount })
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Deposit failed");
+
+        showToast("✅ Deposit request sent! Waiting for admin approval.");
+        btn.classList.add('success-pulse');
+        
+        setTimeout(() => {
+          window.location.href = "dashboard.html";
+        }, 2000);
+        
+      } catch (err) {
+        console.error("Deposit error:", err);
+        showToast(err.message || "Error sending deposit request", true);
+        
+        btn.innerHTML = originalText;
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    // Add input validation
+    document.getElementById('depositAmount').addEventListener('input', function(e) {
+      let value = e.target.value;
+      if (value < 0) e.target.value = '';
+    });
+
+    // Enter key support
+    document.getElementById('depositAmount').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        showPaymentMethods();
+      }
+    });
+  </script>
+  
+</body>
+</html>

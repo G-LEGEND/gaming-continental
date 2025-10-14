@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin - Payment Methods</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8fafc;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #111;
+    }
+    .card {
+      background: #fff;
+      padding: 18px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      margin: 20px auto;
+      max-width: 500px;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #007bff;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover { background: #0056b3; }
+
+    .method-list {
+      margin-top: 20px;
+    }
+    .method-item {
+      background: #eef3ff;
+      padding: 14px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .method-item p {
+      margin: 0;
+    }
+    .method-item button {
+      margin-top: 6px;
+      background: #dc2626;
+    }
+    .method-item button:hover {
+      background: #a41c1c;
+    }
+  </style>
+</head>
+<body>
+  <h1>Admin - Manage Payment Methods</h1>
+
+  <div class="card">
+    <form id="paymentForm">
+      <input type="text" id="bankName" placeholder="Bank Name" required />
+      <input type="text" id="accountName" placeholder="Account Name" required />
+      <input type="text" id="accountNumber" placeholder="Account Number" required />
+      <button type="submit">Add Payment Method</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>All Payment Methods</h3>
+    <div class="method-list" id="methodList"></div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:5000";
+
+    async function loadPaymentMethods() {
+      try {
+        const res = await fetch(`${API_BASE}/payment/all`);
+        
+        if (!res.ok) {
+          throw new Error(`Failed to load: ${res.status}`);
+        }
+
+        const data = await res.json();
+        const list = document.getElementById("methodList");
+        list.innerHTML = "";
+
+        if (!Array.isArray(data) || data.length === 0) {
+          list.innerHTML = "<p>No payment methods available yet.</p>";
+          return;
+        }
+
+        data.forEach((method) => {
+          list.innerHTML += `
+            <div class="method-item">
+              <p><strong>Bank:</strong> ${method.bankName}</p>
+              <p><strong>Account Name:</strong> ${method.accountName}</p>
+              <p><strong>Account Number:</strong> ${method.accountNumber}</p>
+              <button onclick="deleteMethod('${method._id}')">Delete</button>
+            </div>
+          `;
+        });
+      } catch (err) {
+        console.error("Error loading payment methods:", err);
+        alert("Error loading payment methods: " + err.message);
+      }
+    }
+
+    document.getElementById("paymentForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const bankName = document.getElementById("bankName").value.trim();
+      const accountName = document.getElementById("accountName").value.trim();
+      const accountNumber = document.getElementById("accountNumber").value.trim();
+
+      if (!bankName || !accountName || !accountNumber)
+        return alert("All fields are required.");
+
+      try {
+        const res = await fetch(`${API_BASE}/payment/create`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ bankName, accountName, accountNumber }),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Failed to add payment method");
+        }
+
+        const data = await res.json();
+        alert("Payment method added successfully ✅");
+        document.getElementById("paymentForm").reset();
+        loadPaymentMethods();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+
+    async function deleteMethod(id) {
+      if (!confirm("Are you sure you want to delete this payment method?")) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/payment/${id}`, {
+          method: "DELETE"
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Failed to delete");
+        }
+
+        const data = await res.json();
+        alert("Deleted successfully ❌");
+        loadPaymentMethods();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadPaymentMethods);
+  </script>
+</body>
+</html>

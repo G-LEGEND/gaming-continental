@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin - Live Scores</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    :root{
+      --accent:#007BFF;
+      --card:#0f172a;
+      --muted:#94a3b8;
+    }
+
+    body { background: #0b1220; color: #e6eef8; font-family: Inter, "Segoe UI", Arial, sans-serif; margin: 0; padding: 24px 12px; }
+    .center { max-width: 920px; margin: 30px auto; }
+
+    h1 { text-align: center; margin-bottom: 22px; font-weight: 700; font-size: 22px; color: #fff; }
+
+    /* ---------- Form layout ---------- */
+    form#liveForm {
+      display: grid;
+      grid-template-columns: 3fr 5fr auto; /* title (3), link (5), small button */
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    /* Big inputs */
+    input[type="text"],
+    input[type="url"] {
+      width: 100%;
+      padding: 16px 18px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    }
+    input::placeholder { color: #98a2b3; }
+
+    /* Upload button: intentionally small */
+    button.upload-btn {
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: linear-gradient(135deg,#ffd54a,#ffb84d);
+      color: #0b1220;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(255,185,60,0.12);
+      transition: transform .12s ease, box-shadow .12s ease;
+      min-width: 92px;
+      justify-self: end;
+    }
+    button.upload-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,185,60,0.18); }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+    }
+    thead th {
+      background: #0b1220;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    tbody td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+      color: #e6eef8;
+    }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+    a.view-link {
+      display: inline-block;
+      padding: 8px 12px;
+      background: rgba(0,123,255,0.12);
+      color: var(--accent);
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .delete-btn {
+      background: #dc2626;
+      color: white;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .delete-btn:hover { opacity: 0.95; transform: translateY(-1px); }
+
+    /* Responsive: stack fields on small screens */
+    @media (max-width: 760px) {
+      form#liveForm {
+        grid-template-columns: 1fr;
+      }
+      button.upload-btn { justify-self: stretch; width: 100%; }
+      .center { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="center">
+    <h1>⚽ Manage Live Scores</h1>
+
+    <form id="liveForm">
+      <input type="text" id="tournament" placeholder="Tournament name (e.g. Africa Cup 2025)" required />
+      <input type="url" id="link" placeholder="Live score URL (paste full link, e.g. https://... )" required />
+      <button class="upload-btn" type="submit">Upload</button>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Tournament</th>
+          <th>Live Link</th>
+          <th style="width:120px">Action</th>
+        </tr>
+      </thead>
+      <tbody id="liveTable"></tbody>
+    </table>
+  </div>
+
+  <script>
+    async function loadScores() {
+      try {
+        const res = await fetch("/livescore");
+        const scores = await res.json();
+        const tbody = document.getElementById("liveTable");
+        tbody.innerHTML = "";
+        scores.forEach(s => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${escapeHtml(s.tournament)}</td>
+            <td><a class="view-link" href="${s.link}" target="_blank" rel="noopener noreferrer">Open live</a></td>
+            <td><button class="delete-btn" onclick="deleteScore('${s._id}')">Delete</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Failed to load livescores", err);
+      }
+    }
+
+    document.getElementById("liveForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const tournament = document.getElementById("tournament").value.trim();
+      const link = document.getElementById("link").value.trim();
+      if (!tournament || !link) return alert("Both fields required");
+
+      try {
+        const res = await fetch("/livescore", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tournament, link })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(()=>({error:'unknown'}));
+          return alert("Upload failed: " + (err.error || "server error"));
+        }
+        loadScores();
+        e.target.reset();
+      } catch (err) {
+        alert("Upload failed");
+        console.error(err);
+      }
+    });
+
+    async function deleteScore(id) {
+      if (!confirm("Delete this live score?")) return;
+      try {
+        const res = await fetch("/livescore/" + id, { method: "DELETE" });
+        if (!res.ok) {
+          const err = await res.json().catch(()=>({error:'unknown'}));
+          return alert("Delete failed: " + (err.error || "server error"));
+        }
+        loadScores();
+      } catch (err) {
+        alert("Delete failed");
+        console.error(err);
+      }
+    }
+
+    // small helper to avoid injecting raw html (very small)
+    function escapeHtml(text) {
+      return String(text).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+    }
+
+    document.addEventListener("DOMContentLoaded", loadScores);
+  </script>
+</body>
+</html>

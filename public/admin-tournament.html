@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Tournament Management</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background:#f4f6f8; color:#111; }
+    .wrap { max-width:900px; margin:0 auto; }
+    h1 { text-align:center; margin-bottom:18px; }
+    .card { background:#fff; padding:14px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.06); margin-bottom:12px; }
+    form input, form textarea { width:100%; padding:8px; margin:8px 0; border-radius:6px; border:1px solid #ddd; box-sizing:border-box; }
+    button { padding:10px 14px; border-radius:6px; cursor:pointer; border:none; }
+    .btn-primary { background:#1766d1; color:#fff; }
+    .btn-secondary { background:#6b7280; color:#fff; }
+    .btn-danger { background:#dc2626; color:#fff; }
+    .btn-success { background:#0b6138; color:#fff; }
+    .btn-warning { background:#d97706; color:#fff; }
+    img.thumb { max-width:220px; display:block; margin-top:8px; border-radius:6px; }
+    .muted { color:#666; font-size:13px; }
+    #msg { margin:10px 0; font-weight:600; }
+    .players { margin-top:8px; }
+    .player { padding:10px; border-radius:6px; border:1px solid #eee; margin-bottom:8px; background:#fafafa; }
+    .status-badge { 
+      padding: 4px 8px; 
+      border-radius: 12px; 
+      font-size: 12px; 
+      font-weight: bold; 
+      margin-left: 8px;
+    }
+    .status-open { background: #d1fae5; color: #065f46; }
+    .status-closed { background: #fef3c7; color: #92400e; }
+    .status-deleted { background: #fee2e2; color: #991b1b; }
+    .modal { 
+      display: none; 
+      position: fixed; 
+      top: 0; left: 0; 
+      width: 100%; height: 100%; 
+      background: rgba(0,0,0,0.5); 
+      z-index: 1000; 
+    }
+    .modal-content { 
+      background: white; 
+      margin: 5% auto; 
+      padding: 20px; 
+      border-radius: 8px; 
+      width: 90%; 
+      max-width: 600px; 
+      max-height: 80vh; 
+      overflow-y: auto; 
+    }
+    .player-grid { 
+      display: grid; 
+      grid-template-columns: 1fr auto auto; 
+      gap: 10px; 
+      align-items: center; 
+      margin-bottom: 10px; 
+      padding: 10px; 
+      border: 1px solid #e5e7eb; 
+      border-radius: 6px; 
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Admin — Tournament Management</h1>
+
+    <div id="msg" role="status" aria-live="polite"></div>
+
+    <form id="tournamentForm" class="card" autocomplete="off">
+      <input type="text" id="title" placeholder="Title" required>
+      <input type="number" id="maxPlayers" placeholder="Max Players (e.g. 30)" required>
+      <input type="number" id="minAmount" placeholder="Minimum Amount" step="0.01" required>
+      <input type="number" id="maxAmount" placeholder="Maximum Amount" step="0.01" required>
+      <textarea id="description" placeholder="Tournament description..." rows="4" required></textarea>
+      <input type="text" id="image" placeholder="Image URL (optional)">
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button id="addBtn" type="submit" class="btn-primary">Add Tournament</button>
+        <button id="clearBtn" type="button" class="btn-secondary">Clear</button>
+      </div>
+    </form>
+
+    <h2>Existing Tournaments</h2>
+    <div id="tournamentList"></div>
+
+    <!-- View Players Modal -->
+    <div id="playersModal" class="modal">
+      <div class="modal-content">
+        <h3>Tournament Players</h3>
+        <div id="modalPlayersList"></div>
+        <button onclick="closePlayersModal()" class="btn-secondary" style="margin-top: 15px;">Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ---------- Config ---------- */
+const API_BASE = "http://localhost:5000/tournament/public";
+
+/* ---------- Helpers ---------- */
+function getAdminToken() {
+  return localStorage.getItem("adminToken");
+}
+
+function escapeHtml(str = "") {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function showMsg(text = "", isError = false) {
+  const el = document.getElementById("msg");
+  el.textContent = text;
+  el.style.color = isError ? "#b91c1c" : "#0b6138";
+}
+
+function getStatusBadge(status) {
+  const badges = {
+    open: '<span class="status-badge status-open">OPEN</span>',
+    closed: '<span class="status-badge status-closed">CLOSED</span>',
+    deleted: '<span class="status-badge status-deleted">DELETED</span>'
+  };
+  return badges[status] || '';
+}
+
+/* Check token and redirect if missing/invalid */
+function ensureTokenOrRedirect() {
+  const token = getAdminToken();
+  if (!token) {
+    alert("Admin session missing — please log in.");
+    window.location.href = "admin.html";
+    throw new Error("Missing admin token");
+  }
+  return token;
+}
+
+/* Handle API responses */
+async function fetchWithAuth(url, opts = {}) {
+  const token = ensureTokenOrRedirect();
+  opts.headers = Object.assign({}, opts.headers || {}, {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer " + token
+  });
+
+  let res;
+  try {
+    res = await fetch(url, opts);
+  } catch (err) {
+    throw new Error("Network error: " + (err.message || err));
+  }
+
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem("adminToken");
+    alert("Session expired. Please log in again.");
+    window.location.href = "admin.html";
+    throw new Error("Unauthorized");
+  }
+
+  let json;
+  try { json = await res.json(); } catch { json = null; }
+
+  if (!res.ok) {
+    const msg = (json && (json.error || json.message)) || res.statusText || "Request failed";
+    throw new Error(msg);
+  }
+
+  return json;
+}
+
+/* ---------- Form submit: Add tournament ---------- */
+const form = document.getElementById("tournamentForm");
+const addBtn = document.getElementById("addBtn");
+const clearBtn = document.getElementById("clearBtn");
+const tournamentList = document.getElementById("tournamentList");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  showMsg("");
+
+  try {
+    ensureTokenOrRedirect();
+
+    const payload = {
+      title: document.getElementById("title").value.trim(),
+      maxPlayers: parseInt(document.getElementById("maxPlayers").value, 10),
+      minAmount: parseFloat(document.getElementById("minAmount").value),
+      maxAmount: parseFloat(document.getElementById("maxAmount").value),
+      description: document.getElementById("description").value.trim(),
+      image: document.getElementById("image").value.trim()
+    };
+
+    if (!payload.title || isNaN(payload.maxPlayers) || isNaN(payload.minAmount) || isNaN(payload.maxAmount) || !payload.description) {
+      showMsg("Please fill all required fields correctly.", true);
+      return;
+    }
+
+    addBtn.disabled = true;
+    addBtn.textContent = "Uploading...";
+
+    const result = await fetchWithAuth(`${API_BASE}/add`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    showMsg(result.message || "Tournament added successfully");
+    form.reset();
+    await loadTournaments();
+  } catch (err) {
+    console.error("Add tournament error:", err);
+    showMsg(err.message || "Failed to add tournament", true);
+  } finally {
+    addBtn.disabled = false;
+    addBtn.textContent = "Add Tournament";
+  }
+});
+
+clearBtn.addEventListener("click", () => {
+  form.reset();
+  showMsg("");
+});
+
+/* ---------- Load tournaments ---------- */
+async function loadTournaments() {
+  showMsg("Loading tournaments...");
+  try {
+    const list = await fetchWithAuth(`${API_BASE}`, { method: "GET" }) || [];
+    renderTournamentList(list);
+    showMsg("");
+  } catch (err) {
+    console.error("loadTournaments error:", err);
+    showMsg(err.message || "Could not load tournaments", true);
+  }
+}
+
+function renderTournamentList(list) {
+  tournamentList.innerHTML = "";
+  if (!Array.isArray(list) || list.length === 0) {
+    tournamentList.innerHTML = '<div class="muted card">No tournaments yet</div>';
+    return;
+  }
+
+  // Filter out deleted tournaments
+  const activeTournaments = list.filter(t => t.status !== 'deleted');
+
+  activeTournaments.forEach(t => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>${escapeHtml(t.title || '')} ${getStatusBadge(t.status)}</h3>
+        <div style="display: flex; gap: 8px;">
+          ${t.status === 'open' ? 
+            `<button class="btn-warning close-tournament-btn" data-id="${t._id}">Close</button>` : 
+            `<button class="btn-success open-tournament-btn" data-id="${t._id}">Reopen</button>`
+          }
+          <button class="btn-danger delete-tournament-btn" data-id="${t._id}">Delete</button>
+          <button class="btn-primary view-players-btn" data-id="${t._id}">View Players</button>
+        </div>
+      </div>
+      ${t.image ? `<img class="thumb" src="${escapeHtml(t.image)}" alt="">` : ''}
+      <p>${escapeHtml(t.description || '')}</p>
+      <p class="muted">Players: ${t.registeredPlayers ?? 0} / ${t.maxPlayers ?? '-'}</p>
+      <p class="muted">Amount: Min ${t.minAmount ?? '-'} , Max ${t.maxAmount ?? '-'}</p>
+      <p class="muted">Created: ${new Date(t.createdAt).toLocaleDateString()}</p>
+    `;
+    tournamentList.appendChild(card);
+  });
+
+  // Add event listeners
+  tournamentList.querySelectorAll(".close-tournament-btn").forEach(btn => {
+    btn.addEventListener("click", () => closeTournament(btn.dataset.id));
+  });
+  
+  tournamentList.querySelectorAll(".open-tournament-btn").forEach(btn => {
+    btn.addEventListener("click", () => openTournament(btn.dataset.id));
+  });
+  
+  tournamentList.querySelectorAll(".delete-tournament-btn").forEach(btn => {
+    btn.addEventListener("click", () => deleteTournament(btn.dataset.id));
+  });
+  
+  tournamentList.querySelectorAll(".view-players-btn").forEach(btn => {
+    btn.addEventListener("click", () => viewPlayers(btn.dataset.id));
+  });
+}
+
+/* ---------- Tournament Actions ---------- */
+async function closeTournament(tournamentId) {
+  if (!confirm("Are you sure you want to close this tournament? Users won't be able to register.")) return;
+  
+  try {
+    await fetchWithAuth(`${API_BASE}/close/${tournamentId}`, {
+      method: "PUT"
+    });
+    showMsg("Tournament closed successfully");
+    await loadTournaments();
+  } catch (err) {
+    console.error("Close tournament error:", err);
+    showMsg(err.message || "Failed to close tournament", true);
+  }
+}
+
+async function openTournament(tournamentId) {
+  try {
+    await fetchWithAuth(`${API_BASE}/open/${tournamentId}`, {
+      method: "PUT"
+    });
+    showMsg("Tournament reopened successfully");
+    await loadTournaments();
+  } catch (err) {
+    console.error("Open tournament error:", err);
+    showMsg(err.message || "Failed to reopen tournament", true);
+  }
+}
+
+async function deleteTournament(tournamentId) {
+  if (!confirm("Are you sure you want to delete this tournament? This action cannot be undone.")) return;
+  
+  try {
+    await fetchWithAuth(`${API_BASE}/delete/${tournamentId}`, {
+      method: "DELETE"
+    });
+    showMsg("Tournament deleted successfully");
+    await loadTournaments();
+  } catch (err) {
+    console.error("Delete tournament error:", err);
+    showMsg(err.message || "Failed to delete tournament", true);
+  }
+}
+
+/* ---------- View Players Modal ---------- */
+let currentTournamentId = null;
+
+async function viewPlayers(tournamentId) {
+  currentTournamentId = tournamentId;
+  showMsg("Loading players...");
+  
+  try {
+    const players = await fetchWithAuth(`${API_BASE}/players/${tournamentId}`, { method: "GET" }) || [];
+    renderPlayersModal(players);
+    document.getElementById('playersModal').style.display = 'block';
+    showMsg("");
+  } catch (err) {
+    console.error("loadPlayers error:", err);
+    showMsg(err.message || "Could not load players", true);
+  }
+}
+
+function renderPlayersModal(players) {
+  const modalPlayersList = document.getElementById('modalPlayersList');
+  modalPlayersList.innerHTML = "";
+  
+  if (!Array.isArray(players) || players.length === 0) {
+    modalPlayersList.innerHTML = '<div class="muted">No players registered</div>';
+    return;
+  }
+
+  players.forEach(p => {
+    const user = p.userId || {};
+    const playerCard = document.createElement("div");
+    playerCard.className = "player-grid";
+    playerCard.innerHTML = `
+      <div>
+        <strong>${escapeHtml(user.nickname || 'Unknown')}</strong><br>
+        <small class="muted">${escapeHtml(user.email || '—')}</small><br>
+        <small>Balance: ₦${(user.balance || 0).toLocaleString()}</small><br>
+        <small>Registered: ${new Date(p.registeredAt || p.createdAt).toLocaleDateString()}</small>
+      </div>
+      <div>
+        <strong>Amount: ₦${(p.amount || 0).toLocaleString()}</strong><br>
+        Status: ${escapeHtml(p.status || 'pending')}<br>
+        ${p.position ? `Position: ${escapeHtml(p.position)}` : ''}
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <button class="btn-success" onclick="setPlayerResult('${p._id}', 'win')">Win</button>
+        <button class="btn-danger" onclick="setPlayerResult('${p._id}', 'lose')">Lose</button>
+        <button class="btn-primary" onclick="addBalanceToPlayer('${user._id}', '${user.nickname}')">Add Balance</button>
+      </div>
+    `;
+    modalPlayersList.appendChild(playerCard);
+  });
+}
+
+function closePlayersModal() {
+  document.getElementById('playersModal').style.display = 'none';
+}
+
+/* ---------- Set Player Result ---------- */
+async function setPlayerResult(regId, status) {
+  let position = "";
+  let prize = 0;
+
+  if (status === "win") {
+    position = prompt("Enter position (e.g. 1st):", "1st");
+    if (position === null) return;
+    const prizeRaw = prompt("Enter prize amount:", "100");
+    if (prizeRaw === null) return;
+    prize = parseFloat(prizeRaw);
+    if (isNaN(prize)) { alert("Invalid prize amount"); return; }
+  }
+
+  try {
+    await fetchWithAuth(`${API_BASE}/result/${regId}`, {
+      method: "POST",
+      body: JSON.stringify({ status, position, prize })
+    });
+
+    alert("Result updated successfully");
+    // Reload players in modal
+    if (currentTournamentId) viewPlayers(currentTournamentId);
+  } catch (err) {
+    console.error("adminSetResult error:", err);
+    alert(err.message || "Failed to update result");
+  }
+}
+
+/* ---------- Add Balance to Player ---------- */
+async function addBalanceToPlayer(userId, nickname) {
+  const amount = prompt(`Enter amount to add to ${nickname}:`, "0");
+  if (amount === null) return;
+  
+  const numAmount = parseFloat(amount);
+  if (isNaN(numAmount) || numAmount <= 0) {
+    alert("Please enter a valid amount");
+    return;
+  }
+
+  const description = prompt("Enter description for this transaction:", "Admin balance addition");
+  if (description === null) return;
+
+  try {
+    const result = await fetchWithAuth(`${API_BASE}/add-balance`, {
+      method: "POST",
+      body: JSON.stringify({ 
+        userId, 
+        amount: numAmount, 
+        description 
+      })
+    });
+
+    alert(`Balance added successfully! New balance: ₦${result.newBalance.toLocaleString()}`);
+    // Reload players to show updated balance
+    if (currentTournamentId) viewPlayers(currentTournamentId);
+  } catch (err) {
+    console.error("Add balance error:", err);
+    alert(err.message || "Failed to add balance");
+  }
+}
+
+/* ---------- Init ---------- */
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    ensureTokenOrRedirect();
+    loadTournaments();
+  } catch (err) {
+    console.error("Initialization error:", err);
+  }
+});
+</script>
+</body>
+</html>

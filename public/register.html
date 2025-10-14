@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gaming Continental - Register</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- ✅ Simple mobile nav -->
+  <header class="nav">
+    <a href="/index.html">Home</a>
+    <a href="/tournament.html">Tournament</a>
+    <a href="/livescores.html">Livescores</a>
+    <a href="/deposit.html">Deposit</a>
+    <a href="/withdraw.html">Withdraw</a>
+  </header>
+
+  <main class="auth-container">
+    <div class="auth-card">
+      <!-- Brand Section -->
+      <div class="auth-header">
+        <div class="auth-icon">🎮</div>
+        <div class="auth-title">Join Gaming Continental</div>
+        <div class="auth-subtitle">Create your account and start winning</div>
+      </div>
+
+      <form id="registerForm">
+        <div class="form-group">
+          <label class="form-label" for="nickname">Nickname</label>
+          <input type="text" id="nickname" name="username" class="form-input" placeholder="Enter your gaming nickname" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regEmail">Email Address</label>
+          <input type="email" id="regEmail" name="email" class="form-input" placeholder="Enter your email" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regPassword">Password</label>
+          <input type="password" id="regPassword" name="password" class="form-input" placeholder="Create a strong password" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="regConfirm">Confirm Password</label>
+          <input type="password" id="regConfirm" name="confirm" class="form-input" placeholder="Repeat your password" required />
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+          Create Account
+        </button>
+      </form>
+
+      <div class="auth-link">
+        Already have an account?
+        <a href="/index.html">Sign In</a>
+      </div>
+
+      <div id="registerMessage" class="message"></div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = "http://localhost:5000";
+
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const nickname = document.getElementById("nickname").value.trim();
+      const email = document.getElementById("regEmail").value.trim();
+      const password = document.getElementById("regPassword").value.trim();
+      const confirm = document.getElementById("regConfirm").value.trim();
+      const msg = document.getElementById("registerMessage");
+      const submitBtn = document.getElementById("submitBtn");
+
+      // Clear previous messages
+      msg.textContent = "";
+      msg.className = "message";
+      
+      // Validation
+      if (password !== confirm) {
+        msg.textContent = "❌ Passwords do not match";
+        msg.className = "message error";
+        return;
+      }
+
+      if (password.length < 6) {
+        msg.textContent = "❌ Password must be at least 6 characters";
+        msg.className = "message error";
+        return;
+      }
+
+      // Show loading state
+      submitBtn.textContent = "Creating Account...";
+      submitBtn.disabled = true;
+      submitBtn.classList.add('loading');
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            nickname, 
+            email: email.toLowerCase(), 
+            password 
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Registration failed");
+
+        // Show success message
+        msg.textContent = "✅ Account created successfully! Redirecting...";
+        msg.className = "message success";
+
+        // Auto-login after successful registration
+        setTimeout(async () => {
+          try {
+            const loginRes = await fetch(`${API_BASE}/auth/login`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: email.toLowerCase(), password }),
+            });
+
+            const loginData = await loginRes.json();
+            if (loginRes.ok) {
+              // Save login info
+              localStorage.setItem("token", loginData.token);
+              localStorage.setItem("userId", loginData.user._id);
+              localStorage.setItem("userEmail", loginData.user.email);
+              localStorage.setItem("nickname", loginData.user.nickname || "");
+              
+              window.location.href = "/dashboard.html";
+            } else {
+              // If auto-login fails, redirect to login page
+              window.location.href = "/index.html";
+            }
+          } catch (loginErr) {
+            console.error("Auto-login failed:", loginErr);
+            window.location.href = "/index.html";
+          }
+        }, 1500);
+
+      } catch (err) {
+        console.error("Registration error:", err);
+        msg.textContent = "❌ " + (err.message || "Registration failed. Try again.");
+        msg.className = "message error";
+      } finally {
+        // Reset button state
+        submitBtn.textContent = "Create Account";
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+      }
+    });
+
+    // Add input validation
+    document.getElementById('regEmail').addEventListener('input', function(e) {
+      this.value = this.value.toLowerCase();
+    });
+
+    // Real-time password match checking
+    document.getElementById('regConfirm').addEventListener('input', function() {
+      const password = document.getElementById('regPassword').value;
+      const confirm = this.value;
+      const msg = document.getElementById('registerMessage');
+      
+      if (confirm && password !== confirm) {
+        msg.textContent = "❌ Passwords do not match";
+        msg.className = "message error";
+      } else if (confirm && password === confirm) {
+        msg.textContent = "✅ Passwords match";
+        msg.className = "message success";
+      } else {
+        msg.textContent = "";
+        msg.className = "message";
+      }
+    });
+
+    // Enter key support
+    document.getElementById('regConfirm').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        document.getElementById('registerForm').dispatchEvent(new Event('submit'));
+      }
+    });
+  </script>
+</body>
+</html>

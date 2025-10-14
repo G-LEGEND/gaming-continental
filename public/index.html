@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gaming Continental - Login</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #333;
+      line-height: 1.5;
+    }
+
+    /* Header Navigation */
+    .nav {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .nav a {
+      color: #4f46e5;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 8px 12px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+
+    .nav a:hover {
+      background: rgba(79, 70, 229, 0.1);
+      transform: translateY(-1px);
+    }
+
+    /* Main Container */
+    .center {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 90vh;
+      padding: 20px;
+    }
+
+    /* Login Card */
+    .card {
+      width: 100%;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 32px 28px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Header */
+    .card h2 {
+      text-align: center;
+      margin-bottom: 8px;
+      color: #2d3748;
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    .card > p {
+      text-align: center;
+      color: #718096;
+      margin-bottom: 32px;
+      font-size: 1rem;
+    }
+
+    /* Form Styles */
+    #loginForm {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-label {
+      font-weight: 600;
+      color: #2d3748;
+      font-size: 0.9rem;
+    }
+
+    .form-input {
+      padding: 16px 20px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1rem;
+      background: white;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .form-input::placeholder {
+      color: #a0aec0;
+    }
+
+    /* Submit Button */
+    .submit-btn {
+      padding: 18px 24px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+      margin-top: 8px;
+    }
+
+    .submit-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Register Link */
+    .register-link {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.95rem;
+      color: #718096;
+    }
+
+    .register-link a {
+      color: #4f46e5;
+      font-weight: 700;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .register-link a:active {
+      color: #3730a3;
+    }
+
+    /* Messages */
+    .message {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 12px 16px;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .message.success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 2px solid #a7f3d0;
+    }
+
+    .message.error {
+      background: #fee2e2;
+      color: #dc2626;
+      border: 2px solid #fecaca;
+    }
+
+    .message.info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 2px solid #93c5fd;
+    }
+
+    /* Loading animation */
+    .loading {
+      position: relative;
+      pointer-events: none;
+    }
+
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid transparent;
+      border-top: 2px solid #ffffff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Logo/Brand */
+    .brand {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .brand-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .brand-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 4px;
+    }
+
+    .brand-tagline {
+      color: #718096;
+      font-size: 0.9rem;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+      .nav {
+        gap: 12px;
+        padding: 12px;
+      }
+      
+      .nav a {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+      }
+      
+      .card {
+        padding: 24px 20px;
+        margin: 0 16px;
+      }
+      
+      .card h2 {
+        font-size: 1.6rem;
+      }
+      
+      .form-input {
+        padding: 14px 16px;
+      }
+      
+      .submit-btn {
+        padding: 16px 20px;
+        font-size: 1rem;
+      }
+    }
+
+    @media (max-width: 320px) {
+      .nav {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .brand-icon {
+        font-size: 2.5rem;
+      }
+      
+      .brand-text {
+        font-size: 1.3rem;
+      }
+    }
+
+    /* Password toggle (optional enhancement) */
+    .password-wrapper {
+      position: relative;
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #718096;
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- ✅ Simple mobile nav -->
+  <header class="nav">
+    <a href="/index.html">Home</a>
+    <a href="/tournament.html">Tournament</a>
+    <a href="/livescores.html">Livescores</a>
+    <a href="/deposit.html">Deposit</a>
+    <a href="/withdraw.html">Withdraw</a>
+  </header>
+
+  <!-- ✅ Mobile-centered container -->
+  <main class="center">
+    <div class="card">
+      <!-- Brand Section -->
+      <div class="brand">
+        <div class="brand-icon">🎮</div>
+        <div class="brand-text">Gaming Continental</div>
+        <div class="brand-tagline">Play. Compete. Win.</div>
+      </div>
+
+      <h2>Welcome Back!</h2>
+      <p>Sign in to your account</p>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input type="email" id="email" class="form-input" placeholder="Enter your email" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" class="form-input" placeholder="Enter your password" required />
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          Sign In
+        </button>
+      </form>
+
+      <div class="register-link">
+        Don't have an account?
+        <a href="/register.html">Create Account</a>
+      </div>
+
+      <div id="loginMessage" class="message"></div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = "http://localhost:5000";
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const msg = document.getElementById("loginMessage");
+      const submitBtn = document.getElementById("submitBtn");
+
+      // Clear previous messages
+      msg.textContent = "";
+      msg.className = "message";
+      
+      // Show loading state
+      submitBtn.textContent = "Signing In...";
+      submitBtn.disabled = true;
+      submitBtn.classList.add('loading');
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Login failed");
+
+        // ✅ Save login info to localStorage
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("userId", data.user._id);
+        localStorage.setItem("userEmail", data.user.email);
+        localStorage.setItem("nickname", data.user.nickname || "");
+
+        // Show success message
+        msg.textContent = "✅ Login successful! Redirecting...";
+        msg.className = "message success";
+
+        // ✅ Wait before redirecting
+        setTimeout(() => {
+          const token = localStorage.getItem("token");
+          const userId = localStorage.getItem("userId");
+
+          if (token && userId) {
+            window.location.href = "/dashboard.html";
+          } else {
+            msg.textContent = "❌ Error saving session. Please login again.";
+            msg.className = "message error";
+          }
+        }, 1200);
+      } catch (err) {
+        console.error("Login error:", err);
+        msg.textContent = "❌ " + (err.message || "Something went wrong. Try again.");
+        msg.className = "message error";
+      } finally {
+        // Reset button state
+        submitBtn.textContent = "Sign In";
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+      }
+    });
+
+    // Add input validation
+    document.getElementById('email').addEventListener('input', function(e) {
+      this.value = this.value.toLowerCase();
+    });
+
+    // Enter key support
+    document.getElementById('password').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+      }
+    });
+  </script>
+</body>
+</html>

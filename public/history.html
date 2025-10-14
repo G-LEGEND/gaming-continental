@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transaction History - Gaming Continental</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #722F37 0%, #8B4513 100%);
+      min-height: 100vh;
+      color: #333;
+      padding: 0;
+    }
+    
+    .container {
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+      color: white;
+      padding-top: 10px;
+    }
+    
+    .header h1 {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .header p {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .stat-card {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card h3 {
+      font-size: 1.4rem;
+      margin-bottom: 4px;
+      color: #722F37;
+    }
+    
+    .stat-card p {
+      font-size: 0.8rem;
+      color: #666;
+    }
+    
+    .filters {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .filter-group {
+      margin-bottom: 12px;
+    }
+    
+    .filter-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+      font-size: 0.9rem;
+    }
+    
+    .filter-group select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: white;
+    }
+    
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .transaction-card {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-left: 4px solid #722F37;
+    }
+    
+    .transaction-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    
+    .transaction-type {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .type-deposit { background: #d1fae5; color: #065f46; }
+    .type-withdraw { background: #fee2e2; color: #991b1b; }
+    .type-tournament { background: #dbeafe; color: #1e40af; }
+    .type-bet { background: #fef3c7; color: #92400e; }
+    
+    .transaction-amount {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    
+    .amount-positive { color: #10b981; }
+    .amount-negative { color: #ef4444; }
+    
+    .transaction-description {
+      color: #666;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    
+    .transaction-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: #888;
+    }
+    
+    .transaction-status {
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-approved { background: #d1fae5; color: #065f46; }
+    .status-rejected { background: #fee2e2; color: #991b1b; }
+    .status-completed { background: #d1fae5; color: #065f46; }
+    .status-win { background: #10b981; color: white; }
+    .status-lose { background: #ef4444; color: white; }
+    
+    .no-data {
+      text-align: center;
+      padding: 60px 20px;
+      color: white;
+    }
+    
+    .no-data i {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.7;
+    }
+    
+    .no-data h3 {
+      font-size: 1.3rem;
+      margin-bottom: 8px;
+    }
+    
+    .no-data p {
+      opacity: 0.8;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: white;
+    }
+    
+    .loading-spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #fff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .refresh-btn {
+      width: 100%;
+      padding: 14px;
+      background: #1766d1;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: background 0.3s ease;
+    }
+    
+    .refresh-btn:active {
+      background: #0f4da5;
+      transform: scale(0.98);
+    }
+    
+    .login-prompt {
+      text-align: center;
+      padding: 60px 20px;
+      color: white;
+    }
+    
+    .login-btn {
+      display: inline-block;
+      padding: 14px 28px;
+      background: #1766d1;
+      color: white;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: 600;
+      margin-top: 16px;
+    }
+    
+    /* Swipe refresh indicator */
+    .refresh-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: #1766d1;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .refresh-indicator.active {
+      transform: scaleX(1);
+    }
+  </style>
+</head>
+<body>
+  <!-- Swipe Refresh Indicator -->
+  <div class="refresh-indicator" id="refreshIndicator"></div>
+
+  <div class="container">
+    <div class="header">
+      <h1>📊 Transaction History</h1>
+      <p>Your complete gaming transaction record</p>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-grid" id="statsSection" style="display: none;">
+      <div class="stat-card">
+        <h3 id="totalDeposits">₦0</h3>
+        <p>Total Deposits</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="totalWithdrawals">₦0</h3>
+        <p>Total Withdrawals</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="tournamentWins">0</h3>
+        <p>Tournament Wins</p>
+      </div>
+      <div class="stat-card">
+        <h3 id="totalProfit">₦0</h3>
+        <p>Net Profit</p>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters" id="filtersSection" style="display: none;">
+      <div class="filter-group">
+        <label for="typeFilter">Transaction Type</label>
+        <select id="typeFilter">
+          <option value="all">All Types</option>
+          <option value="deposit">Deposits</option>
+          <option value="withdraw">Withdrawals</option>
+          <option value="tournament">Tournaments</option>
+          <option value="bet">Bets</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter">
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="completed">Completed</option>
+          <option value="win">Win</option>
+          <option value="lose">Lose</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- History List -->
+    <div id="historyList">
+      <div class="loading" id="loadingSection">
+        <div class="loading-spinner"></div>
+        <p>Loading your history...</p>
+      </div>
+    </div>
+
+    <!-- Login Prompt -->
+    <div class="login-prompt" id="loginPrompt" style="display: none;">
+      <i>🔐</i>
+      <h3>Login Required</h3>
+      <p>Please log in to view your transaction history</p>
+      <a href="index.html" class="login-btn">Login Now</a>
+    </div>
+
+    <!-- Refresh Button -->
+    <button class="refresh-btn" id="refreshBtn" style="display: none;" onclick="loadUserHistory()">
+      🔄 Refresh History
+    </button>
+  </div>
+
+  <script>
+    // Configuration
+    const API_BASE = 'http://localhost:5000';
+    let currentUser = null;
+    let allHistory = [];
+
+    // DOM Elements
+    const statsSection = document.getElementById('statsSection');
+    const filtersSection = document.getElementById('filtersSection');
+    const historyList = document.getElementById('historyList');
+    const loadingSection = document.getElementById('loadingSection');
+    const loginPrompt = document.getElementById('loginPrompt');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const refreshIndicator = document.getElementById('refreshIndicator');
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      checkAuth();
+      setupSwipeRefresh();
+    });
+
+    // Check authentication using only user ID
+    function checkAuth() {
+      const userId = localStorage.getItem('userId');
+      
+      console.log('Auth check - UserID:', userId);
+      
+      if (userId) {
+        currentUser = { id: userId };
+        console.log('✅ User is logged in. ID:', userId);
+        showUserInterface();
+        loadUserHistory();
+      } else {
+        console.log('❌ User is not logged in');
+        showLoginPrompt();
+      }
+    }
+
+    // Show user interface when logged in
+    function showUserInterface() {
+      loadingSection.style.display = 'block';
+      loginPrompt.style.display = 'none';
+      statsSection.style.display = 'grid';
+      filtersSection.style.display = 'block';
+      refreshBtn.style.display = 'block';
+    }
+
+    // Show login prompt when not logged in
+    function showLoginPrompt() {
+      loadingSection.style.display = 'none';
+      loginPrompt.style.display = 'block';
+      statsSection.style.display = 'none';
+      filtersSection.style.display = 'none';
+      refreshBtn.style.display = 'none';
+    }
+
+    // Setup swipe refresh for mobile
+    function setupSwipeRefresh() {
+      let startY = 0;
+      let currentY = 0;
+      
+      document.addEventListener('touchstart', e => {
+        startY = e.touches[0].clientY;
+      });
+      
+      document.addEventListener('touchmove', e => {
+        currentY = e.touches[0].clientY;
+        
+        // Only trigger refresh when at the top of the page
+        if (window.scrollY === 0 && currentY > startY) {
+          const pullDistance = currentY - startY;
+          const pullRatio = Math.min(pullDistance / 100, 1);
+          refreshIndicator.style.transform = `scaleX(${pullRatio})`;
+        }
+      });
+      
+      document.addEventListener('touchend', e => {
+        const pullDistance = currentY - startY;
+        
+        if (pullDistance > 100 && window.scrollY === 0) {
+          // Trigger refresh
+          refreshIndicator.classList.add('active');
+          loadUserHistory();
+          
+          setTimeout(() => {
+            refreshIndicator.classList.remove('active');
+          }, 1000);
+        }
+        
+        // Reset pull indicator
+        refreshIndicator.style.transform = 'scaleX(0)';
+        startY = 0;
+        currentY = 0;
+      });
+    }
+
+    // Load user history
+    async function loadUserHistory() {
+      if (!currentUser) return;
+      
+      showLoading(true);
+      
+      try {
+        const userId = currentUser.id;
+        console.log('🔍 Loading history for user:', userId);
+        
+        const apiUrl = `${API_BASE}/user/transactions?userId=${userId}`;
+        console.log('🔍 API URL:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        
+        console.log('🔍 Response status:', response.status);
+        console.log('🔍 Response ok:', response.ok);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const transactions = await response.json();
+        console.log('🔍 Loaded transactions:', transactions);
+        
+        allHistory = transactions.map(tx => ({
+          ...tx,
+          date: new Date(tx.createdAt || tx.date)
+        })).sort((a, b) => b.date - a.date);
+
+        updateStatistics(allHistory);
+        filterHistory();
+        
+      } catch (error) {
+        console.error('❌ Error loading history:', error);
+        console.error('❌ Error details:', error.message);
+        showError('Failed to load transaction history: ' + error.message);
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // Filter history based on selections
+    function filterHistory() {
+      const typeFilter = document.getElementById('typeFilter').value;
+      const statusFilter = document.getElementById('statusFilter').value;
+
+      let filtered = allHistory;
+
+      // Filter by type
+      if (typeFilter !== 'all') {
+        filtered = filtered.filter(tx => {
+          // Map our new types to the filter options
+          if (typeFilter === 'tournament') {
+            return tx.type.includes('tournament');
+          }
+          return tx.type === typeFilter;
+        });
+      }
+
+      // Filter by status
+      if (statusFilter !== 'all') {
+        filtered = filtered.filter(tx => {
+          // Map status names
+          if (statusFilter === 'win') return tx.status === 'won';
+          if (statusFilter === 'lose') return tx.status === 'lost';
+          return tx.status === statusFilter;
+        });
+      }
+
+      displayHistory(filtered);
+    }
+
+    // Display history in mobile-friendly list
+    function displayHistory(history) {
+      if (history.length === 0) {
+        historyList.innerHTML = `
+          <div class="no-data">
+            <i>📝</i>
+            <h3>No transactions found</h3>
+            <p>Your transaction history will appear here</p>
+          </div>
+        `;
+        return;
+      }
+
+      historyList.innerHTML = `
+        <div class="history-list">
+          ${history.map(tx => `
+            <div class="transaction-card">
+              <div class="transaction-header">
+                <span class="transaction-type type-${getTypeClass(tx.type)}">${getTypeDisplay(tx.type)}</span>
+                <span class="transaction-amount ${getAmountClass(tx)}">${formatAmount(tx)}</span>
+              </div>
+              <div class="transaction-description">
+                ${escapeHtml(tx.description || getDefaultDescription(tx))}
+              </div>
+              <div class="transaction-footer">
+                <span>${formatDate(tx.date)}</span>
+                <span class="transaction-status status-${getStatusClass(tx.status)}">${getStatusDisplay(tx.status)}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      // Add event listeners for filters
+      document.getElementById('typeFilter').addEventListener('change', filterHistory);
+      document.getElementById('statusFilter').addEventListener('change', filterHistory);
+    }
+
+    // Update statistics
+    function updateStatistics(history) {
+      const totalDeposits = history
+        .filter(tx => tx.type === 'deposit' && (tx.status === 'approved' || tx.status === 'completed'))
+        .reduce((sum, tx) => sum + (Math.abs(tx.amount) || 0), 0);
+      
+      const totalWithdrawals = history
+        .filter(tx => tx.type === 'withdraw' && (tx.status === 'approved' || tx.status === 'completed'))
+        .reduce((sum, tx) => sum + (Math.abs(tx.amount) || 0), 0);
+      
+      const tournamentWins = history
+        .filter(tx => tx.type === 'tournament_win' && tx.status === 'won')
+        .length;
+      
+      const totalWins = history
+        .filter(tx => tx.status === 'won')
+        .reduce((sum, tx) => sum + (Math.abs(tx.amount) || 0), 0);
+      
+      const totalLosses = history
+        .filter(tx => (tx.type.includes('tournament') || tx.type.includes('bet')) && (tx.status === 'lost' || tx.amount < 0))
+        .reduce((sum, tx) => sum + (Math.abs(tx.amount) || 0), 0);
+      
+      const totalProfit = totalWins - totalLosses;
+
+      document.getElementById('totalDeposits').textContent = `₦${totalDeposits.toLocaleString()}`;
+      document.getElementById('totalWithdrawals').textContent = `₦${totalWithdrawals.toLocaleString()}`;
+      document.getElementById('tournamentWins').textContent = tournamentWins;
+      document.getElementById('totalProfit').textContent = `₦${totalProfit.toLocaleString()}`;
+    }
+
+    // ✅ FIXED: Utility functions with correct amount signage
+    function formatDate(date) {
+      return new Date(date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function formatAmount(tx) {
+      const amount = tx.amount || 0;
+      const sign = getAmountSign(tx);
+      return `${sign}₦${Math.abs(amount).toLocaleString()}`;
+    }
+
+    // ✅ FIXED: Determine amount sign based on transaction type
+    function getAmountSign(tx) {
+      // Negative amounts for these types
+      if (tx.type === 'withdraw' || tx.type === 'tournament_registration') {
+        return '-';
+      }
+      // Positive amounts for these types  
+      if (tx.type === 'deposit' || tx.type === 'tournament_win' || tx.type === 'bonus') {
+        return '+';
+      }
+      // Default positive
+      return '+';
+    }
+
+    // ✅ FIXED: Determine amount color based on transaction type
+    function getAmountClass(tx) {
+      // Red for negative transactions
+      if (tx.type === 'withdraw' || tx.type === 'tournament_registration') {
+        return 'amount-negative';
+      }
+      // Green for positive transactions
+      if (tx.type === 'deposit' || tx.type === 'tournament_win' || tx.type === 'bonus') {
+        return 'amount-positive';
+      }
+      // Default green
+      return 'amount-positive';
+    }
+
+    function getTypeClass(type) {
+      const typeMap = {
+        'deposit': 'deposit',
+        'withdraw': 'withdraw',
+        'tournament_registration': 'tournament',
+        'tournament_win': 'tournament',
+        'tournament_lose': 'tournament',
+        'bet_placed': 'bet',
+        'bet_win': 'bet',
+        'bet_lose': 'bet',
+        'bonus': 'deposit'
+      };
+      return typeMap[type] || 'tournament';
+    }
+
+    function getTypeDisplay(type) {
+      const displayMap = {
+        'deposit': 'Deposit',
+        'withdraw': 'Withdraw',
+        'tournament_registration': 'Tournament',
+        'tournament_win': 'Tournament Win',
+        'tournament_lose': 'Tournament',
+        'bonus': 'Bonus'
+      };
+      return displayMap[type] || type;
+    }
+
+    function getStatusClass(status) {
+      const statusMap = {
+        'pending': 'pending',
+        'approved': 'approved',
+        'rejected': 'rejected',
+        'completed': 'completed',
+        'won': 'win',
+        'lost': 'lose'
+      };
+      return statusMap[status] || status;
+    }
+
+    function getStatusDisplay(status) {
+      const displayMap = {
+        'pending': 'Pending',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+        'completed': 'Completed',
+        'won': 'Win',
+        'lost': 'Lose'
+      };
+      return displayMap[status] || status;
+    }
+
+    function getDefaultDescription(tx) {
+      const descriptions = {
+        deposit: 'Funds deposit',
+        withdraw: 'Withdrawal request',
+        tournament_registration: 'Tournament registration',
+        tournament_win: 'Tournament prize',
+        tournament_lose: 'Tournament completed',
+        bonus: 'Bonus credit'
+      };
+      return descriptions[tx.type] || 'Transaction';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+function showLoading(show) {
+      if (show) {
+        historyList.innerHTML = `
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>Loading your history...</p>
+          </div>
+        `;
+      }
+    }
+
+    function showError(message) {
+      historyList.innerHTML = `
+        <div class="no-data">
+          <i>❌</i>
+          <h3>Error Loading History</h3>
+          <p>${message}</p>
+          <button class="refresh-btn" onclick="loadUserHistory()" style="margin-top: 16px;">
+            Try Again
+          </button>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
+    

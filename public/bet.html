@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bet - Gaming Continental</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial,Helvetica,sans-serif; background:#f4f6f9; margin:0; padding:15px; color:#222; }
+    h1 { text-align:center; margin-bottom:15px; color:#16a34a; }
+    .container { display:flex; flex-direction:column; gap:20px; }
+    @media (min-width:900px){ .container{ flex-direction:row; align-items:flex-start; } }
+    .matches { flex:2; }
+    .match-card { background:#fff; border-radius:10px; padding:15px; margin-bottom:12px; box-shadow:0 4px 12px rgba(0,0,0,0.05); }
+    .match-header { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+    .teams { font-weight:700; }
+    .view-markets-btn { background:#3b82f6; color:#fff; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; font-size:12px; margin-top:8px; }
+    .market { margin-top:10px; padding-top:8px; border-top:1px solid #ddd; }
+    .odd-btn { background:#dff6e8; padding:8px 10px; border-radius:8px; color:#0b7a3a; cursor:pointer; font-weight:700; font-size:13px; border:none; margin:4px; }
+    .odd-btn:disabled { opacity:.45; cursor:not-allowed; }
+    .odd-btn.selected { background:#16a34a; color:white; }
+    .betslip { flex:1; background:#fff; border-radius:10px; padding:15px; box-shadow:0 4px 12px rgba(0,0,0,0.05); position:sticky; top:15px; }
+    .slip-item { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding:6px 0; font-size:13px; }
+    .remove { color:red; cursor:pointer; font-weight:700; margin-left:8px; }
+    input[type="number"] { width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; margin-top:6px; }
+    .place-btn, .history-btn { background:#16a34a; color:#fff; border:none; width:100%; padding:12px; border-radius:6px; margin-top:10px; font-weight:700; cursor:pointer; }
+    .place-btn:disabled { opacity:.6; cursor:not-allowed; }
+    .small { font-size:12px; color:#666; }
+    #msg { margin-top:10px; color:#b91c1c; font-size:13px; text-align:center; }
+    .badge { padding:4px 8px; border-radius:6px; font-weight:700; }
+    .badge.live { background:#dc2626; color:#fff; }
+    .badge.open { background:#16a34a; color:#021018; }
+    .badge.closed { background:#6b7280; color:#fff; }
+    .muted { color:#666; font-size:13px; }
+    .more-markets { display: none; margin-top: 10px; }
+    .more-markets.show { display: block; }
+  </style>
+</head>
+<body>
+  <h1>🎮 Gaming Continental Betting</h1>
+
+  <div class="container">
+    <div class="matches" id="matches"></div>
+
+    <div class="betslip">
+      <h3>Your Betslip</h3>
+      <div id="slipList"></div>
+
+      <div class="small">Combined Odd: <strong id="combinedOdd">0.00</strong></div>
+      <div class="small">Potential Win: ₦<strong id="potentialWin">0.00</strong></div>
+
+      <div style="margin-top:10px;">
+        <label>Stake (₦)</label>
+        <input type="number" id="stake" min="1" placeholder="Enter your stake" />
+      </div>
+
+      <button id="placeBtn" class="place-btn" onclick="placeBet()">Place Bet</button>
+      <button onclick="window.location.href='bet-history.html'" class="history-btn">View Bet History</button>
+
+      <div class="small" style="margin-top:10px;">Balance: ₦<span id="userBalance">0.00</span></div>
+      <div id="msg"></div>
+    </div>
+  </div>
+
+<script>
+const API_BASE = "http://localhost:5000";
+let selections = [];
+let currentUser = null;
+
+// Format number
+function fmt(n) { return (Number(n) || 0).toFixed(2); }
+
+// Get user token
+function getUserToken() {
+  return localStorage.getItem("token");
+}
+
+// Get user info
+async function loadUserInfo() {
+  const token = getUserToken();
+  if (!token) {
+    document.getElementById("userBalance").textContent = "0.00";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const user = await res.json();
+      document.getElementById("userBalance").textContent = fmt(user.balance || 0);
+      currentUser = user;
+    }
+  } catch (err) {
+    console.error("Failed to load user info:", err);
+  }
+}
+
+/* ---------- Load matches ---------- */
+async function loadMatches() {
+  try {
+    const res = await fetch(`${API_BASE}/api/match`);
+    const matches = await res.json();
+    const box = document.getElementById("matches");
+    box.innerHTML = "";
+    
+    if (!Array.isArray(matches) || matches.length === 0) { 
+      box.innerHTML = "<p>No matches available.</p>"; 
+      return; 
+    }
+
+    matches.forEach(m => {
+      if (m.status === "finished" || m.status === "deleted") return;
+
+      const card = document.createElement("div");
+      card.className = "match-card";
+      card.id = `match-${m._id}`;
+      
+      const header = document.createElement("div");
+      header.className = "match-header";
+      
+      const teams = document.createElement("div");
+      teams.className = "teams";
+      teams.textContent = `${m.home} vs ${m.away}`;
+      
+      const meta = document.createElement("div");
+      meta.className = "muted";
+      meta.textContent = `${m.date || ''} ${m.time || ''}`;
+      
+      let statusHTML = '';
+      if (m.isLive) {
+        statusHTML = `<span class="badge live">LIVE 🔴 ${m.homeGoals || 0}-${m.awayGoals || 0}</span>`;
+      } else if (m.status === "closed") {
+        statusHTML = `<span class="badge closed">🔒 CLOSED</span>`;
+      } else {
+        statusHTML = `<span class="badge open">OPEN</span>`;
+      }
+
+      const statusDiv = document.createElement("div");
+      statusDiv.innerHTML = statusHTML;
+      
+      header.append(teams, meta, statusDiv);
+      card.append(header);
+
+      // 1X2 Market (ALWAYS VISIBLE)
+      const m1x2 = document.createElement("div");
+      m1x2.className = "market";
+      m1x2.innerHTML = "<strong>1X2</strong><br>";
+      
+      // Handle both odds formats
+      let homeOdd, drawOdd, awayOdd;
+      
+      if (m.odds && m.odds["1X2"]) {
+        // New format: nested structure
+        homeOdd = m.odds["1X2"].home;
+        drawOdd = m.odds["1X2"].draw;
+        awayOdd = m.odds["1X2"].away;
+      } else if (m.odds) {
+        // Old format: flat structure
+        homeOdd = m.odds.home;
+        drawOdd = m.odds.draw;
+        awayOdd = m.odds.away;
+      }
+      
+      // Create buttons with match status check
+      m1x2.appendChild(createOddBtn(m.home, homeOdd, m.status, () => 
+        addToSlip(m._id, "1X2", "home", homeOdd, `${m.home} win`)
+      ));
+      m1x2.appendChild(createOddBtn("Draw", drawOdd, m.status, () => 
+        addToSlip(m._id, "1X2", "draw", drawOdd, "Draw")
+      ));
+      m1x2.appendChild(createOddBtn(m.away, awayOdd, m.status, () => 
+        addToSlip(m._id, "1X2", "away", awayOdd, `${m.away} win`)
+      ));
+      
+      card.appendChild(m1x2);
+
+      // Only show "View Markets" if match is not closed
+      if (m.status !== "closed") {
+        // View Markets Button
+        const viewMarketsBtn = document.createElement("button");
+        viewMarketsBtn.className = "view-markets-btn";
+        viewMarketsBtn.textContent = "📊 View All Markets";
+        viewMarketsBtn.onclick = () => toggleMarkets(m._id);
+        card.appendChild(viewMarketsBtn);
+
+        // More Markets Container (HIDDEN BY DEFAULT)
+        const moreMarkets = document.createElement("div");
+        moreMarkets.className = "more-markets";
+        moreMarkets.id = `more-markets-${m._id}`;
+
+        // GG/NG Market
+        const ggDiv = document.createElement("div");
+        ggDiv.className = "market";
+        ggDiv.innerHTML = "<strong>Both Teams to Score</strong><br>";
+        
+        let ggYesOdd, ggNoOdd;
+        
+        if (m.odds && m.odds["GG/NG"]) {
+          ggYesOdd = m.odds["GG/NG"].yes;
+          ggNoOdd = m.odds["GG/NG"].no;
+        } else if (m.odds) {
+          ggYesOdd = m.odds.gg_yes;
+          ggNoOdd = m.odds.gg_no;
+        }
+        
+        ggDiv.appendChild(createOddBtn("GG - Yes", ggYesOdd, m.status, () => 
+          addToSlip(m._id, "GG", "yes", ggYesOdd, "GG Yes")
+        ));
+        ggDiv.appendChild(createOddBtn("NG - No", ggNoOdd, m.status, () => 
+          addToSlip(m._id, "GG", "no", ggNoOdd, "GG No")
+        ));
+        
+        moreMarkets.appendChild(ggDiv);
+
+        // Over/Under Market
+        const ouDiv = document.createElement("div");
+        ouDiv.className = "market";
+        ouDiv.innerHTML = "<strong>Over / Under</strong><br>";
+        
+        // Handle both Over/Under formats
+        if (m.odds) {
+          const lines = [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5];
+          
+          lines.forEach(line => {
+            let overOdd, underOdd;
+            
+            if (m.odds["O/U"]) {
+              // New format
+              overOdd = m.odds["O/U"][`over_${line}`];
+              underOdd = m.odds["O/U"][`under_${line}`];
+            } else if (m.odds.over && m.odds.under) {
+              // Old format
+              overOdd = m.odds.over[line];
+              underOdd = m.odds.under[line];
+            }
+            
+            if (overOdd || underOdd) {
+              ouDiv.appendChild(createOddBtn(`Over ${line}`, overOdd, m.status, () => 
+                addToSlip(m._id, "OU", `over_${line}`, overOdd, `Over ${line}`)
+              ));
+              ouDiv.appendChild(createOddBtn(`Under ${line}`, underOdd, m.status, () => 
+                addToSlip(m._id, "OU", `under_${line}`, underOdd, `Under ${line}`)
+              ));
+            }
+          });
+        }
+        
+        moreMarkets.appendChild(ouDiv);
+        card.appendChild(moreMarkets);
+      } else {
+        // Show "Betting Closed" message for closed matches
+        const closedMsg = document.createElement("div");
+        closedMsg.className = "market";
+        closedMsg.innerHTML = "<strong style='color: orange;'>🔒 Betting is closed for this match</strong>";
+        card.appendChild(closedMsg);
+      }
+
+      box.appendChild(card);
+    });
+  } catch(err) {
+    console.error("loadMatches error:", err);
+    document.getElementById("matches").innerHTML = "<p>Failed to load matches.</p>";
+  }
+}
+
+// Toggle more markets visibility
+function toggleMarkets(matchId) {
+  const moreMarkets = document.getElementById(`more-markets-${matchId}`);
+  const viewBtn = document.querySelector(`#match-${matchId} .view-markets-btn`);
+  
+  if (moreMarkets.classList.contains('show')) {
+    moreMarkets.classList.remove('show');
+    viewBtn.textContent = "📊 View All Markets";
+  } else {
+    moreMarkets.classList.add('show');
+    viewBtn.textContent = "📊 Hide Markets";
+  }
+}
+
+// Create odd button - UPDATED to handle closed matches
+function createOddBtn(text, odd, matchStatus, onClick) {
+  const btn = document.createElement("button");
+  btn.className = "odd-btn";
+  
+  // Check if match is closed
+  const isClosed = matchStatus === "closed";
+  
+  if (isClosed) {
+    btn.textContent = `${text} (CLOSED)`;
+    btn.disabled = true;
+    btn.style.background = "#f0f0f0";
+    btn.style.color = "#999";
+    btn.style.cursor = "not-allowed";
+  } else {
+    btn.textContent = `${text} (${odd ? fmt(odd) : "-"})`;
+    btn.disabled = !odd;
+    if (odd) {
+      btn.addEventListener("click", onClick);
+    }
+  }
+  
+  return btn;
+}
+
+/* ---------- Betslip Functions ---------- */
+function addToSlip(matchId, marketKey, selectionKey, odd, label) {
+  // First, check if match is closed by fetching current match data
+  checkMatchStatus(matchId).then(isClosed => {
+    if (isClosed) {
+      alert("❌ This match is closed for betting. You cannot place bets on closed matches.");
+      return;
+    }
+    
+    // Check if already selected from this match
+    if (selections.some(s => s.matchId === matchId)) {
+      alert("You can only select one option per match.");
+      return;
+    }
+    
+    selections.push({ 
+      matchId, 
+      marketKey, 
+      selectionKey, 
+      odd: Number(odd), 
+      label 
+    });
+    renderSlip();
+  }).catch(err => {
+    console.error("Error checking match status:", err);
+    alert("Error checking match status. Please try again.");
+  });
+}
+
+// Check if match is closed
+async function checkMatchStatus(matchId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/match`);
+    const matches = await res.json();
+    const match = matches.find(m => m._id === matchId);
+    return match && match.status === "closed";
+  } catch (err) {
+    console.error("Error checking match status:", err);
+    return false;
+  }
+}
+
+function removeSelection(index) { 
+  selections.splice(index, 1); 
+  renderSlip(); 
+}
+
+// ✅ FIXED: Proper combined odds calculation (MULTIPLY all odds)
+function calcCombinedOdd() {
+  if (selections.length === 0) return 0;
+  let total = 1;
+  selections.forEach(s => {
+    total *= Number(s.odd) || 1;
+  });
+  return Number(total.toFixed(2));
+}
+
+function renderSlip() {
+  const el = document.getElementById("slipList");
+  el.innerHTML = "";
+  
+  if (selections.length === 0) {
+    el.innerHTML = "<div class='muted'>No selections yet</div>";
+  } else {
+    selections.forEach((s, i) => {
+      const item = document.createElement("div");
+      item.className = "slip-item";
+      item.innerHTML = `
+        <div>${s.label}</div>
+        <div>${fmt(s.odd)} <span class='remove' onclick='removeSelection(${i})'>✖</span></div>
+      `;
+      el.appendChild(item);
+    });
+  }
+  
+  document.getElementById("combinedOdd").textContent = fmt(calcCombinedOdd());
+  updatePotentialWin();
+}
+
+function updatePotentialWin() {
+  const stake = Number(document.getElementById("stake").value) || 0;
+  const combinedOdd = calcCombinedOdd();
+  document.getElementById("potentialWin").textContent = fmt(stake * combinedOdd);
+}
+
+/* ---------- Place Bet ---------- */
+async function placeBet() {
+  const token = getUserToken();
+  if (!token) {
+    alert("Please log in to place a bet");
+    window.location.href = "index.html";
+    return;
+  }
+
+  if (selections.length === 0) {
+    alert("Please add selections to your betslip");
+    return;
+  }
+
+  const stake = Number(document.getElementById("stake").value);
+  if (!stake || stake < 1) {
+    alert("Please enter a valid stake amount");
+    return;
+  }
+
+  try {
+    // Get user info first to check balance and get ID
+    const userRes = await fetch(`${API_BASE}/auth/me`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    
+    if (!userRes.ok) {
+      alert("Please log in again");
+      window.location.href = "index.html";
+      return;
+    }
+
+    const user = await userRes.json();
+    
+    // Check balance
+    if (user.balance < stake) {
+      alert("Insufficient balance");
+      return;
+    }
+
+    const betData = {
+      userId: user._id, // Use the ID from the user profile
+      selections: selections,
+      stake: stake
+    };
+
+    const res = await fetch(`${API_BASE}/bets/place`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(betData)
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert("✅ Bet placed successfully!");
+      selections = [];
+      renderSlip();
+      document.getElementById("stake").value = "";
+      await loadUserInfo(); // Refresh balance
+    } else {
+      alert("❌ " + (data.error || "Failed to place bet"));
+    }
+  } catch (err) {
+    console.error("Place bet error:", err);
+    alert("⚠️ Connection error. Please try again.");
+  }
+}
+
+// Helper to get user ID from token
+async function getUserIdFromToken() {
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: { "Authorization": `Bearer ${getUserToken()}` }
+    });
+    if (res.ok) {
+      const user = await res.json();
+      return user._id;
+    }
+  } catch (err) {
+    console.error("Failed to get user ID:", err);
+  }
+  return null;
+}
+
+/* ---------- Initialize ---------- */
+document.addEventListener("DOMContentLoaded", function() {
+  loadMatches();
+  loadUserInfo();
+  document.getElementById("stake").addEventListener("input", updatePotentialWin);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Account - Gaming Continental</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Poppins", Arial, sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+      padding: 16px;
+      color: #222;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .account-container {
+      width: 100%;
+      max-width: 380px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.4rem;
+      margin-bottom: 16px;
+      color: #111;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+      background: #fafafa;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #1766d1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    button:active {
+      background: #0f4da5;
+      transform: scale(0.98);
+    }
+
+    .success {
+      color: #0b6138;
+      text-align: center;
+      font-weight: 600;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .error {
+      color: #b91c1c;
+      text-align: center;
+      font-weight: 600;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    #accountDetails {
+      display: none;
+      background: #f8fafc;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 14px;
+      font-size: 15px;
+    }
+
+    #accountDetails h3 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      color: #1766d1;
+    }
+
+    #accountDetails p {
+      margin: 6px 0;
+      line-height: 1.4;
+    }
+
+    .edit-btn {
+      background: #f59e0b;
+      margin-top: 10px;
+    }
+
+    @media (min-width: 600px) {
+      body {
+        max-width: 450px;
+        margin: 0 auto;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="account-container">
+    <h1>My Account</h1>
+    <div id="accountMessage"></div>
+
+    <!-- ✅ Account creation form -->
+    <form id="accountForm">
+      <input type="text" id="firstName" placeholder="First Name" required />
+      <input type="text" id="lastName" placeholder="Last Name" required />
+      <input type="text" id="accountNumber" placeholder="Account Number" required />
+      <input type="text" id="bankName" placeholder="Bank Name" required />
+      <input type="tel" id="phoneNumber" placeholder="Phone Number" />
+      <button type="submit" id="submitBtn">Save Bank Details</button>
+    </form>
+
+    <!-- ✅ Display saved bank details -->
+    <div id="accountDetails">
+      <h3>✅ Your Bank Details</h3>
+      <p><strong>Account Name:</strong> <span id="savedAccountName"></span></p>
+      <p><strong>Account Number:</strong> <span id="savedAccountNumber"></span></p>
+      <p><strong>Bank Name:</strong> <span id="savedBankName"></span></p>
+      <p><strong>Phone Number:</strong> <span id="savedPhoneNumber"></span></p>
+      <button type="button" class="edit-btn" onclick="showEditForm()">Edit Details</button>
+    </div>
+  </div>
+
+  <div id="footerContainer" style="margin-top: 30px;"></div>
+
+  <script>
+    // ✅ Wait for DOM to be fully loaded
+    document.addEventListener("DOMContentLoaded", function() {
+      const API_BASE = "http://localhost:5000";
+      const userId = localStorage.getItem("userId");
+
+      // 🔒 Basic protection - just check if user ID exists
+      if (!userId) {
+        alert("Please login first!");
+        window.location.href = "index.html";
+        return;
+      }
+
+      const messageEl = document.getElementById("accountMessage");
+      const form = document.getElementById("accountForm");
+      const details = document.getElementById("accountDetails");
+      const submitBtn = document.getElementById("submitBtn");
+
+      // ✅ Ensure form is visible on initial load
+      if (form) form.style.display = "block";
+      if (details) details.style.display = "none";
+
+      // ✅ Show message helper
+      function showMessage(message, isError = false) {
+        if (messageEl) {
+          messageEl.textContent = message;
+          messageEl.className = isError ? 'error' : 'success';
+          messageEl.style.display = 'block';
+          
+          setTimeout(() => {
+            if (messageEl) messageEl.style.display = 'none';
+          }, 5000);
+        }
+      }
+
+      // ✅ Show edit form
+      window.showEditForm = function() {
+        if (details) details.style.display = "none";
+        if (form) form.style.display = "block";
+      }
+
+      // ✅ Fetch current user details - FIXED VERSION
+      async function loadUser() {
+        try {
+          if (!userId) {
+            showMessage("Please login again", true);
+            setTimeout(() => {
+              window.location.href = "index.html";
+            }, 2000);
+            return;
+          }
+
+          let userData = null;
+
+          // ✅ Try localStorage first (fastest)
+          const localUser = localStorage.getItem("user");
+          if (localUser) {
+            try {
+              userData = JSON.parse(localUser);
+              console.log("✅ Using cached user data from localStorage");
+            } catch (e) {
+              console.log("❌ Error parsing localStorage data");
+            }
+          }
+
+          // ✅ If no cached data or cache is old, try to fetch from server
+          if (!userData || !userData.bankDetails) {
+            console.log("🔄 Fetching fresh data from server...");
+            
+            // Try multiple endpoints
+            const endpoints = [
+              `${API_BASE}/user/${userId}`,
+              `${API_BASE}/user/profile?userId=${userId}`,
+              `${API_BASE}/auth/me`
+            ];
+
+            for (const endpoint of endpoints) {
+              try {
+                console.log(`Trying endpoint: ${endpoint}`);
+                const res = await fetch(endpoint, {
+                  headers: {
+                    "Authorization": `Bearer ${localStorage.getItem("token") || ""}`,
+                    "Content-Type": "application/json"
+                  }
+                });
+
+                if (res.ok) {
+                  userData = await res.json();
+                  console.log("✅ User data loaded from:", endpoint);
+                  
+                  // ✅ Update localStorage with fresh data
+                  localStorage.setItem("user", JSON.stringify(userData));
+                  break;
+                } else {
+                  console.log(`❌ ${endpoint} failed:`, res.status);
+                }
+              } catch (err) {
+                console.log(`Endpoint ${endpoint} error:`, err.message);
+                continue;
+              }
+            }
+          }
+
+          if (!userData) {
+            console.log("❌ Could not load user data from any source");
+            showMessage("Could not load account data", true);
+            return;
+          }
+
+          // ✅ Fill form fields with existing data
+          if (form) {
+            if (userData.firstName) form.firstName.value = userData.firstName || "";
+            if (userData.lastName) form.lastName.value = userData.lastName || "";
+            if (userData.phoneNumber) form.phoneNumber.value = userData.phoneNumber || "";
+
+            // Fill bank details if they exist
+            if (userData.bankDetails) {
+              if (userData.bankDetails.accountNumber) form.accountNumber.value = userData.bankDetails.accountNumber || "";
+              if (userData.bankDetails.bankName) form.bankName.value = userData.bankDetails.bankName || "";
+            }
+          }
+
+          // ✅ Show details section if bank details exist
+          if (userData.bankDetails && userData.bankDetails.accountNumber && details) {
+            details.style.display = "block";
+            if (form) form.style.display = "none";
+            
+            // Display saved details
+            document.getElementById("savedAccountName").textContent = 
+              `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || "Not provided";
+            document.getElementById("savedAccountNumber").textContent = userData.bankDetails.accountNumber;
+            document.getElementById("savedBankName").textContent = userData.bankDetails.bankName;
+            document.getElementById("savedPhoneNumber").textContent = userData.phoneNumber || "Not provided";
+            
+            console.log("✅ Showing saved bank details");
+          } else {
+            // No bank details yet, show form
+            if (details) details.style.display = "none";
+            if (form) form.style.display = "block";
+            console.log("ℹ️ No bank details found, showing form");
+          }
+
+        } catch (err) {
+          console.error("❌ Load user failed:", err);
+          showMessage("Error loading account details: " + err.message, true);
+        }
+      }
+
+      // ✅ Save / update user account info - NO TOKEN AUTHENTICATION
+      if (form) {
+        form.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          
+          console.log("🔍 FORM SUBMISSION STARTED");
+          
+          const firstName = form.firstName.value.trim();
+          const lastName = form.lastName.value.trim();
+          const accountNumber = form.accountNumber.value.trim();
+          const bankName = form.bankName.value.trim();
+          const phoneNumber = form.phoneNumber.value.trim();
+
+          console.log("📝 Form data:", { firstName, lastName, accountNumber, bankName, phoneNumber });
+
+          // Basic validation
+          if (!firstName || !lastName || !accountNumber || !bankName) {
+            console.log("❌ Validation failed - missing fields");
+            showMessage("Please fill in all required fields", true);
+            return;
+          }
+
+          if (accountNumber.length < 10 || !/^\d+$/.test(accountNumber)) {
+            showMessage("Please enter a valid account number (at least 10 digits)", true);
+            return;
+          }
+
+          // ✅ FLAT STRUCTURE for POST endpoint
+          const body = {
+            firstName: firstName,
+            lastName: lastName,
+            accountNumber: accountNumber,
+            bankName: bankName,
+            phoneNumber: phoneNumber
+          };
+
+          console.log("📦 Request body:", body);
+          console.log("🔑 User ID:", userId);
+          console.log("🔄 Making request to:", `${API_BASE}/user/update-account/${userId}`);
+
+          // Show loading state
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Saving...";
+          }
+
+          try {
+            // ✅ NO TOKEN IN HEADERS - Simple POST request
+            const res = await fetch(`${API_BASE}/user/update-account/${userId}`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(body),
+            });
+
+            console.log("📡 Response status:", res.status);
+            console.log("📡 Response ok:", res.ok);
+
+            if (!res.ok) {
+              const errorText = await res.text();
+              console.log("❌ Error response:", errorText);
+              throw new Error(errorText || "Failed to update account");
+            }
+
+            const data = await res.json();
+            console.log("✅ Success response:", data);
+            showMessage("✅ Bank details saved successfully!");
+
+            // ✅ IMPORTANT: Update localStorage with the fresh user data from response
+            if (data.user) {
+              localStorage.setItem("user", JSON.stringify(data.user));
+              console.log("✅ Updated localStorage with fresh user data");
+            }
+
+            // Reload user data to update display
+            setTimeout(() => {
+              loadUser();
+            }, 1000);
+
+          } catch (err) {
+            console.error("❌ Update failed:", err);
+            showMessage("Error: " + err.message, true);
+          } finally {
+            // Reset button state
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = "Save Bank Details";
+            }
+          }
+        });
+      }
+
+      // ✅ Load user data on page load
+      loadUser();
+    });
+  </script>
+
+  <script src="footer.js"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+{
+  "users": [
+    {
+      "_id": "user_1760405638591",
+      "nickname": "Test me",
+      "email": "test@gmail.com",
+      "password": "$2a$10$4N14jwo/6BCZNozncbbSqOY0OKb1hnTn9D9McyWlnP8R5aQovDXg6",
+      "balance": 9800,
+      "createdAt": "2025-10-14T01:33:58.591Z"
+    }
+  ],
+  "matches": [
+    {
+      "_id": "match_1",
+      "home": "Chelsea",
+      "away": "Arsenal",
+      "date": "2024-01-15",
+      "time": "15:00",
+      "odds": {
+        "1X2": {
+          "home": 2.1,
+          "draw": 3.2,
+          "away": 3.5
+        },
+        "GG/NG": {
+          "yes": 1.9,
+          "no": 1.8
+        }
+      },
+      "status": "open"
+    },
+    {
+      "_id": "match_2",
+      "home": "Man City",
+      "away": "Liverpool",
+      "date": "2024-01-15",
+      "time": "17:30",
+      "odds": {
+        "1X2": {
+          "home": 1.8,
+          "draw": 3.4,
+          "away": 4.2
+        },
+        "GG/NG": {
+          "yes": 2.1,
+          "no": 1.7
+        }
+      },
+      "status": "open"
+    }
+  ],
+  "bets": [
+    {
+      "_id": "bet_1760405837617",
+      "userId": "user_1760405638591",
+      "selections": [
+        {
+          "matchId": "match_2",
+          "marketKey": "1X2",
+          "selectionKey": "home",
+          "odd": 1.8,
+          "label": "Man City win"
+        },
+        {
+          "matchId": "match_1",
+          "marketKey": "1X2",
+          "selectionKey": "home",
+          "odd": 2.1,
+          "label": "Chelsea win"
+        }
+      ],
+      "stake": 100,
+      "combinedOdd": 3.7800000000000002,
+      "potentialWin": 378,
+      "createdAt": "2025-10-14T01:37:17.617Z",
+      "status": "pending"
+    },
+    {
+      "_id": "bet_1760405863543",
+      "userId": "user_1760405638591",
+      "selections": [
+        {
+          "matchId": "match_2",
+          "marketKey": "1X2",
+          "selectionKey": "home",
+          "odd": 1.8,
+          "label": "Man City win"
+        },
+        {
+          "matchId": "match_1",
+          "marketKey": "1X2",
+          "selectionKey": "home",
+          "odd": 2.1,
+          "label": "Chelsea win"
+        }
+      ],
+      "stake": 100,
+      "combinedOdd": 3.7800000000000002,
+      "potentialWin": 378,
+      "createdAt": "2025-10-14T01:37:43.543Z",
+      "status": "pending"
+    }
+  ],
+  "admins": []
+}

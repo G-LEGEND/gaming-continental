@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin – Withdrawals</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: Arial,Helvetica,sans-serif; background:#0b1220; color:#fff; padding:22px; }
+    .center { max-width:1100px; margin: 30px auto; }
+    h1 { text-align:center; margin-bottom:18px; color:#fff; }
+    table { width:100%; border-collapse: collapse; background:#111827; border-radius:8px; overflow:hidden; }
+    th, td { padding:12px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:middle; }
+    th { background:#0f1724; color:#94a3b8; }
+    tr:hover { background: rgba(255,255,255,0.02); }
+    .actions button { padding:8px 12px; margin-right:6px; border:none; border-radius:6px; cursor:pointer; font-weight:700; }
+    .approve { background:#16a34a; color:#021018; }
+    .decline { background:#dc2626; color:#fff; }
+    .copy-btn { background:#f59e0b; color:#021018; border:none; padding:6px 8px; border-radius:6px; cursor:pointer; font-size:12px; }
+    .muted { color:#94a3b8; font-size:13px; }
+    .status-approved { color: #16a34a; font-weight: bold; }
+    .status-rejected { color: #dc2626; font-weight: bold; }
+    .status-pending { color: #f59e0b; font-weight: bold; }
+    .loading { opacity: 0.6; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div class="center">
+    <h1>🏦 Pending Withdrawals</h1>
+    <table id="withdrawTable" aria-live="polite">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>User</th>
+          <th>Amount (₦)</th>
+          <th>Account Name</th>
+          <th>Account Number</th>
+          <th>Bank</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:5000"; // Match your server URL
+
+    async function loadWithdrawals() {
+      const token = localStorage.getItem("adminToken");
+      if (!token) {
+        alert("Admin token missing — please login");
+        window.location.href = "admin.html";
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/withdraw/all`, {
+          headers: { Authorization: "Bearer " + token }
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Failed to load" }));
+          throw new Error(err.error || "Failed to load withdrawals");
+        }
+
+        const withdrawals = await res.json();
+        const tbody = document.querySelector("#withdrawTable tbody");
+        tbody.innerHTML = "";
+
+        if (withdrawals.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">No withdrawal requests found</td></tr>`;
+          return;
+        }
+
+        withdrawals.forEach((w, i) => {
+          // Handle both string and object accountDetails
+          let acct = {};
+          if (typeof w.accountDetails === 'string') {
+            // Fallback for old string format
+            acct = { accountNumber: w.accountDetails };
+          } else {
+            acct = w.accountDetails || {};
+          }
+
+          const user = w.userId || {};
+          const userLabel = user.nickname || user.email || "Unknown User";
+          const accountName = acct.accountName || `${acct.firstName || ''} ${acct.lastName || ''}`.trim() || "Not provided";
+          const accountNumber = acct.accountNumber || "-";
+          const bankName = acct.bankName || "-";
+          const phoneNumber = acct.phoneNumber || user.phoneNumber || "-";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${i+1}</td>
+            <td>
+              <div>${userLabel}</div>
+              <div class="muted">${user.email || ''}</div>
+              <div class="muted">Balance: ₦${(user.balance || 0).toLocaleString()}</div>
+            </td>
+            <td><strong>₦${Number(w.amount).toLocaleString()}</strong></td>
+            <td>${accountName}</td>
+            <td>
+              <span id="acct-${w._id}">${accountNumber}</span>
+              ${accountNumber && accountNumber !== '-' ? 
+                `<button class="copy-btn" onclick="copyToClipboard('${accountNumber}')">Copy</button>` : ''}
+            </td>
+            <td>${bankName}</td>
+            <td>${phoneNumber}</td>
+            <td class="status-${w.status}">${w.status.toUpperCase()}</td>
+            <td class="muted">${new Date(w.createdAt).toLocaleString()}</td>
+            <td class="actions">
+              ${w.status === "pending" ? 
+                `<button class="approve" onclick="approveWithdrawal('${w._id}')">Approve</button>
+                 <button class="decline" onclick="rejectWithdrawal('${w._id}')">Decline</button>` :
+                w.status === "approved" ? 
+                '<span class="status-approved">✅ APPROVED</span>' :
+                '<span class="status-rejected">❌ REJECTED</span>'
+              }
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        console.error("Error loading withdrawals:", err);
+        alert("Error: " + err.message);
+      }
+    }
+
+    // Copy account number to clipboard
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Account number copied to clipboard!");
+      }).catch(() => {
+        // Fallback for older browsers
+        const temp = document.createElement("input");
+        document.body.appendChild(temp);
+        temp.value = text;
+        temp.select();
+        document.execCommand("copy");
+        temp.remove();
+        alert("Account number copied!");
+      });
+    }
+
+    // Approve withdrawal
+    async function approveWithdrawal(id) {
+      if (!confirm("Approve this withdrawal?\n\nThis will deduct the amount from user's balance and process the payment.")) {
+        return;
+      }
+
+      const token = localStorage.getItem("adminToken");
+      const table = document.getElementById("withdrawTable");
+      
+      try {
+        table.classList.add("loading");
+        
+        const res = await fetch(`${API_BASE}/withdraw/approve/${id}`, {
+          method: "PUT",
+          headers: { 
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json"
+          }
+        });
+
+        const data = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to approve withdrawal");
+        }
+        
+        alert("✅ Withdrawal approved successfully!\nUser balance has been updated.");
+        loadWithdrawals();
+        
+      } catch (err) {
+        console.error("Approve error:", err);
+        alert("❌ Error: " + err.message);
+      } finally {
+        table.classList.remove("loading");
+      }
+    }
+
+    // Reject withdrawal
+    async function rejectWithdrawal(id) {
+      const note = prompt("Reason for rejection (optional):");
+      if (note === null) return; // User cancelled
+
+      const token = localStorage.getItem("adminToken");
+      const table = document.getElementById("withdrawTable");
+      
+      try {
+        table.classList.add("loading");
+        
+        const res = await fetch(`${API_BASE}/withdraw/reject/${id}`, {
+          method: "PUT",
+          headers: { 
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ note })
+        });
+
+        const data = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to reject withdrawal");
+        }
+        
+        alert("❌ Withdrawal rejected successfully!");
+        loadWithdrawals();
+        
+      } catch (err) {
+        console.error("Reject error:", err);
+        alert("❌ Error: " + err.message);
+      } finally {
+        table.classList.remove("loading");
+      }
+    }
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadWithdrawals, 30000);
+
+    // Load on page start
+    document.addEventListener("DOMContentLoaded", loadWithdrawals);
+  </script>
+</body>
+</html>

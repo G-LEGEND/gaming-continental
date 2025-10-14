@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>🏆 Player Ranks (Mobile)</title>
+
+  <style>
+    :root{
+      --bg:#071026; --card:#0f1724; --muted:#94a3b8; --accent:#38bdf8; --text:#e6eef8;
+    }
+
+    html,body{height:100%;margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+
+    .container{
+      max-width:460px;
+      margin:12px auto;
+      padding:14px;
+    }
+
+    h1{
+      margin:0 0 12px;
+      font-size:20px;
+      color:var(--accent);
+      text-align:center;
+    }
+
+    .search {
+      display:flex;
+      gap:8px;
+      margin-bottom:12px;
+    }
+    .search input{
+      flex:1;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid #1f2a3a;
+      background:#071826;
+      color:var(--text);
+      font-size:15px;
+    }
+
+    .card {
+      background:var(--card);
+      border-radius:12px;
+      padding:10px;
+      box-shadow:0 6px 20px rgba(0,0,0,0.6);
+      overflow:hidden;
+    }
+
+    .table {
+      width:100%;
+      border-collapse:collapse;
+    }
+
+    thead tr {
+      display:grid;
+      grid-template-columns: 56px 1fr 1fr;
+      gap:8px;
+      align-items:center;
+      padding:10px;
+      border-bottom:1px solid #12202b;
+    }
+    thead th{
+      text-align:center;
+      font-size:12px;
+      color:var(--muted);
+      font-weight:700;
+    }
+
+    tbody{
+      display:block;
+      max-height:68vh;
+      overflow:auto;
+      padding-top:6px;
+    }
+    tbody tr{
+      display:grid;
+      grid-template-columns: 56px 1fr 1fr;
+      gap:8px;
+      align-items:center;
+      padding:12px 10px;
+      border-bottom:1px solid rgba(255,255,255,0.03);
+    }
+
+    .pos {
+      font-weight:700;
+      font-size:14px;
+      text-align:center;
+      width:56px;
+    }
+    .player{
+      font-size:15px;
+      word-break:break-word;
+    }
+    .points{
+      text-align:center;
+      font-weight:600;
+    }
+
+    .muted {
+      color:var(--muted);
+      font-size:13px;
+      text-align:center;
+    }
+
+    #loading { text-align:center; color:var(--muted); margin-top:8px; }
+
+    @media (min-width:600px){
+      .container{ margin-top:22px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏆 Global Leaderboard</h1>
+
+    <div class="search">
+      <input id="searchInput" type="search" placeholder="Search by player name..." aria-label="Search players">
+    </div>
+
+    <div class="card" role="region" aria-live="polite">
+      <table class="table" aria-label="Leaderboard">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>FIFA</th>
+            <th>SNOOKER</th>
+          </tr>
+        </thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+      <p id="loading">Loading ranks...</p>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:5000";
+
+    // Get correct points field
+    function getPoints(user, fallbacks){
+      for (const k of fallbacks){
+        if (user[k] !== undefined && user[k] !== null) return Number(user[k]) || 0;
+      }
+      return 0;
+    }
+
+    // Field key variations
+    const FIFA_KEYS = ["fifaPoints", "fifa_points", "fifa"];
+    const SNOOKER_KEYS = ["snookerPoints", "snooker_points", "snookersPoints", "snickersPoints", "snockersPoints"];
+
+    let USERS = [];
+    let RANKS_FIFA = {};
+    let RANKS_SNOOKER = {};
+
+    function computePositions(users, keys){
+      const arr = users.map(u => ({ id: u._id || u.id, pts: getPoints(u, keys) }));
+      arr.sort((a,b)=> b.pts - a.pts);
+      const map = {};
+      arr.forEach((item, idx) => { map[item.id] = idx + 1; });
+      return map;
+    }
+
+    function badgeFor(pos){
+      if (!pos) return "";
+      if (pos === 1) return "🥇";
+      if (pos === 2) return "🥈";
+      if (pos === 3) return "🥉";
+      return `#${pos}`;
+    }
+
+    function escapeHtml(s=''){ 
+      return String(s).replace(/[&<>"']/g, c=>({ 
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' 
+      })[c]); 
+    }
+
+    function renderRows(filter=""){
+      const tbody = document.getElementById("rankBody");
+      tbody.innerHTML = "";
+
+      const q = (filter || "").trim().toLowerCase();
+
+      const sorted = [...USERS].sort((a,b) => getPoints(b,FIFA_KEYS) - getPoints(a,FIFA_KEYS));
+
+      sorted.forEach(u => {
+        const name = u.nickname || u.email || "Player";
+        if (q && !name.toLowerCase().includes(q)) return;
+
+        const id = u._id || u.id;
+        const fifaPts = getPoints(u, FIFA_KEYS);
+        const snookerPts = getPoints(u, SNOOKER_KEYS);
+        const fifaPos = RANKS_FIFA[id] || "-";
+        const snookerPos = RANKS_SNOOKER[id] || "-";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="pos">${badgeFor(fifaPos)}</td>
+          <td>
+            <div class="player">${escapeHtml(name)}</div>
+            <div class="muted">FIFA: <span class="points">${fifaPts}</span></div>
+          </td>
+          <td>
+            <div class="player">${escapeHtml(name)}</div>
+            <div class="muted">Snooker: <span class="points">${snookerPts}</span> • ${badgeFor(snookerPos)}</div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      if (!tbody.children.length) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:14px">No players found</td></tr>`;
+      }
+    }
+
+    async function loadAllUsers(){
+      const loading = document.getElementById("loading");
+      loading.style.display = "block";
+      try {
+        const res = await fetch(`${API_BASE}/user/all`);
+        if (!res.ok) throw new Error("Failed to fetch users");
+        const users = await res.json();
+        USERS = Array.isArray(users) ? users : [];
+
+        RANKS_FIFA = computePositions(USERS, FIFA_KEYS);
+        RANKS_SNOOKER = computePositions(USERS, SNOOKER_KEYS);
+
+        renderRows();
+      } catch (err) {
+        console.error("Load ranks error:", err);
+        const tbody = document.getElementById("rankBody");
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:14px">❌ Failed to load ranks</td></tr>`;
+      } finally {
+        loading.style.display = "none";
+      }
+    }
+
+    let searchTimer = null;
+    document.addEventListener("DOMContentLoaded", () => {
+      loadAllUsers();
+      const input = document.getElementById("searchInput");
+      input.addEventListener("input", (e) => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => renderRows(e.target.value || ""), 220);
+      });
+    });
+  </script>
+</body>
+</html>

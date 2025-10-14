@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .center {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 25px;
+      color: gold;
+    }
+
+    .admin-nav {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); /* ✅ Mobile responsive */
+      gap: 20px;
+      justify-items: center;
+      margin-bottom: 30px;
+    }
+
+    .admin-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+    }
+
+    .admin-btn .circle {
+      width: 65px;
+      height: 65px;
+      border-radius: 50%;
+      background: gold;
+      box-shadow: 0 0 12px gold, 0 0 25px rgba(255,215,0,0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      margin-bottom: 6px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .admin-btn:hover .circle {
+      transform: scale(1.1);
+      box-shadow: 0 0 18px gold, 0 0 35px rgba(255,215,0,0.9);
+    }
+
+    .admin-btn span {
+      color: white;
+      font-size: 13px;
+    }
+
+    .summary-card {
+      background: #1e293b;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 18px;
+      color: #f8fafc;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1e293b;
+      border-radius: 8px;
+      overflow: hidden;
+      color: #f8fafc;
+    }
+
+    table th, table td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #334155;
+    }
+
+    table th {
+      background: #0f172a;
+    }
+
+    table tr:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body>
+  <div class="center">
+    <h1>⚜️ Admin Dashboard</h1>
+
+    <!-- Admin Navigation -->
+    <div class="admin-nav">
+      <button class="admin-btn" onclick="goPage('admin-dashboard.html')">
+        <div class="circle">🏠</div><span>Dashboard</span>
+      </button>
+
+      <button class="admin-btn" onclick="goPage('admin-account.html')">
+        <div class="circle">👤</div><span>Accounts</span>
+      </button>
+
+      <button class="admin-btn" onclick="goPage('admin-bet.html')">
+        <div class="circle">🎲</div><span>Bets</span>
+      </button>
+
+      <button class="admin-btn" onclick="goPage('admin-deposit.html')">
+        <div class="circle">💳</div><span>Deposits</span>
+      </button>
+
+      <button class="admin-btn" onclick="goPage('admin-payment-method.html')">
+        <div class="circle">🏦</div><span>Payment Method</span>
+      </button>
+
+      <button class="admin-btn" onclick="goPage('admin-withdraw.html')">
+        <div class="circle">🏧</div><span>Withdrawals</span>
+      </button>
+      
+      <button class="admin-btn" onclick="goPage('admin-live.html')">
+        <div class="circle">🎦</div><span>youtubelive</span>
+      </button>
+
+      <button class="admin-btn" onclick="goPage('admin-tournament.html')">
+        <div class="circle">🎮</div><span>Tournaments</span>
+      </button>
+
+      <button class="admin-btn" onclick="goPage('admin-rank.html')">
+        <div class="circle">📊</div><span>Ranking</span>
+      </button>
+
+      <button class="admin-btn" onclick="goPage('admin-livescores.html')">
+        <div class="circle">📺</div><span>Live Scores</span>
+      </button>
+
+      <button class="admin-btn" onclick="goPage('settings.html')">
+        <div class="circle">⚙️</div><span>Settings</span>
+      </button>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-card">
+      🌍 Total User Balance: <span id="totalBalance">Loading...</span>
+    </div>
+
+    <!-- User Table -->
+    <table id="usersTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>User ID</th>
+          <th>Nickname</th>
+          <th>Email</th>
+          <th>Balance</th>
+          <th>Rank</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    function goPage(page) {
+      window.location.href = page;
+    }
+
+    async function loadUsers() {
+      const token = localStorage.getItem("adminToken");
+      if (!token) {
+        alert("Admin login required");
+        window.location.href = "admin.html";
+        return;
+      }
+
+      const res = await fetch("/user/all", {
+        headers: { Authorization: "Bearer " + token }
+      });
+
+      const users = await res.json();
+      const tbody = document.querySelector("#usersTable tbody");
+      tbody.innerHTML = "";
+      let total = 0;
+
+      users.forEach((u, i) => {
+        total += u.balance || 0;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${u._id}</td>
+          <td>${u.nickname}</td>
+          <td>${u.email}</td>
+          <td>${u.balance}</td>
+          <td>${u.rank || "-"}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("totalBalance").textContent = total.toFixed(2);
+    }
+
+    document.addEventListener("DOMContentLoaded", loadUsers);
+  </script>
+</body>
+</html>

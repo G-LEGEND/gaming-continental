@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Withdraw Funds</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      font-family: Poppins, Arial, sans-serif;
+      background: #f6f7fb;
+      padding: 20px;
+      color: #222;
+    }
+    .card {
+      max-width: 420px;
+      margin: 18px auto;
+      background: #fff;
+      padding: 18px;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 15px;
+    }
+    button {
+      background: #1766d1;
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+    button:disabled {
+      background: #999;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    button:disabled:hover {
+      background: #999;
+    }
+    .error-message {
+      color: #dc2626;
+      font-size: 14px;
+      margin: 8px 0;
+      text-align: center;
+      display: none;
+    }
+    .success-message {
+      color: #16a34a;
+      font-size: 14px;
+      margin: 8px 0;
+      text-align: center;
+      display: none;
+    }
+    .bank-details {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 12px 0;
+    }
+    .bank-details h4 {
+      margin: 0 0 8px 0;
+      color: #1766d1;
+    }
+    .refresh-btn {
+      background: #f59e0b;
+      margin-top: 10px;
+    }
+    table {
+      width: 100%;
+      margin-top: 18px;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f8fafc;
+      font-weight: 600;
+    }
+    .status-pending { color: #f59e0b; font-weight: 600; }
+    .status-approved { color: #16a34a; font-weight: 600; }
+    .status-rejected { color: #dc2626; font-weight: 600; }
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Withdraw Funds</h2>
+    <div>Balance: ₦<strong id="balance">0.00</strong></div>
+
+    <!-- Bank Details Display -->
+    <div id="bankDetailsInfo" class="bank-details" style="display: none;">
+      <h4>🏦 Your Bank Details</h4>
+      <div><strong>Account Name:</strong> <span id="displayAccountName"></span></div>
+      <div><strong>Account Number:</strong> <span id="displayAccountNumber"></span></div>
+      <div><strong>Bank:</strong> <span id="displayBankName"></span></div>
+      <button type="button" class="refresh-btn" onclick="refreshBankDetails()">🔄 Refresh Bank Details</button>
+      <small style="color: #64748b; display: block; margin-top: 8px;">To update these details, go to <a href="account.html" style="color: #1766d1;">Account Settings</a></small>
+    </div>
+
+    <div id="noBankDetails" class="error-message">
+      ❌ You need to add your bank details before withdrawing. 
+      <a href="account.html" style="color: #1766d1; font-weight: 600;">Add Bank Details</a>
+      <button type="button" class="refresh-btn" onclick="refreshBankDetails()" style="margin-top: 10px;">🔄 Check Again</button>
+    </div>
+
+    <form id="withdrawForm" style="display: none;">
+      <input type="number" id="amount" placeholder="Amount (min ₦1000)" required min="1000" />
+      <div id="errorMessage" class="error-message"></div>
+      <div id="successMessage" class="success-message"></div>
+      <button id="submitBtn" type="submit">Submit Withdrawal Request</button>
+    </form>
+  </div>
+
+  <div class="card" style="max-width:800px;">
+    <h3>Your Withdrawal History</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="withdrawHistory"></tbody>
+    </table>
+  </div>
+
+<script>
+  const API_BASE = "http://localhost:5000";
+  
+  // Get elements
+  const balanceEl = document.getElementById("balance");
+  const submitBtn = document.getElementById("submitBtn");
+  const withdrawForm = document.getElementById("withdrawForm");
+  const bankDetailsInfo = document.getElementById("bankDetailsInfo");
+  const noBankDetails = document.getElementById("noBankDetails");
+  const errorMessage = document.getElementById("errorMessage");
+  const successMessage = document.getElementById("successMessage");
+
+  let user = null;
+  let userId = null;
+
+  // 🔒 Protect page and initialize
+  function initializePage() {
+    const token = localStorage.getItem("token");
+    user = JSON.parse(localStorage.getItem("user") || "{}");
+    userId = user?._id || user?.id || user?.userId;
+
+    if (!token || !userId) {
+      alert("Please login first");
+      window.location.href = "index.html";
+      return;
+    }
+
+    // Show data immediately from localStorage
+    displayUserData(user);
+    
+    // Then force refresh from server
+    forceRefreshUserData();
+    
+    // Load history
+    loadHistory();
+  }
+
+  // ✅ Display user data immediately
+  function displayUserData(userData) {
+    // Update balance
+    balanceEl.innerText = (userData.balance || 0).toFixed(2);
+    
+    // Check bank details
+    const bankDetails = userData?.bankDetails;
+    
+    if (bankDetails && bankDetails.accountNumber) {
+      // Show bank details and withdraw form
+      bankDetailsInfo.style.display = 'block';
+      withdrawForm.style.display = 'block';
+      noBankDetails.style.display = 'none';
+      
+      // Display bank details
+      document.getElementById('displayAccountName').textContent = 
+        bankDetails.accountName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || "Not provided";
+      document.getElementById('displayAccountNumber').textContent = bankDetails.accountNumber;
+      document.getElementById('displayBankName').textContent = bankDetails.bankName;
+      
+      console.log("✅ Bank details found and displayed");
+    } else {
+      // Show error and hide form
+      bankDetailsInfo.style.display = 'none';
+      withdrawForm.style.display = 'none';
+      noBankDetails.style.display = 'block';
+      console.log("❌ No bank details found");
+    }
+  }
+
+  // ✅ Force refresh user data from server
+  async function forceRefreshUserData() {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      console.log("🔄 Fetching fresh user data from server...");
+      
+      // Try multiple endpoints
+      let endpoints = [
+        `${API_BASE}/user/me`,
+        `${API_BASE}/user/profile`, 
+        `${API_BASE}/user/${userId}`
+      ];
+      
+      let freshUser = null;
+      
+      for (let endpoint of endpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            headers: { 
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
+          });
+          
+          if (res.ok) {
+            freshUser = await res.json();
+            console.log(`✅ Success from ${endpoint}`);
+            break;
+          }
+        } catch (err) {
+          console.log(`❌ Failed ${endpoint}:`, err.message);
+          continue;
+        }
+      }
+      
+      if (freshUser) {
+        // Update localStorage
+        localStorage.setItem("user", JSON.stringify(freshUser));
+        user = freshUser;
+        
+        // Update display with fresh data
+        displayUserData(freshUser);
+        console.log("✅ User data refreshed successfully");
+        
+        showTempMessage("✅ Bank details updated!", false);
+      } else {
+        console.log("❌ All endpoints failed, using cached data");
+        showTempMessage("⚠️ Using cached data", true);
+      }
+      
+    } catch (err) {
+      console.error("Error refreshing user:", err);
+      showTempMessage("❌ Failed to refresh data", true);
+    }
+  }
+
+  // ✅ Manual refresh function
+  async function refreshBankDetails() {
+    showTempMessage("🔄 Refreshing...", false);
+    await forceRefreshUserData();
+  }
+
+  // ✅ Show temporary message
+  function showTempMessage(message, isError) {
+    const tempDiv = document.createElement('div');
+    tempDiv.textContent = message;
+    tempDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${isError ? '#dc2626' : '#16a34a'};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      z-index: 1000;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    document.body.appendChild(tempDiv);
+    
+    setTimeout(() => {
+      document.body.removeChild(tempDiv);
+    }, 3000);
+  }
+
+  // Withdraw form submission
+  document.getElementById("withdrawForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    
+    const amount = Number(document.getElementById("amount").value);
+    const token = localStorage.getItem("token");
+    
+    // Validation
+    if (!amount || amount < 1000) {
+      showFormMessage("Minimum withdrawal is ₦1000", true);
+      return;
+    }
+
+    if (amount > (user?.balance || 0)) {
+      showFormMessage(`Insufficient balance. Your balance is ₦${(user?.balance || 0).toFixed(2)}`, true);
+      return;
+    }
+
+    // Disable button while processing
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Processing...";
+    showFormMessage("", false); // Clear previous messages
+
+    try {
+      const res = await fetch(`${API_BASE}/withdraw/`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: amount,
+          method: "Bank Transfer"
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || data.message || "Withdrawal failed");
+      }
+
+      showFormMessage("✅ Withdrawal request submitted! Waiting for admin approval.", false);
+      document.getElementById("amount").value = "";
+      
+      // Refresh user data and history
+      await forceRefreshUserData();
+      await loadHistory();
+      
+    } catch (err) {
+      console.error("Withdraw error:", err);
+      showFormMessage("❌ " + err.message, true);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Submit Withdrawal Request";
+    }
+  });
+
+  // Show form message
+  function showFormMessage(message, isError) {
+    if (isError) {
+      errorMessage.textContent = message;
+      errorMessage.style.display = 'block';
+      successMessage.style.display = 'none';
+    } else {
+      successMessage.textContent = message;
+      successMessage.style.display = 'block';
+      errorMessage.style.display = 'none';
+    }
+  }
+
+  async function loadHistory() {
+    const token = localStorage.getItem("token");
+    if (!token || !userId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/withdraw/user/${userId}`, { 
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        } 
+      });
+      
+      if (!res.ok) {
+        throw new Error("Failed to load history");
+      }
+      
+      const data = await res.json();
+      const tbody = document.getElementById("withdrawHistory");
+      tbody.innerHTML = "";
+      
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#64748b;">No withdrawal history found</td></tr>`;
+        return;
+      }
+      
+      data.forEach(w => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>₦${Number(w.amount).toLocaleString()}</td>
+          <td class="status-${w.status}">${w.status.toUpperCase()}</td>
+          <td>${new Date(w.createdAt || w.date).toLocaleString()}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      
+    } catch (err) {
+      console.error("Error loading history:", err);
+      const tbody = document.getElementById("withdrawHistory");
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#dc2626;">Error loading history</td></tr>`;
+    }
+  }
+
+  // ✅ Check for bank details every 2 seconds (as backup)
+  function startBankDetailsChecker() {
+    setInterval(() => {
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const hasBankDetails = currentUser?.bankDetails?.accountNumber;
+      
+      if (hasBankDetails && noBankDetails.style.display !== 'none') {
+        console.log("🔄 Auto-detected bank details, refreshing...");
+        displayUserData(currentUser);
+      }
+    }, 2000);
+  }
+
+  // Initialize when page loads
+  document.addEventListener("DOMContentLoaded", () => {
+    initializePage();
+    startBankDetailsChecker();
+  });
+
+  // ✅ Listen for clicks on the page to trigger refresh
+  document.addEventListener('click', () => {
+    // Quick check if we need to refresh
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    if (currentUser?.bankDetails?.accountNumber && !user?.bankDetails?.accountNumber) {
+      displayUserData(currentUser);
+    }
+  });
+</script>
+</body>
+</html>

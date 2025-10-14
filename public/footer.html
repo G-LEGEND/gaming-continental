@@ -1,0 +1,60 @@
+<footer>
+  <div class="footer-item" data-page="dashboard.html">
+    <div class="footer-circle">🏠</div>
+    <div class="footer-label">Home</div>
+  </div>
+  <div class="footer-item" data-page="deposit.html">
+    <div class="footer-circle">💰</div>
+    <div class="footer-label">Deposit</div>
+  </div>
+  <div class="footer-item" data-page="withdraw.html">
+    <div class="footer-circle">🏧</div>
+    <div class="footer-label">Withdraw</div>
+  </div>
+  <div class="footer-item" data-page="account.html">
+    <div class="footer-circle">👤</div>
+    <div class="footer-label">Account</div>
+  </div>
+</footer>
+
+<style>
+  footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    z-index: 1000;
+  }
+  footer .footer-item {
+    text-align: center;
+    cursor: pointer;
+    flex: 1;
+    user-select: none;
+  }
+  footer .footer-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 4px;
+    font-size: 18px;
+    color: #007BFF;
+    transition: background 0.2s, transform 0.2s;
+  }
+  footer .footer-circle:hover {
+    background: #e0e7ff;
+    transform: scale(1.1);
+  }
+  footer .footer-label {
+    font-size: 12px;
+    color: #333;
+  }
+</style>

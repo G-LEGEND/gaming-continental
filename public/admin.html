@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: var(--bg);
+      margin: 0;
+    }
+    .login-card {
+      background: var(--card);
+      padding: 30px;
+      border-radius: 12px;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+    }
+    h1 { margin-bottom: 20px; }
+    input, button {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+    }
+    input {
+      background: #1f2937;
+      color: white;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .error {
+      color: #f87171;
+      margin-top: 10px;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <h1>Admin Login</h1>
+    <form id="adminLoginForm">
+      <input type="email" id="email" placeholder="Email" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+      <div id="loginError" class="error"></div>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById("adminLoginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch("/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          document.getElementById("loginError").textContent = data.error || "Invalid login";
+          return;
+        }
+
+        localStorage.setItem("adminToken", data.token);
+        window.location.href = "admin-dashboard.html";
+      } catch (err) {
+        document.getElementById("loginError").textContent = "Server error. Try again.";
+      }
+    });
+  </script>
+</body>
+</html>

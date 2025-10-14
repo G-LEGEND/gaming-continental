@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Global Leaderboard | Gaming Continental</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 15px;
+      color: #111;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      margin-right: 10px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 15px;
+    }
+    .refresh-btn {
+      background: #1766d1;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 18px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .refresh-btn:hover { background: #0e4fa8; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    th, td {
+      text-align: center;
+      padding: 12px 10px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th {
+      background: #1766d1;
+      color: white;
+      font-size: 14px;
+    }
+    tr:hover { background: #f9fafb; }
+    .rank-badge { font-size: 18px; font-weight: bold; }
+    .gold { color: #d4af37; }
+    .silver { color: #c0c0c0; }
+    .bronze { color: #cd7f32; }
+    .save-btn {
+      background: #22c55e;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .save-btn:hover { background: #16a34a; }
+    .points-input {
+      width: 70px;
+      text-align: center;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    @media (max-width: 700px) {
+      body { padding: 10px; }
+      th, td { font-size: 13px; }
+      .top-bar { flex-direction: column; gap: 10px; }
+      .refresh-btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🏆 Admin Global Leaderboard</h1>
+
+  <div class="top-bar">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search by username or Gmail..." oninput="filterUsers()">
+    </div>
+    <button class="refresh-btn" onclick="loadRanks()">🔄 Refresh</button>
+  </div>
+
+  <table id="rankTable">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Nickname</th>
+        <th>Gmail</th>
+        <th>FIFA Points</th>
+        <th>Snooker Points</th>
+        <th>Total Points</th>
+        <th>Add Points</th>
+        <th>Date Joined</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const API_BASE = "http://localhost:5000";
+    const token = localStorage.getItem("adminToken");
+    const tbody = document.querySelector("#rankTable tbody");
+    let usersData = [];
+
+    async function loadRanks() {
+      try {
+        tbody.innerHTML = `<tr><td colspan="8">Loading...</td></tr>`;
+        const res = await fetch(`${API_BASE}/admin/rank/all`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const users = await res.json();
+        if (!res.ok) throw new Error(users.error || "Failed to load rank");
+
+        usersData = users.map(u => ({
+          ...u,
+          totalPoints: (u.fifaPoints || 0) + (u.snookerPoints || 0)
+        })).sort((a, b) => b.totalPoints - a.totalPoints);
+
+        renderTable(usersData);
+      } catch (err) {
+        console.error("Load rank error:", err);
+        tbody.innerHTML = `<tr><td colspan="8" style="color:red;">${err.message}</td></tr>`;
+      }
+    }
+
+    function renderTable(data) {
+      tbody.innerHTML = "";
+      data.forEach((u, i) => {
+        const pos = i + 1;
+        let badgeClass = "";
+        let medal = "";
+        if (pos === 1) { badgeClass = "gold"; medal = "🥇"; }
+        else if (pos === 2) { badgeClass = "silver"; medal = "🥈"; }
+        else if (pos === 3) { badgeClass = "bronze"; medal = "🥉"; }
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="rank-badge ${badgeClass}">${pos} ${medal}</td>
+          <td>${u.nickname || "—"}</td>
+          <td>${u.email}</td>
+          <td>${u.fifaPoints || 0}</td>
+          <td>${u.snookerPoints || 0}</td>
+          <td><b>${u.totalPoints}</b></td>
+          <td>
+            <select id="cat-${u._id}">
+              <option value="fifa">FIFA</option>
+              <option value="snooker">Snooker</option>
+            </select>
+            <input type="number" id="points-${u._id}" class="points-input" placeholder="Add">
+            <button class="save-btn" onclick="addPoints('${u._id}')">Save</button>
+          </td>
+          <td>${new Date(u.createdAt).toLocaleDateString()}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function addPoints(userId) {
+      const category = document.getElementById(`cat-${userId}`).value;
+      const points = parseInt(document.getElementById(`points-${userId}`).value);
+
+      if (!points || points <= 0) return alert("Enter valid points");
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/rank/add-points/${userId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ category, points })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to add points");
+
+        alert("✅ " + data.message);
+        loadRanks();
+      } catch (err) {
+        console.error("Add points error:", err);
+        alert("❌ " + err.message);
+      }
+    }
+
+    function filterUsers() {
+      const search = document.getElementById("searchInput").value.toLowerCase();
+      const filtered = usersData.filter(
+        u =>
+          u.nickname?.toLowerCase().includes(search) ||
+          u.email?.toLowerCase().includes(search)
+      );
+      renderTable(filtered);
+    }
+
+    document.addEventListener("DOMContentLoaded", loadRanks);
+  </script>
+</body>
+</html>
