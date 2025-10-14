@@ -50,9 +50,30 @@
     .reject:hover {
       background: #dc2626;
     }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #9ca3af;
+    }
+    .error {
+      color: #ef4444;
+      text-align: center;
+      padding: 20px;
+    }
+    .logout-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
+  <button class="logout-btn" onclick="logoutAdmin()">🚪 Logout</button>
   <h1>Admin - Manage Deposits</h1>
   <table id="depositTable">
     <thead>
@@ -67,25 +88,78 @@
         <th>Action</th>
       </tr>
     </thead>
-    <tbody></tbody>
+    <tbody>
+      <tr>
+        <td colspan="8" class="loading">Loading deposits...</td>
+      </tr>
+    </tbody>
   </table>
 
   <script>
     const API_BASE = "https://gaming-continental.onrender.com";
 
-    // ✅ Load all deposits (no token)
-    async function loadDeposits() {
-      try {
-        const res = await fetch(`${API_BASE}/deposit/all`);
-        const data = await res.json();
+    // ✅ Get admin token from localStorage
+    function getAdminToken() {
+      return localStorage.getItem("adminToken");
+    }
 
-        if (!res.ok) throw new Error(data.error || "Failed to fetch deposits");
+    // ✅ Check if admin is authenticated
+    function checkAdminAuth() {
+      const token = getAdminToken();
+      if (!token) {
+        alert("Please login as admin first");
+        window.location.href = "admin.html";
+        return false;
+      }
+      return true;
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminLoggedIn");
+      localStorage.removeItem("adminEmail");
+      window.location.href = "admin.html";
+    }
+
+    // ✅ Load all deposits WITH token
+    async function loadDeposits() {
+      if (!checkAdminAuth()) return;
+
+      try {
+        const token = getAdminToken();
+        console.log("🔄 Fetching deposits with token...");
+
+        const res = await fetch(`${API_BASE}/deposit/all`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        console.log("📡 Response status:", res.status);
+
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem("adminToken");
+            throw new Error("Admin authentication failed. Please login again.");
+          }
+          throw new Error(`HTTP ${res.status}: Failed to fetch deposits`);
+        }
+
+        const data = await res.json();
+        console.log("✅ Deposits data received:", data);
 
         const tbody = document.querySelector("#depositTable tbody");
         tbody.innerHTML = "";
 
-        if (data.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">No deposit requests yet.</td></tr>`;
+        if (!Array.isArray(data) || data.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align:center; color: #9ca3af;">
+                No deposit requests yet.
+              </td>
+            </tr>
+          `;
           return;
         }
 
@@ -94,13 +168,13 @@
           tr.innerHTML = `
             <td>${dep.userId?.nickname || "Unknown"}</td>
             <td>${dep.userId?.email || "Unknown"}</td>
-            <td>${dep.amount}</td>
+            <td>₦${(dep.amount || 0).toLocaleString()}</td>
             <td>${dep.methodId?.bankName || "-"}</td>
             <td>${dep.methodId?.accountName || "-"}</td>
             <td>${dep.methodId?.accountNumber || "-"}</td>
-            <td>${dep.status}</td>
+            <td>${dep.status || "pending"}</td>
             <td>
-              ${dep.status === "pending"
+              ${(dep.status === "pending" || !dep.status)
                 ? `
                   <button class="approve" onclick="approveDeposit('${dep._id}')">Approve ✅</button>
                   <button class="reject" onclick="rejectDeposit('${dep._id}')">Reject ❌</button>
@@ -113,26 +187,43 @@
           `;
           tbody.appendChild(tr);
         });
+
       } catch (err) {
-        console.error("Error loading deposits:", err);
-        alert(err.message || "Failed to load deposits");
+        console.error("❌ Error loading deposits:", err);
+        const tbody = document.querySelector("#depositTable tbody");
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="error">
+              Failed to load deposits: ${err.message}
+              <br><br>
+              <button onclick="loadDeposits()" style="background: #38bdf8; margin-top: 10px;">
+                🔄 Retry
+              </button>
+            </td>
+          </tr>
+        `;
       }
     }
 
-    // ✅ Approve deposit without token
+    // ✅ Approve deposit WITH token
     async function approveDeposit(id) {
+      if (!checkAdminAuth()) return;
       if (!confirm("Approve this deposit?")) return;
 
       try {
+        const token = getAdminToken();
         const res = await fetch(`${API_BASE}/deposit/approve/${id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to approve deposit");
 
-        alert(data.message);
+        alert(data.message || "Deposit approved successfully!");
         loadDeposits();
       } catch (err) {
         console.error(err);
@@ -140,20 +231,25 @@
       }
     }
 
-    // ✅ Reject deposit without token
+    // ✅ Reject deposit WITH token
     async function rejectDeposit(id) {
+      if (!checkAdminAuth()) return;
       if (!confirm("Reject this deposit?")) return;
 
       try {
+        const token = getAdminToken();
         const res = await fetch(`${API_BASE}/deposit/reject/${id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to reject deposit");
 
-        alert(data.message);
+        alert(data.message || "Deposit rejected successfully!");
         loadDeposits();
       } catch (err) {
         console.error(err);
@@ -162,7 +258,11 @@
     }
 
     // Load on page start
-    loadDeposits();
+    document.addEventListener("DOMContentLoaded", function() {
+      console.log("🚀 Admin deposits page loaded");
+      console.log("🔑 Admin token:", getAdminToken() ? "Present" : "Missing");
+      loadDeposits();
+    });
   </script>
 </body>
 </html>
