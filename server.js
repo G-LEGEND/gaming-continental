@@ -1,11 +1,12 @@
 // ===============================
-// 🌍 GAMING CONTINENTAL SERVER (Updated with Auth Me Endpoint)
+// 🌍 GAMING CONTINENTAL SERVER (Updated with JWT Tokens)
 // ===============================
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken"); // ✅ ADD JWT
 require("dotenv").config();
 
 const app = express();
@@ -15,6 +16,7 @@ const MONGO_URI =
   process.env.MONGO_URI ||
   "mongodb+srv://olaoluwa705_db_user:olaoluwanishola_1@cluster0.r4pqjm5.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const PORT = process.env.PORT || 10000;
+const JWT_SECRET = process.env.JWT_SECRET || "super_secret_key_change_this"; // ✅ ADD JWT SECRET
 
 // ---------- Middlewares ----------
 app.use(
@@ -107,8 +109,25 @@ app.post("/admin/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
+    // ✅ GENERATE JWT TOKEN FOR ADMIN
+    const token = jwt.sign(
+      { 
+        id: admin._id, 
+        email: admin.email, 
+        isAdmin: true 
+      },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
     loggedInAdmins.add(email);
-    res.json({ message: "Admin login successful ✅", admin: { email } });
+    
+    // ✅ RETURN TOKEN TO FRONTEND
+    res.json({ 
+      message: "Admin login successful ✅", 
+      admin: { email },
+      token: token // ✅ THIS IS WHAT THE FRONTEND EXPECTS
+    });
   } catch (err) {
     console.error("Admin login error:", err);
     res.status(500).json({ error: "Server error" });
@@ -127,6 +146,24 @@ function requireAdmin(req, res, next) {
   if (!loggedInAdmins.has(email))
     return res.status(403).json({ error: "Admin not logged in" });
   next();
+}
+
+// ---------- JWT Admin Middleware ----------
+function verifyAdminToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  if (!authHeader) return res.status(401).json({ error: "No token provided" });
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (!decoded.isAdmin) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    req.admin = decoded;
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: "Invalid or expired token" });
+  }
 }
 
 // ---------- Routes ----------
@@ -155,6 +192,17 @@ app.use("/tournament", tournamentRoutes);
 app.use("/tournament/public", publicTournamentRoutes);
 app.use("/admin/tournament", requireAdmin, tournamentRoutes);
 app.use("/admin", requireAdmin, adminRoutes);
+
+// ✅ ADD ADMIN USER ROUTE WITH TOKEN AUTH
+app.get("/admin/users", verifyAdminToken, async (req, res) => {
+  try {
+    const users = await User.find().select('-password'); // Exclude passwords
+    res.json(users);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
 
 // ---------- Withdrawals ----------
 app.post("/withdraw", async (req, res) => {
