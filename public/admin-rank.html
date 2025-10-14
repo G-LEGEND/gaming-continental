@@ -8,14 +8,15 @@
   <style>
     body {
       font-family: "Poppins", sans-serif;
-      background: #f4f6f9;
+      background: #0f172a;
       margin: 0;
       padding: 15px;
-      color: #111;
+      color: #f8fafc;
     }
     h1 {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 25px;
+      color: #38bdf8;
     }
     .top-bar {
       display: flex;
@@ -23,21 +24,27 @@
       align-items: center;
       margin-bottom: 15px;
       flex-wrap: wrap;
+      gap: 10px;
     }
     .search-box {
       flex: 1;
       min-width: 200px;
-      margin-right: 10px;
     }
     input[type="text"] {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
+      padding: 10px 12px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #f1f5f9;
       border-radius: 6px;
       font-size: 15px;
+      outline: none;
+    }
+    input[type="text"]::placeholder {
+      color: #94a3b8;
     }
     .refresh-btn {
-      background: #1766d1;
+      background: #2563eb;
       color: white;
       border: none;
       border-radius: 6px;
@@ -46,30 +53,36 @@
       cursor: pointer;
       transition: 0.3s;
     }
-    .refresh-btn:hover { background: #0e4fa8; }
+    .refresh-btn:hover { background: #1d4ed8; }
     table {
       width: 100%;
       border-collapse: collapse;
-      background: white;
+      background: #1e293b;
       border-radius: 10px;
       overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     }
     th, td {
       text-align: center;
       padding: 12px 10px;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid #334155;
     }
     th {
-      background: #1766d1;
+      background: #2563eb;
       color: white;
       font-size: 14px;
+      text-transform: uppercase;
     }
-    tr:hover { background: #f9fafb; }
-    .rank-badge { font-size: 18px; font-weight: bold; }
-    .gold { color: #d4af37; }
-    .silver { color: #c0c0c0; }
-    .bronze { color: #cd7f32; }
+    tr:hover {
+      background: #273549;
+    }
+    .rank-badge {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .gold { color: #facc15; }
+    .silver { color: #e2e8f0; }
+    .bronze { color: #f59e0b; }
     .save-btn {
       background: #22c55e;
       color: white;
@@ -84,14 +97,29 @@
       width: 70px;
       text-align: center;
       padding: 5px;
-      border: 1px solid #ccc;
+      border: 1px solid #334155;
       border-radius: 5px;
       font-size: 14px;
+      background: #0f172a;
+      color: white;
+    }
+    select {
+      background: #0f172a;
+      color: white;
+      border: 1px solid #334155;
+      border-radius: 5px;
+      padding: 4px 6px;
+    }
+    .no-data {
+      text-align: center;
+      color: #94a3b8;
+      padding: 25px;
+      font-style: italic;
     }
     @media (max-width: 700px) {
       body { padding: 10px; }
-      th, td { font-size: 13px; }
-      .top-bar { flex-direction: column; gap: 10px; }
+      th, td { font-size: 13px; padding: 8px; }
+      .top-bar { flex-direction: column; }
       .refresh-btn { width: 100%; }
     }
   </style>
@@ -101,7 +129,7 @@
 
   <div class="top-bar">
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="Search by username or Gmail..." oninput="filterUsers()">
+      <input type="text" id="searchInput" placeholder="Search by nickname or email..." oninput="filterUsers()">
     </div>
     <button class="refresh-btn" onclick="loadRanks()">🔄 Refresh</button>
   </div>
@@ -111,7 +139,7 @@
       <tr>
         <th>Rank</th>
         <th>Nickname</th>
-        <th>Gmail</th>
+        <th>Email</th>
         <th>FIFA Points</th>
         <th>Snooker Points</th>
         <th>Total Points</th>
@@ -128,9 +156,16 @@
     const tbody = document.querySelector("#rankTable tbody");
     let usersData = [];
 
+    // ✅ Load Leaderboard
     async function loadRanks() {
+      if (!token) {
+        alert("⚠️ Please log in as admin first.");
+        window.location.href = "admin.html";
+        return;
+      }
+
       try {
-        tbody.innerHTML = `<tr><td colspan="8">Loading...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="no-data">Loading leaderboard...</td></tr>`;
         const res = await fetch(`${API_BASE}/admin/rank/all`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
@@ -145,12 +180,18 @@
         renderTable(usersData);
       } catch (err) {
         console.error("Load rank error:", err);
-        tbody.innerHTML = `<tr><td colspan="8" style="color:red;">${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="no-data" style="color:#f87171;">${err.message}</td></tr>`;
       }
     }
 
+    // ✅ Render Leaderboard Table
     function renderTable(data) {
       tbody.innerHTML = "";
+      if (!data.length) {
+        tbody.innerHTML = `<tr><td colspan="8" class="no-data">No users found.</td></tr>`;
+        return;
+      }
+
       data.forEach((u, i) => {
         const pos = i + 1;
         let badgeClass = "";
@@ -181,6 +222,7 @@
       });
     }
 
+    // ✅ Add Points to a User
     async function addPoints(userId) {
       const category = document.getElementById(`cat-${userId}`).value;
       const points = parseInt(document.getElementById(`points-${userId}`).value);
@@ -207,6 +249,7 @@
       }
     }
 
+    // ✅ Search / Filter
     function filterUsers() {
       const search = document.getElementById("searchInput").value.toLowerCase();
       const filtered = usersData.filter(

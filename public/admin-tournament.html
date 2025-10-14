@@ -1,464 +1,230 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin - Tournament Management</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Admin - Manage Tournaments</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background:#f4f6f8; color:#111; }
-    .wrap { max-width:900px; margin:0 auto; }
-    h1 { text-align:center; margin-bottom:18px; }
-    .card { background:#fff; padding:14px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.06); margin-bottom:12px; }
-    form input, form textarea { width:100%; padding:8px; margin:8px 0; border-radius:6px; border:1px solid #ddd; box-sizing:border-box; }
-    button { padding:10px 14px; border-radius:6px; cursor:pointer; border:none; }
-    .btn-primary { background:#1766d1; color:#fff; }
-    .btn-secondary { background:#6b7280; color:#fff; }
-    .btn-danger { background:#dc2626; color:#fff; }
-    .btn-success { background:#0b6138; color:#fff; }
-    .btn-warning { background:#d97706; color:#fff; }
-    img.thumb { max-width:220px; display:block; margin-top:8px; border-radius:6px; }
-    .muted { color:#666; font-size:13px; }
-    #msg { margin:10px 0; font-weight:600; }
-    .players { margin-top:8px; }
-    .player { padding:10px; border-radius:6px; border:1px solid #eee; margin-bottom:8px; background:#fafafa; }
-    .status-badge { 
-      padding: 4px 8px; 
-      border-radius: 12px; 
-      font-size: 12px; 
-      font-weight: bold; 
-      margin-left: 8px;
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      padding: 20px;
     }
-    .status-open { background: #d1fae5; color: #065f46; }
-    .status-closed { background: #fef3c7; color: #92400e; }
-    .status-deleted { background: #fee2e2; color: #991b1b; }
-    .modal { 
-      display: none; 
-      position: fixed; 
-      top: 0; left: 0; 
-      width: 100%; height: 100%; 
-      background: rgba(0,0,0,0.5); 
-      z-index: 1000; 
+    h1 {
+      color: #38bdf8;
+      text-align: center;
     }
-    .modal-content { 
-      background: white; 
-      margin: 5% auto; 
-      padding: 20px; 
-      border-radius: 8px; 
-      width: 90%; 
-      max-width: 600px; 
-      max-height: 80vh; 
-      overflow-y: auto; 
+    button {
+      background: #38bdf8;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
     }
-    .player-grid { 
-      display: grid; 
-      grid-template-columns: 1fr auto auto; 
-      gap: 10px; 
-      align-items: center; 
-      margin-bottom: 10px; 
-      padding: 10px; 
-      border: 1px solid #e5e7eb; 
-      border-radius: 6px; 
+    button:hover {
+      background: #0ea5e9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #334155;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background: #1e293b;
+    }
+    tr:nth-child(even) {
+      background: #1e293b;
+    }
+    .action-btn {
+      margin-right: 8px;
+    }
+    .close {
+      background: #ef4444;
+    }
+    .close:hover {
+      background: #dc2626;
+    }
+    .reopen {
+      background: #22c55e;
+    }
+    .reopen:hover {
+      background: #16a34a;
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Admin — Tournament Management</h1>
+  <h1>Admin - Manage Tournaments</h1>
+  <button onclick="createTournament()">➕ Create Tournament</button>
 
-    <div id="msg" role="status" aria-live="polite"></div>
+  <table id="tournamentTable">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Game</th>
+        <th>Entry Fee</th>
+        <th>Players</th>
+        <th>Status</th>
+        <th>Winner</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-    <form id="tournamentForm" class="card" autocomplete="off">
-      <input type="text" id="title" placeholder="Title" required>
-      <input type="number" id="maxPlayers" placeholder="Max Players (e.g. 30)" required>
-      <input type="number" id="minAmount" placeholder="Minimum Amount" step="0.01" required>
-      <input type="number" id="maxAmount" placeholder="Maximum Amount" step="0.01" required>
-      <textarea id="description" placeholder="Tournament description..." rows="4" required></textarea>
-      <input type="text" id="image" placeholder="Image URL (optional)">
-      <div style="display:flex; gap:8px; margin-top:8px;">
-        <button id="addBtn" type="submit" class="btn-primary">Add Tournament</button>
-        <button id="clearBtn" type="button" class="btn-secondary">Clear</button>
-      </div>
-    </form>
+  <script>
+    const API_BASE = "https://gaming-continental.onrender.com/admin/tournament";
 
-    <h2>Existing Tournaments</h2>
-    <div id="tournamentList"></div>
+    async function loadTournaments() {
+      const token = localStorage.getItem("adminToken");
+      if (!token) {
+        alert("No admin token found! Please log in again.");
+        window.location.href = "admin.html";
+        return;
+      }
 
-    <!-- View Players Modal -->
-    <div id="playersModal" class="modal">
-      <div class="modal-content">
-        <h3>Tournament Players</h3>
-        <div id="modalPlayersList"></div>
-        <button onclick="closePlayersModal()" class="btn-secondary" style="margin-top: 15px;">Close</button>
-      </div>
-    </div>
-  </div>
+      try {
+        const res = await fetch(`${API_BASE}/all`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
 
-<script>
-/* ---------- Config ---------- */
-const API_BASE = "https://gaming-continental.onrender.com/tournament/public";
+        if (!res.ok) throw new Error(data.error || "Failed to fetch tournaments");
 
-/* ---------- Helpers ---------- */
-function getAdminToken() {
-  return localStorage.getItem("adminToken");
-}
+        const tbody = document.querySelector("#tournamentTable tbody");
+        tbody.innerHTML = "";
 
-function escapeHtml(str = "") {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">No tournaments available yet.</td></tr>`;
+          return;
+        }
 
-function showMsg(text = "", isError = false) {
-  const el = document.getElementById("msg");
-  el.textContent = text;
-  el.style.color = isError ? "#b91c1c" : "#0b6138";
-}
-
-function getStatusBadge(status) {
-  const badges = {
-    open: '<span class="status-badge status-open">OPEN</span>',
-    closed: '<span class="status-badge status-closed">CLOSED</span>',
-    deleted: '<span class="status-badge status-deleted">DELETED</span>'
-  };
-  return badges[status] || '';
-}
-
-/* Check token and redirect if missing/invalid */
-function ensureTokenOrRedirect() {
-  const token = getAdminToken();
-  if (!token) {
-    alert("Admin session missing — please log in.");
-    window.location.href = "admin.html";
-    throw new Error("Missing admin token");
-  }
-  return token;
-}
-
-/* Handle API responses */
-async function fetchWithAuth(url, opts = {}) {
-  const token = ensureTokenOrRedirect();
-  opts.headers = Object.assign({}, opts.headers || {}, {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer " + token
-  });
-
-  let res;
-  try {
-    res = await fetch(url, opts);
-  } catch (err) {
-    throw new Error("Network error: " + (err.message || err));
-  }
-
-  if (res.status === 401 || res.status === 403) {
-    localStorage.removeItem("adminToken");
-    alert("Session expired. Please log in again.");
-    window.location.href = "admin.html";
-    throw new Error("Unauthorized");
-  }
-
-  let json;
-  try { json = await res.json(); } catch { json = null; }
-
-  if (!res.ok) {
-    const msg = (json && (json.error || json.message)) || res.statusText || "Request failed";
-    throw new Error(msg);
-  }
-
-  return json;
-}
-
-/* ---------- Form submit: Add tournament ---------- */
-const form = document.getElementById("tournamentForm");
-const addBtn = document.getElementById("addBtn");
-const clearBtn = document.getElementById("clearBtn");
-const tournamentList = document.getElementById("tournamentList");
-
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  showMsg("");
-
-  try {
-    ensureTokenOrRedirect();
-
-    const payload = {
-      title: document.getElementById("title").value.trim(),
-      maxPlayers: parseInt(document.getElementById("maxPlayers").value, 10),
-      minAmount: parseFloat(document.getElementById("minAmount").value),
-      maxAmount: parseFloat(document.getElementById("maxAmount").value),
-      description: document.getElementById("description").value.trim(),
-      image: document.getElementById("image").value.trim()
-    };
-
-    if (!payload.title || isNaN(payload.maxPlayers) || isNaN(payload.minAmount) || isNaN(payload.maxAmount) || !payload.description) {
-      showMsg("Please fill all required fields correctly.", true);
-      return;
+        data.forEach(t => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${t.title}</td>
+            <td>${t.game}</td>
+            <td>₦${t.entryFee}</td>
+            <td>${t.players?.length || 0}</td>
+            <td>${t.status}</td>
+            <td>${t.winner || "-"}</td>
+            <td>
+              <button class="action-btn" onclick="viewPlayers('${t._id}')">👥 View Players</button>
+              ${
+                t.status === "open"
+                  ? `<button class="action-btn close" onclick="closeTournament('${t._id}')">Close</button>`
+                  : `<button class="action-btn reopen" onclick="reopenTournament('${t._id}')">Reopen</button>`
+              }
+              <button class="action-btn" onclick="deleteTournament('${t._id}')">🗑️ Delete</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Error loading tournaments:", err);
+        alert(err.message || "Failed to load tournaments");
+      }
     }
 
-    addBtn.disabled = true;
-    addBtn.textContent = "Uploading...";
+    async function createTournament() {
+      const title = prompt("Enter tournament title:");
+      const game = prompt("Enter game name:");
+      const entryFee = prompt("Enter entry fee (₦):");
+      const token = localStorage.getItem("adminToken");
 
-    const result = await fetchWithAuth(`${API_BASE}/add`, {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
+      if (!title || !game || !entryFee) return alert("All fields are required.");
 
-    showMsg(result.message || "Tournament added successfully");
-    form.reset();
-    await loadTournaments();
-  } catch (err) {
-    console.error("Add tournament error:", err);
-    showMsg(err.message || "Failed to add tournament", true);
-  } finally {
-    addBtn.disabled = false;
-    addBtn.textContent = "Add Tournament";
-  }
-});
+      try {
+        const res = await fetch(`${API_BASE}/create`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ title, game, entryFee }),
+        });
+        const data = await res.json();
 
-clearBtn.addEventListener("click", () => {
-  form.reset();
-  showMsg("");
-});
+        if (!res.ok) throw new Error(data.error || "Failed to create tournament");
+        alert("Tournament created successfully ✅");
+        loadTournaments();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || "Error creating tournament");
+      }
+    }
 
-/* ---------- Load tournaments ---------- */
-async function loadTournaments() {
-  showMsg("Loading tournaments...");
-  try {
-    const list = await fetchWithAuth(`${API_BASE}`, { method: "GET" }) || [];
-    renderTournamentList(list);
-    showMsg("");
-  } catch (err) {
-    console.error("loadTournaments error:", err);
-    showMsg(err.message || "Could not load tournaments", true);
-  }
-}
+    async function closeTournament(id) {
+      if (!confirm("Are you sure you want to close this tournament?")) return;
+      const token = localStorage.getItem("adminToken");
 
-function renderTournamentList(list) {
-  tournamentList.innerHTML = "";
-  if (!Array.isArray(list) || list.length === 0) {
-    tournamentList.innerHTML = '<div class="muted card">No tournaments yet</div>';
-    return;
-  }
+      try {
+        const res = await fetch(`${API_BASE}/close/${id}`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to close tournament");
 
-  // Filter out deleted tournaments
-  const activeTournaments = list.filter(t => t.status !== 'deleted');
+        alert("Tournament closed ✅");
+        loadTournaments();
+      } catch (err) {
+        console.error(err);
+        alert(err.message);
+      }
+    }
 
-  activeTournaments.forEach(t => {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h3>${escapeHtml(t.title || '')} ${getStatusBadge(t.status)}</h3>
-        <div style="display: flex; gap: 8px;">
-          ${t.status === 'open' ? 
-            `<button class="btn-warning close-tournament-btn" data-id="${t._id}">Close</button>` : 
-            `<button class="btn-success open-tournament-btn" data-id="${t._id}">Reopen</button>`
-          }
-          <button class="btn-danger delete-tournament-btn" data-id="${t._id}">Delete</button>
-          <button class="btn-primary view-players-btn" data-id="${t._id}">View Players</button>
-        </div>
-      </div>
-      ${t.image ? `<img class="thumb" src="${escapeHtml(t.image)}" alt="">` : ''}
-      <p>${escapeHtml(t.description || '')}</p>
-      <p class="muted">Players: ${t.registeredPlayers ?? 0} / ${t.maxPlayers ?? '-'}</p>
-      <p class="muted">Amount: Min ${t.minAmount ?? '-'} , Max ${t.maxAmount ?? '-'}</p>
-      <p class="muted">Created: ${new Date(t.createdAt).toLocaleDateString()}</p>
-    `;
-    tournamentList.appendChild(card);
-  });
+    async function reopenTournament(id) {
+      const token = localStorage.getItem("adminToken");
 
-  // Add event listeners
-  tournamentList.querySelectorAll(".close-tournament-btn").forEach(btn => {
-    btn.addEventListener("click", () => closeTournament(btn.dataset.id));
-  });
-  
-  tournamentList.querySelectorAll(".open-tournament-btn").forEach(btn => {
-    btn.addEventListener("click", () => openTournament(btn.dataset.id));
-  });
-  
-  tournamentList.querySelectorAll(".delete-tournament-btn").forEach(btn => {
-    btn.addEventListener("click", () => deleteTournament(btn.dataset.id));
-  });
-  
-  tournamentList.querySelectorAll(".view-players-btn").forEach(btn => {
-    btn.addEventListener("click", () => viewPlayers(btn.dataset.id));
-  });
-}
+      try {
+        const res = await fetch(`${API_BASE}/reopen/${id}`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to reopen tournament");
 
-/* ---------- Tournament Actions ---------- */
-async function closeTournament(tournamentId) {
-  if (!confirm("Are you sure you want to close this tournament? Users won't be able to register.")) return;
-  
-  try {
-    await fetchWithAuth(`${API_BASE}/close/${tournamentId}`, {
-      method: "PUT"
-    });
-    showMsg("Tournament closed successfully");
-    await loadTournaments();
-  } catch (err) {
-    console.error("Close tournament error:", err);
-    showMsg(err.message || "Failed to close tournament", true);
-  }
-}
+        alert("Tournament reopened ✅");
+        loadTournaments();
+      } catch (err) {
+        console.error(err);
+        alert(err.message);
+      }
+    }
 
-async function openTournament(tournamentId) {
-  try {
-    await fetchWithAuth(`${API_BASE}/open/${tournamentId}`, {
-      method: "PUT"
-    });
-    showMsg("Tournament reopened successfully");
-    await loadTournaments();
-  } catch (err) {
-    console.error("Open tournament error:", err);
-    showMsg(err.message || "Failed to reopen tournament", true);
-  }
-}
+    async function deleteTournament(id) {
+      if (!confirm("Delete this tournament permanently?")) return;
+      const token = localStorage.getItem("adminToken");
 
-async function deleteTournament(tournamentId) {
-  if (!confirm("Are you sure you want to delete this tournament? This action cannot be undone.")) return;
-  
-  try {
-    await fetchWithAuth(`${API_BASE}/delete/${tournamentId}`, {
-      method: "DELETE"
-    });
-    showMsg("Tournament deleted successfully");
-    await loadTournaments();
-  } catch (err) {
-    console.error("Delete tournament error:", err);
-    showMsg(err.message || "Failed to delete tournament", true);
-  }
-}
+      try {
+        const res = await fetch(`${API_BASE}/delete/${id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to delete tournament");
 
-/* ---------- View Players Modal ---------- */
-let currentTournamentId = null;
+        alert("Tournament deleted 🗑️");
+        loadTournaments();
+      } catch (err) {
+        console.error(err);
+        alert(err.message);
+      }
+    }
 
-async function viewPlayers(tournamentId) {
-  currentTournamentId = tournamentId;
-  showMsg("Loading players...");
-  
-  try {
-    const players = await fetchWithAuth(`${API_BASE}/players/${tournamentId}`, { method: "GET" }) || [];
-    renderPlayersModal(players);
-    document.getElementById('playersModal').style.display = 'block';
-    showMsg("");
-  } catch (err) {
-    console.error("loadPlayers error:", err);
-    showMsg(err.message || "Could not load players", true);
-  }
-}
+    async function viewPlayers(id) {
+      localStorage.setItem("selectedTournamentId", id);
+      window.location.href = "admin-tournament-players.html";
+    }
 
-function renderPlayersModal(players) {
-  const modalPlayersList = document.getElementById('modalPlayersList');
-  modalPlayersList.innerHTML = "";
-  
-  if (!Array.isArray(players) || players.length === 0) {
-    modalPlayersList.innerHTML = '<div class="muted">No players registered</div>';
-    return;
-  }
-
-  players.forEach(p => {
-    const user = p.userId || {};
-    const playerCard = document.createElement("div");
-    playerCard.className = "player-grid";
-    playerCard.innerHTML = `
-      <div>
-        <strong>${escapeHtml(user.nickname || 'Unknown')}</strong><br>
-        <small class="muted">${escapeHtml(user.email || '—')}</small><br>
-        <small>Balance: ₦${(user.balance || 0).toLocaleString()}</small><br>
-        <small>Registered: ${new Date(p.registeredAt || p.createdAt).toLocaleDateString()}</small>
-      </div>
-      <div>
-        <strong>Amount: ₦${(p.amount || 0).toLocaleString()}</strong><br>
-        Status: ${escapeHtml(p.status || 'pending')}<br>
-        ${p.position ? `Position: ${escapeHtml(p.position)}` : ''}
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 5px;">
-        <button class="btn-success" onclick="setPlayerResult('${p._id}', 'win')">Win</button>
-        <button class="btn-danger" onclick="setPlayerResult('${p._id}', 'lose')">Lose</button>
-        <button class="btn-primary" onclick="addBalanceToPlayer('${user._id}', '${user.nickname}')">Add Balance</button>
-      </div>
-    `;
-    modalPlayersList.appendChild(playerCard);
-  });
-}
-
-function closePlayersModal() {
-  document.getElementById('playersModal').style.display = 'none';
-}
-
-/* ---------- Set Player Result ---------- */
-async function setPlayerResult(regId, status) {
-  let position = "";
-  let prize = 0;
-
-  if (status === "win") {
-    position = prompt("Enter position (e.g. 1st):", "1st");
-    if (position === null) return;
-    const prizeRaw = prompt("Enter prize amount:", "100");
-    if (prizeRaw === null) return;
-    prize = parseFloat(prizeRaw);
-    if (isNaN(prize)) { alert("Invalid prize amount"); return; }
-  }
-
-  try {
-    await fetchWithAuth(`${API_BASE}/result/${regId}`, {
-      method: "POST",
-      body: JSON.stringify({ status, position, prize })
-    });
-
-    alert("Result updated successfully");
-    // Reload players in modal
-    if (currentTournamentId) viewPlayers(currentTournamentId);
-  } catch (err) {
-    console.error("adminSetResult error:", err);
-    alert(err.message || "Failed to update result");
-  }
-}
-
-/* ---------- Add Balance to Player ---------- */
-async function addBalanceToPlayer(userId, nickname) {
-  const amount = prompt(`Enter amount to add to ${nickname}:`, "0");
-  if (amount === null) return;
-  
-  const numAmount = parseFloat(amount);
-  if (isNaN(numAmount) || numAmount <= 0) {
-    alert("Please enter a valid amount");
-    return;
-  }
-
-  const description = prompt("Enter description for this transaction:", "Admin balance addition");
-  if (description === null) return;
-
-  try {
-    const result = await fetchWithAuth(`${API_BASE}/add-balance`, {
-      method: "POST",
-      body: JSON.stringify({ 
-        userId, 
-        amount: numAmount, 
-        description 
-      })
-    });
-
-    alert(`Balance added successfully! New balance: ₦${result.newBalance.toLocaleString()}`);
-    // Reload players to show updated balance
-    if (currentTournamentId) viewPlayers(currentTournamentId);
-  } catch (err) {
-    console.error("Add balance error:", err);
-    alert(err.message || "Failed to add balance");
-  }
-}
-
-/* ---------- Init ---------- */
-document.addEventListener("DOMContentLoaded", () => {
-  try {
-    ensureTokenOrRedirect();
     loadTournaments();
-  } catch (err) {
-    console.error("Initialization error:", err);
-  }
-});
-</script>
+  </script>
 </body>
 </html>

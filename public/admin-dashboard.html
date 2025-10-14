@@ -26,7 +26,7 @@
 
     .admin-nav {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); /* ✅ Mobile responsive */
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
       gap: 20px;
       justify-items: center;
       margin-bottom: 30px;
@@ -128,9 +128,9 @@
       <button class="admin-btn" onclick="goPage('admin-withdraw.html')">
         <div class="circle">🏧</div><span>Withdrawals</span>
       </button>
-      
+
       <button class="admin-btn" onclick="goPage('admin-live.html')">
-        <div class="circle">🎦</div><span>youtubelive</span>
+        <div class="circle">🎦</div><span>YouTube Live</span>
       </button>
 
       <button class="admin-btn" onclick="goPage('admin-tournament.html')">
@@ -177,37 +177,33 @@
     }
 
     async function loadUsers() {
-      const token = localStorage.getItem("adminToken");
-      if (!token) {
-        alert("Admin login required");
-        window.location.href = "admin.html";
-        return;
+      try {
+        const res = await fetch("/user/all");
+        const users = await res.json();
+
+        const tbody = document.querySelector("#usersTable tbody");
+        tbody.innerHTML = "";
+        let total = 0;
+
+        users.forEach((u, i) => {
+          total += u.balance || 0;
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${i + 1}</td>
+            <td>${u._id}</td>
+            <td>${u.nickname}</td>
+            <td>${u.email}</td>
+            <td>${u.balance}</td>
+            <td>${u.rank || "-"}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById("totalBalance").textContent = total.toFixed(2);
+      } catch (err) {
+        console.error("Failed to load users:", err);
+        document.getElementById("totalBalance").textContent = "Error loading data";
       }
-
-      const res = await fetch("/user/all", {
-        headers: { Authorization: "Bearer " + token }
-      });
-
-      const users = await res.json();
-      const tbody = document.querySelector("#usersTable tbody");
-      tbody.innerHTML = "";
-      let total = 0;
-
-      users.forEach((u, i) => {
-        total += u.balance || 0;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${i + 1}</td>
-          <td>${u._id}</td>
-          <td>${u.nickname}</td>
-          <td>${u.email}</td>
-          <td>${u.balance}</td>
-          <td>${u.rank || "-"}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      document.getElementById("totalBalance").textContent = total.toFixed(2);
     }
 
     document.addEventListener("DOMContentLoaded", loadUsers);

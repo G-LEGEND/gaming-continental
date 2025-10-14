@@ -73,20 +73,12 @@
   <script>
     const API_BASE = "https://gaming-continental.onrender.com";
 
+    // ✅ Load all deposits (no token)
     async function loadDeposits() {
-      const token = localStorage.getItem("adminToken");
-      if (!token) {
-        alert("No admin token found! Please log in again.");
-        window.location.href = "admin.html";
-        return;
-      }
-
       try {
-        const res = await fetch(`${API_BASE}/deposit/all`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
+        const res = await fetch(`${API_BASE}/deposit/all`);
         const data = await res.json();
+
         if (!res.ok) throw new Error(data.error || "Failed to fetch deposits");
 
         const tbody = document.querySelector("#depositTable tbody");
@@ -127,17 +119,14 @@
       }
     }
 
+    // ✅ Approve deposit without token
     async function approveDeposit(id) {
-      const token = localStorage.getItem("adminToken");
       if (!confirm("Approve this deposit?")) return;
 
       try {
         const res = await fetch(`${API_BASE}/deposit/approve/${id}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json" },
         });
 
         const data = await res.json();
@@ -151,17 +140,14 @@
       }
     }
 
+    // ✅ Reject deposit without token
     async function rejectDeposit(id) {
-      const token = localStorage.getItem("adminToken");
       if (!confirm("Reject this deposit?")) return;
 
       try {
         const res = await fetch(`${API_BASE}/deposit/reject/${id}`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json" },
         });
 
         const data = await res.json();
@@ -175,6 +161,7 @@
       }
     }
 
+    // Load on page start
     loadDeposits();
   </script>
 </body>

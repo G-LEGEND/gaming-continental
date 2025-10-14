@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin - Live Streams</title>
   <style>
-    /* Your existing desktop CSS styles */
     * {
       margin: 0;
       padding: 0;
@@ -261,22 +260,12 @@
   </div>
 
   <script>
-    const API_BASE = window.location.origin;
-    let authToken = localStorage.getItem('adminToken');
+    const API_BASE = "https://gaming-continental.onrender.com";
 
-    // Load existing streams
+    // Load existing streams (no token)
     async function loadStreams() {
       try {
-        const response = await fetch(`${API_BASE}/livestream`, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch streams');
-        }
-        
+        const response = await fetch(`${API_BASE}/livestream`);
         const streams = await response.json();
         displayStreams(streams);
         updateStreamCount(streams.length);
@@ -289,23 +278,20 @@
     // Display streams in the list
     function displayStreams(streams) {
       const streamList = document.getElementById('streamList');
-      
       if (!streams || streams.length === 0) {
         streamList.innerHTML = '<p style="text-align: center; padding: 20px; color: #666;">No active streams. Add your first stream above.</p>';
         return;
       }
 
       let streamsHTML = '';
-      
-      streams.forEach((stream) => {
+      streams.forEach(stream => {
         streamsHTML += `
           <div class="stream-item">
             <div class="stream-info">
               <div class="stream-title">${stream.tournament}</div>
               <div class="stream-url">${stream.link}</div>
               <div class="stream-meta">
-                Added by: ${stream.createdBy?.email || 'Admin'} • 
-                ${new Date(stream.createdAt).toLocaleDateString()}
+                Added by: ${stream.createdBy?.email || 'Admin'} • ${new Date(stream.createdAt).toLocaleDateString()}
               </div>
             </div>
             <div class="stream-actions">
@@ -314,47 +300,32 @@
           </div>
         `;
       });
-      
       streamList.innerHTML = streamsHTML;
     }
 
-    // Update stream count
     function updateStreamCount(count) {
       document.getElementById('streamCount').textContent = `${count} stream${count !== 1 ? 's' : ''}`;
     }
 
-    // Add new stream
+    // Add new stream (no token)
     document.getElementById('streamForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      
       const title = document.getElementById('streamTitle').value.trim();
       const url = document.getElementById('streamUrl').value.trim();
       const description = document.getElementById('streamDescription').value.trim();
-      const message = document.getElementById('message');
       const submitBtn = document.getElementById('submitBtn');
 
-      // Validate inputs
-      if (!title) {
-        showMessage('Please enter a stream title', 'error');
-        return;
-      }
-
-      // Validate YouTube URL
-      if (!url.includes('youtube.com/live/') && !url.includes('youtu.be/')) {
-        showMessage('Please enter a valid YouTube Live URL', 'error');
-        return;
-      }
+      if (!title) return showMessage('Please enter a stream title', 'error');
+      if (!url.includes('youtube.com/live/') && !url.includes('youtu.be/'))
+        return showMessage('Please enter a valid YouTube Live URL', 'error');
 
       submitBtn.textContent = 'Adding...';
       submitBtn.disabled = true;
 
       try {
-        const response = await fetch(`${API_BASE}/admin/livestream`, {
+        const res = await fetch(`${API_BASE}/admin/livestream`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             tournament: title,
             link: url,
@@ -362,19 +333,11 @@
           })
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to add stream');
-        }
-
-        const result = await response.json();
-        
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Failed to add stream');
         showMessage(result.message, 'success');
         document.getElementById('streamForm').reset();
-        
-        // Reload the streams list
         loadStreams();
-        
       } catch (err) {
         console.error('Error adding stream:', err);
         showMessage(err.message || '❌ Failed to add stream', 'error');
@@ -384,26 +347,17 @@
       }
     });
 
-    // Delete stream
+    // Delete stream (no token)
     async function deleteStream(streamId) {
-      if (!confirm('Are you sure you want to delete this stream?')) {
-        return;
-      }
+      if (!confirm('Are you sure you want to delete this stream?')) return;
 
       try {
-        const response = await fetch(`${API_BASE}/admin/livestream/${streamId}`, {
+        const res = await fetch(`${API_BASE}/admin/livestream/${streamId}`, {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to delete stream');
-        }
-
-        const result = await response.json();
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Failed to delete stream');
         showMessage(result.message, 'success');
         loadStreams();
       } catch (err) {
@@ -412,7 +366,6 @@
       }
     }
 
-    // Show message
     function showMessage(text, type) {
       const message = document.getElementById('message');
       message.textContent = text;
@@ -423,29 +376,11 @@
       }, 3000);
     }
 
-    // Navigate to live page
     function goToLivePage() {
       window.location.href = 'live.html';
     }
 
-    // Check authentication
-    function checkAuth() {
-      if (!authToken) {
-        showMessage('Please login as admin first', 'error');
-        setTimeout(() => {
-          window.location.href = 'admin.html';
-        }, 2000);
-        return false;
-      }
-      return true;
-    }
-
-    // Load streams when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      if (checkAuth()) {
-        loadStreams();
-      }
-    });
+    document.addEventListener('DOMContentLoaded', loadStreams);
   </script>
 </body>
 </html>
