@@ -2,51 +2,37 @@ const express = require("express");
 const router = express.Router();
 const Withdraw = require("../models/Withdrawal");
 const User = require("../models/User");
-const History = require("../models/History"); // ✅ ADD HISTORY MODEL
-const jwt = require("jsonwebtoken");
+const History = require("../models/History");
 
-const JWT_SECRET = process.env.JWT_SECRET || "super_secret_key_change_this";
-
-// ✅ Middleware: Verify user token (SAME AS DEPOSIT)
-function verifyUser(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  if (!authHeader) return res.status(401).json({ error: "No token provided" });
-
-  const token = authHeader.split(" ")[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(403).json({ error: "Invalid or expired token" });
+// ✅ Simple admin session check (NO TOKEN)
+function requireAdmin(req, res, next) {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ error: "Admin email required" });
   }
-}
-
-// ✅ Middleware: Verify admin token (SAME AS DEPOSIT)
-function verifyAdmin(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  if (!authHeader) return res.status(401).json({ error: "No token provided" });
-
-  const token = authHeader.split(" ")[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (!decoded.isAdmin)
-      return res.status(403).json({ error: "Admin access required" });
-    req.admin = decoded;
-    next();
-  } catch (err) {
-    return res.status(403).json({ error: "Invalid or expired token" });
+  
+  // Get loggedInAdmins from app context
+  const loggedInAdmins = req.app.get('loggedInAdmins');
+  console.log(`🔍 Checking admin session for: ${email}`);
+  console.log(`📋 Logged in admins:`, loggedInAdmins ? Array.from(loggedInAdmins.keys()) : 'No loggedInAdmins');
+  
+  if (!loggedInAdmins || !loggedInAdmins.has(email)) {
+    console.log(`❌ Admin ${email} not logged in`);
+    return res.status(403).json({ error: "Admin not logged in" });
   }
+  
+  console.log(`✅ Admin ${email} is logged in`);
+  next();
 }
 
 // ✅ Create withdrawal request (PROTECTED) - UPDATED WITH HISTORY
-router.post("/", verifyUser, async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const { amount, method = "Bank Transfer" } = req.body;
-    const userId = req.user.id;
+    const { userId, amount, method = "Bank Transfer" } = req.body;
 
-    if (!amount || amount < 1000) {
-      return res.status(400).json({ error: "Minimum withdrawal is ₦1000" });
+    if (!userId || !amount || amount < 1000) {
+      return res.status(400).json({ error: "User ID and amount (min ₦1000) required" });
     }
 
     const user = await User.findById(userId);
@@ -95,12 +81,14 @@ router.post("/", verifyUser, async (req, res) => {
   }
 });
 
-// ✅ Get all withdrawals (Admin only)
-router.get("/all", verifyAdmin, async (req, res) => {
+// ✅ Get all withdrawals (Admin only) - SESSION BASED
+router.post("/all", requireAdmin, async (req, res) => {
   try {
     const withdrawals = await Withdraw.find()
-      .populate("userId", "email nickname balance")
+      .populate("userId", "email nickname balance phoneNumber bankDetails")
       .sort({ createdAt: -1 });
+    
+    console.log(`✅ Found ${withdrawals.length} withdrawals`);
     res.json(withdrawals);
   } catch (err) {
     console.error("Fetch withdrawals error:", err);
@@ -109,15 +97,17 @@ router.get("/all", verifyAdmin, async (req, res) => {
 });
 
 // ✅ Get withdrawals for current user
-router.get("/user/:id", verifyUser, async (req, res) => {
+router.get("/user/:id", async (req, res) => {
   try {
-    // Ensure user can only access their own withdrawals
-    if (req.user.id !== req.params.id && !req.user.isAdmin) {
-      return res.status(403).json({ error: "Access denied" });
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ error: "User ID required" });
     }
 
-    const withdrawals = await Withdraw.find({ userId: req.params.id })
+    const withdrawals = await Withdraw.find({ userId: id })
       .sort({ createdAt: -1 });
+    
     res.json(withdrawals);
   } catch (err) {
     console.error("Fetch user withdrawals error:", err);
@@ -125,10 +115,13 @@ router.get("/user/:id", verifyUser, async (req, res) => {
   }
 });
 
-// ✅ Admin: Approve withdrawal - UPDATED WITH HISTORY
-router.put("/approve/:id", verifyAdmin, async (req, res) => {
+// ✅ Admin: Approve withdrawal - SESSION BASED
+router.post("/approve/:id", requireAdmin, async (req, res) => {
   try {
-    const withdrawal = await Withdraw.findById(req.params.id).populate("userId");
+    const { id } = req.params;
+    console.log(`📥 Approving withdrawal: ${id}`);
+    
+    const withdrawal = await Withdraw.findById(id).populate("userId");
     
     if (!withdrawal) {
       return res.status(404).json({ error: "Withdrawal not found" });
@@ -150,7 +143,6 @@ router.put("/approve/:id", verifyAdmin, async (req, res) => {
 
     // Update withdrawal status
     withdrawal.status = "approved";
-    withdrawal.processedBy = req.admin.id;
     await withdrawal.save();
 
     // ✅ UPDATE WITHDRAWAL HISTORY TO APPROVED
@@ -161,10 +153,11 @@ router.put("/approve/:id", verifyAdmin, async (req, res) => {
       },
       {
         status: "completed",
-        description: `Withdrawal approved - ${withdrawal.amount} sent to ${withdrawal.accountDetails.bankName}`
+        description: `Withdrawal approved - ${withdrawal.amount} sent to ${withdrawal.accountDetails?.bankName || 'bank'}`
       }
     );
 
+    console.log(`✅ Withdrawal ${id} approved successfully`);
     res.json({ 
       message: "Withdrawal approved successfully ✅", 
       withdrawal 
@@ -175,10 +168,15 @@ router.put("/approve/:id", verifyAdmin, async (req, res) => {
   }
 });
 
-// ✅ Admin: Reject withdrawal - UPDATED WITH HISTORY
-router.put("/reject/:id", verifyAdmin, async (req, res) => {
+// ✅ Admin: Reject withdrawal - SESSION BASED
+router.post("/reject/:id", requireAdmin, async (req, res) => {
   try {
-    const withdrawal = await Withdraw.findById(req.params.id);
+    const { id } = req.params;
+    const { note } = req.body;
+    
+    console.log(`📥 Rejecting withdrawal: ${id}`);
+    
+    const withdrawal = await Withdraw.findById(id);
     
     if (!withdrawal) {
       return res.status(404).json({ error: "Withdrawal not found" });
@@ -189,8 +187,7 @@ router.put("/reject/:id", verifyAdmin, async (req, res) => {
     }
 
     withdrawal.status = "rejected";
-    withdrawal.processedBy = req.admin.id;
-    withdrawal.adminNote = req.body.note || "Request rejected";
+    withdrawal.adminNote = note || "Request rejected";
     await withdrawal.save();
 
     // ✅ UPDATE WITHDRAWAL HISTORY TO REJECTED
@@ -205,6 +202,7 @@ router.put("/reject/:id", verifyAdmin, async (req, res) => {
       }
     );
 
+    console.log(`✅ Withdrawal ${id} rejected successfully`);
     res.json({ 
       message: "Withdrawal rejected successfully ❌", 
       withdrawal 
