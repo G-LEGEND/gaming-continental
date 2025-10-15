@@ -1,37 +1,30 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 
 const Admin = require("../models/Admin");
 const Deposit = require("../models/Deposit");
 const Withdrawal = require("../models/Withdrawal");
 const User = require("../models/User");
 
-const JWT_SECRET = process.env.JWT_SECRET || "super_secret_key_change_this";
-
-// ---------------- VERIFY ADMIN ----------------
-function verifyAdmin(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: "No token provided" });
-
-  const token = authHeader.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Invalid token format" });
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (!decoded.isAdmin)
-      return res.status(403).json({ error: "Access denied. Admin only." });
-
-    req.admin = decoded;
-    next();
-  } catch (err) {
-    console.error("Token verification failed:", err);
-    return res.status(401).json({ error: "Unauthorized token" });
+// ---------------- SIMPLE ADMIN SESSION CHECK (NO TOKENS) ----------------
+function requireAdmin(req, res, next) {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ error: "Admin email required" });
   }
+  
+  // Get loggedInAdmins from app context
+  const loggedInAdmins = req.app.get('loggedInAdmins');
+  if (!loggedInAdmins || !loggedInAdmins.has(email)) {
+    return res.status(403).json({ error: "Admin not logged in" });
+  }
+  
+  next();
 }
 
-// ---------------- ADMIN LOGIN ----------------
+// ---------------- ADMIN LOGIN (UPDATED) ----------------
 async function login(req, res) {
   try {
     const { email, password } = req.body;
@@ -41,21 +34,27 @@ async function login(req, res) {
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
-    const token = jwt.sign({ id: admin._id, isAdmin: true }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    // Store admin session
+    const loggedInAdmins = req.app.get('loggedInAdmins');
+    if (loggedInAdmins) {
+      loggedInAdmins.set(email, Date.now());
+    }
 
-    res.json({ message: "Admin login successful ✅", token });
+    res.json({ 
+      message: "Admin login successful ✅", 
+      admin: { email },
+      loggedIn: true 
+    });
   } catch (err) {
     console.error("Admin login error:", err);
     res.status(500).json({ error: "Server error" });
   }
 }
 
-// ---------------- RANK SYSTEM ----------------
+// ---------------- RANK SYSTEM (UPDATED - NO TOKENS) ----------------
 
-// ✅ Fetch full rank list for admin dashboard
-router.get("/rank/all", verifyAdmin, async (req, res) => {
+// ✅ Fetch full rank list for admin dashboard (NO TOKEN)
+router.post("/rank/all", requireAdmin, async (req, res) => {
   try {
     const users = await User.find()
       .select("nickname email fifaPoints snookerPoints")
@@ -75,8 +74,8 @@ router.get("/rank/all", verifyAdmin, async (req, res) => {
   }
 });
 
-// ✅ Add points (for admin control)
-router.post("/rank/add-points/:id", verifyAdmin, async (req, res) => {
+// ✅ Add points (NO TOKEN)
+router.post("/rank/add-points/:id", requireAdmin, async (req, res) => {
   try {
     const { category, points } = req.body;
     const user = await User.findById(req.params.id);
@@ -111,7 +110,7 @@ router.post("/rank/add-points/:id", verifyAdmin, async (req, res) => {
   }
 });
 
-// ✅ Public rank for all users (rank.html)
+// ✅ Public rank for all users (rank.html) - NO AUTH NEEDED
 router.get("/public/rank", async (req, res) => {
   try {
     const users = await User.find()
@@ -132,27 +131,10 @@ router.get("/public/rank", async (req, res) => {
   }
 });
 
-// ✅ Optional: quick debug route (no need to keep in production)
-router.get("/debug/users", verifyAdmin, async (req, res) => {
-  const users = await User.find().select("nickname fifaPoints snookerPoints");
-  res.json(users);
-});
+// ---------------- WITHDRAWAL MANAGEMENT (UPDATED - NO TOKENS) ----------------
 
-// ---------------- WITHDRAWAL MANAGEMENT ----------------
-
-// ✅ Get all withdrawal requests (admin)
-router.get("/withdrawals", verifyAdmin, async (req, res) => {
-  try {
-    const withdrawals = await Withdrawal.find().sort({ createdAt: -1 }).lean();
-    res.json(withdrawals);
-  } catch (err) {
-    console.error("Withdrawal fetch error:", err);
-    res.status(500).json({ error: "Failed to fetch withdrawals" });
-  }
-});
-
-// ✅ Approve a withdrawal
-router.post("/withdrawals/approve/:id", verifyAdmin, async (req, res) => {
+// ✅ Approve a withdrawal (NO TOKEN)
+router.post("/withdrawals/approve/:id", requireAdmin, async (req, res) => {
   try {
     const withdrawal = await Withdrawal.findById(req.params.id);
     if (!withdrawal) return res.status(404).json({ error: "Withdrawal not found" });
@@ -179,8 +161,8 @@ router.post("/withdrawals/approve/:id", verifyAdmin, async (req, res) => {
   }
 });
 
-// ✅ Reject a withdrawal
-router.post("/withdrawals/reject/:id", verifyAdmin, async (req, res) => {
+// ✅ Reject a withdrawal (NO TOKEN)
+router.post("/withdrawals/reject/:id", requireAdmin, async (req, res) => {
   try {
     const withdrawal = await Withdrawal.findById(req.params.id);
     if (!withdrawal) return res.status(404).json({ error: "Withdrawal not found" });
