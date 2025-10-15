@@ -1,5 +1,5 @@
 // ===============================
-// 🌍 GAMING CONTINENTAL SERVER (Updated with Auth Me Endpoint)
+// 🌍 GAMING CONTINENTAL SERVER (NO TOKENS)
 // ===============================
 const express = require("express");
 const mongoose = require("mongoose");
@@ -21,7 +21,7 @@ app.use(
   cors({
     origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type"],
   })
 );
 app.use(express.json());
@@ -55,23 +55,13 @@ async function seedAdmins() {
   }
 }
 
-// ---------- Auth Me Endpoint (NEW) ----------
+// ---------- Auth Me Endpoint (UPDATED - NO TOKEN) ----------
 app.get("/auth/me", async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Authorization token required" });
-    }
-
-    const token = authHeader.split(" ")[1];
-    
-    // Simple token validation - in a real app you'd verify JWT here
-    // For now, we'll accept any token and get user from query param
     const { userId } = req.query;
     
     if (!userId) {
-      return res.status(401).json({ error: "User ID required" });
+      return res.status(400).json({ error: "User ID required" });
     }
 
     const user = await User.findById(userId);
@@ -95,8 +85,8 @@ app.get("/auth/me", async (req, res) => {
   }
 });
 
-// ---------- Admin Login ----------
-let loggedInAdmins = new Set(); // simple in-memory session
+// ---------- Admin Login (UPDATED - SIMPLE SESSION) ----------
+let loggedInAdmins = new Map(); // email -> timestamp
 
 app.post("/admin/login", async (req, res) => {
   try {
@@ -107,8 +97,14 @@ app.post("/admin/login", async (req, res) => {
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
-    loggedInAdmins.add(email);
-    res.json({ message: "Admin login successful ✅", admin: { email } });
+    // Store login session
+    loggedInAdmins.set(email, Date.now());
+    
+    res.json({ 
+      message: "Admin login successful ✅", 
+      admin: { email },
+      loggedIn: true 
+    });
   } catch (err) {
     console.error("Admin login error:", err);
     res.status(500).json({ error: "Server error" });
@@ -121,11 +117,25 @@ app.post("/admin/logout", (req, res) => {
   res.json({ message: "Admin logged out ✅" });
 });
 
-// ---------- Middleware: simple admin check ----------
+// ---------- Middleware: simple admin check (UPDATED) ----------
 function requireAdmin(req, res, next) {
   const { email } = req.body;
-  if (!loggedInAdmins.has(email))
+  
+  if (!email) {
+    return res.status(400).json({ error: "Admin email required" });
+  }
+  
+  if (!loggedInAdmins.has(email)) {
     return res.status(403).json({ error: "Admin not logged in" });
+  }
+  
+  // Optional: Check if session is expired (24 hours)
+  const loginTime = loggedInAdmins.get(email);
+  if (Date.now() - loginTime > 24 * 60 * 60 * 1000) {
+    loggedInAdmins.delete(email);
+    return res.status(403).json({ error: "Session expired" });
+  }
+  
   next();
 }
 
@@ -221,4 +231,3 @@ app.get("*", (req, res) =>
 app.listen(PORT, () =>
   console.log(`🚀 Gaming Continental running on port ${PORT}`)
 );
-update my server.js too 
