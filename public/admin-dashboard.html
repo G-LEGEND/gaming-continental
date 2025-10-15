@@ -137,6 +137,18 @@
       color: #9ca3af;
     }
 
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #9ca3af;
+    }
+
+    .error {
+      color: #ef4444;
+      text-align: center;
+      padding: 20px;
+    }
+
     @media (max-width: 600px) {
       th, td {
         font-size: 12px;
@@ -215,7 +227,11 @@
             <th>Rank</th>
           </tr>
         </thead>
-        <tbody></tbody>
+        <tbody>
+          <tr>
+            <td colspan="6" class="loading">Loading users...</td>
+          </tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -223,32 +239,38 @@
   <script>
     const API_BASE = "https://gaming-continental.onrender.com";
 
-    // ✅ Simple session check without tokens
-    function checkAdminSession() {
-      const isLoggedIn = localStorage.getItem("adminLoggedIn");
+    // ✅ Get admin token from localStorage
+    function getAdminToken() {
+      return localStorage.getItem("adminToken");
+    }
+
+    // ✅ Check if admin is authenticated with token
+    function checkAdminAuth() {
+      const token = getAdminToken();
       const adminEmail = localStorage.getItem("adminEmail");
       
-      console.log("🔍 Checking admin session:");
-      console.log("adminLoggedIn:", isLoggedIn);
+      console.log("🔍 Checking admin authentication:");
+      console.log("adminToken:", token ? "Present" : "Missing");
       console.log("adminEmail:", adminEmail);
       
-      if (!isLoggedIn || !adminEmail) {
-        console.log("❌ No admin session found, redirecting to login");
+      if (!token || !adminEmail) {
+        console.log("❌ No admin token found, redirecting to login");
         alert("Please login as admin first");
         window.location.href = "admin.html";
         return false;
       }
       
-      console.log("✅ Admin session valid");
+      console.log("✅ Admin authentication valid");
       return true;
     }
 
     function goPage(page) {
-      if (!checkAdminSession()) return;
+      if (!checkAdminAuth()) return;
       window.location.href = page;
     }
 
     function logoutAdmin() {
+      localStorage.removeItem("adminToken");
       localStorage.removeItem("adminLoggedIn");
       localStorage.removeItem("adminEmail");
       window.location.href = "admin.html";
@@ -267,29 +289,86 @@
       }
     }
 
+    // ✅ Fetch with token authentication
+    async function fetchWithAuth(url, opts = {}) {
+      const token = getAdminToken();
+      if (!token) {
+        throw new Error("No admin token found");
+      }
+
+      opts.headers = Object.assign({}, opts.headers || {}, {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      });
+
+      let res;
+      try {
+        res = await fetch(url, opts);
+      } catch (err) {
+        throw new Error("Network error: " + (err.message || err));
+      }
+
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem("adminToken");
+        alert("Session expired. Please log in again.");
+        window.location.href = "admin.html";
+        throw new Error("Unauthorized");
+      }
+
+      let json;
+      try { 
+        json = await res.json(); 
+      } catch { 
+        json = null; 
+      }
+
+      if (!res.ok) {
+        const msg = (json && (json.error || json.message)) || res.statusText || "Request failed";
+        throw new Error(msg);
+      }
+
+      return json;
+    }
+
     async function loadUsers() {
-      // Check session first
-      if (!checkAdminSession()) return;
+      // Check authentication first
+      if (!checkAdminAuth()) return;
 
       try {
         console.log("📡 Loading users from API...");
         
-        // ✅ FIXED: Remove Authorization header since we're not using tokens
-        const res = await fetch(`${API_BASE}/user/all`);
+        // Try different possible endpoints
+        const endpoints = [
+          '/admin/users',
+          '/user/all'
+        ];
 
-        if (!res.ok) {
-          throw new Error(`Failed to load users: ${res.status}`);
+        let users = [];
+        let workingEndpoint = '';
+
+        // Try each endpoint until one works
+        for (let endpoint of endpoints) {
+          try {
+            console.log(`🔄 Trying endpoint: ${API_BASE}${endpoint}`);
+            const data = await fetchWithAuth(`${API_BASE}${endpoint}`);
+            users = data;
+            workingEndpoint = endpoint;
+            console.log(`✅ Success with ${endpoint}`);
+            break;
+          } catch (err) {
+            console.log(`❌ Failed with ${endpoint}:`, err.message);
+          }
         }
 
-        const users = await res.json();
+        // If no endpoint worked, show error
+        if (users.length === 0 && !workingEndpoint) {
+          throw new Error('No working users endpoint found');
+        }
+
         const tbody = document.querySelector("#usersTable tbody");
         tbody.innerHTML = "";
 
-        console.log("✅ Users loaded:", users);
-
-        let total = 0;
-        
-        if (!users || users.length === 0) {
+        if (!Array.isArray(users) || users.length === 0) {
           tbody.innerHTML = `
             <tr>
               <td colspan="6" style="text-align: center; color: #9ca3af;">
@@ -301,6 +380,7 @@
           return;
         }
 
+        let total = 0;
         users.forEach((u, i) => {
           total += u.balance || 0;
           const tr = document.createElement("tr");
@@ -325,8 +405,12 @@
         const tbody = document.querySelector("#usersTable tbody");
         tbody.innerHTML = `
           <tr>
-            <td colspan="6" style="text-align: center; color: #f87171;">
-              Error loading users: ${err.message}
+            <td colspan="6" class="error">
+              Failed to load users: ${err.message}
+              <br><br>
+              <button onclick="loadUsers()" style="background: #38bdf8; margin-top: 10px;">
+                🔄 Retry
+              </button>
             </td>
           </tr>
         `;
@@ -336,8 +420,8 @@
     document.addEventListener("DOMContentLoaded", function() {
       console.log("🚀 Admin dashboard loaded");
       
-      // Check session on page load
-      if (!checkAdminSession()) return;
+      // Check authentication on page load
+      if (!checkAdminAuth()) return;
       
       // Update admin info display
       updateAdminInfo();
