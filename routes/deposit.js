@@ -4,7 +4,6 @@ const Deposit = require("../models/Deposit");
 const PaymentMethod = require("../models/PaymentMethod");
 const User = require("../models/User");
 const History = require("../models/History");
-
 // ✅ Simple admin session check (NO TOKEN)
 function requireAdmin(req, res, next) {
   const { email } = req.body;
@@ -13,13 +12,20 @@ function requireAdmin(req, res, next) {
     return res.status(400).json({ error: "Admin email required" });
   }
   
-  // Check if admin is logged in (you'll need to share the loggedInAdmins between files)
-  if (!req.app.get('loggedInAdmins')?.has(email)) {
+  // Get loggedInAdmins from app context - FIXED
+  const loggedInAdmins = req.app.get('loggedInAdmins');
+  console.log(`🔍 Checking admin session for: ${email}`);
+  console.log(`📋 Logged in admins:`, loggedInAdmins ? Array.from(loggedInAdmins.keys()) : 'No loggedInAdmins');
+  
+  if (!loggedInAdmins || !loggedInAdmins.has(email)) {
+    console.log(`❌ Admin ${email} not logged in`);
     return res.status(403).json({ error: "Admin not logged in" });
   }
   
+  console.log(`✅ Admin ${email} is logged in`);
   next();
 }
+
 
 // ✅ Get all deposits - WITH ADMIN SESSION (No token)
 router.post("/all", requireAdmin, async (req, res) => {
