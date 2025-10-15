@@ -193,7 +193,6 @@ app.post("/admin/withdrawals", requireAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch withdrawals" });
   }
 });
-
 // ---------- Routes ----------
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
@@ -211,15 +210,22 @@ app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
 app.use("/livescore", livescoreRoutes);
 app.use("/api/match", matchRoutes);
+
+// ✅ Use deposit routes with session-based authentication
 app.use("/deposit", depositRoutes);
+
 app.use("/payment", paymentRoutes);
 app.use("/bets", betRoutes);
 app.use("/livestream", livestreamRoutes);
-app.use("/admin/livestream", requireAdmin, livestreamRoutes);
+
+// Comment out these admin-specific routes since we're using the main ones
+// app.use("/admin/livestream", requireAdmin, livestreamRoutes);
+// app.use("/admin/tournament", requireAdmin, tournamentRoutes);
+// app.use("/admin", requireAdmin, adminRoutes);
+
 app.use("/tournament", tournamentRoutes);
 app.use("/tournament/public", publicTournamentRoutes);
-app.use("/admin/tournament", requireAdmin, tournamentRoutes);
-app.use("/admin", requireAdmin, adminRoutes);
+
 
 // ---------- Withdrawals ----------
 app.post("/withdraw", async (req, res) => {
