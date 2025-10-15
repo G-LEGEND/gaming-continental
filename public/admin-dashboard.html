@@ -235,32 +235,26 @@
       </table>
     </div>
   </div>
-
-  <script>
+<script>
     const API_BASE = "https://gaming-continental.onrender.com";
 
-    // ✅ Get admin token from localStorage
-    function getAdminToken() {
-      return localStorage.getItem("adminToken");
-    }
-
-    // ✅ Check if admin is authenticated with token
+    // ✅ Simple session check - no tokens
     function checkAdminAuth() {
-      const token = getAdminToken();
       const adminEmail = localStorage.getItem("adminEmail");
+      const adminLoggedIn = localStorage.getItem("adminLoggedIn");
       
-      console.log("🔍 Checking admin authentication:");
-      console.log("adminToken:", token ? "Present" : "Missing");
+      console.log("🔍 Checking admin session:");
       console.log("adminEmail:", adminEmail);
+      console.log("adminLoggedIn:", adminLoggedIn);
       
-      if (!token || !adminEmail) {
-        console.log("❌ No admin token found, redirecting to login");
+      if (adminLoggedIn !== "true" || !adminEmail) {
+        console.log("❌ No admin session found, redirecting to login");
         alert("Please login as admin first");
         window.location.href = "admin.html";
         return false;
       }
       
-      console.log("✅ Admin authentication valid");
+      console.log("✅ Admin session valid");
       return true;
     }
 
@@ -270,7 +264,16 @@
     }
 
     function logoutAdmin() {
-      localStorage.removeItem("adminToken");
+      // Also call server logout endpoint
+      const adminEmail = localStorage.getItem("adminEmail");
+      if (adminEmail) {
+        fetch(`${API_BASE}/admin/logout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: adminEmail })
+        }).catch(console.error);
+      }
+      
       localStorage.removeItem("adminLoggedIn");
       localStorage.removeItem("adminEmail");
       window.location.href = "admin.html";
@@ -289,30 +292,44 @@
       }
     }
 
-    // ✅ Fetch with token authentication
-    async function fetchWithAuth(url, opts = {}) {
-      const token = getAdminToken();
-      if (!token) {
-        throw new Error("No admin token found");
+    // ✅ Updated fetch with admin email
+    async function fetchAdminData(url, opts = {}) {
+      const adminEmail = localStorage.getItem("adminEmail");
+      
+      if (!adminEmail) {
+        throw new Error("Admin email not found");
       }
 
-      opts.headers = Object.assign({}, opts.headers || {}, {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + token
-      });
+      // Ensure we have a body for POST requests, or create one for GET
+      let body = opts.body;
+      if (!body && opts.method === 'POST') {
+        body = JSON.stringify({ email: adminEmail });
+      } else if (body) {
+        // Parse existing body and add email
+        const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
+        body = JSON.stringify({ ...parsedBody, email: adminEmail });
+      }
 
       let res;
       try {
-        res = await fetch(url, opts);
+        res = await fetch(url, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          ...opts,
+          body: body || opts.body
+        });
       } catch (err) {
         throw new Error("Network error: " + (err.message || err));
       }
 
-      if (res.status === 401 || res.status === 403) {
-        localStorage.removeItem("adminToken");
-        alert("Session expired. Please log in again.");
+      // Handle 403 - Admin not logged in (session expired)
+      if (res.status === 403) {
+        localStorage.removeItem("adminLoggedIn");
+        localStorage.removeItem("adminEmail");
+        alert("Session expired. Please login again.");
         window.location.href = "admin.html";
-        throw new Error("Unauthorized");
+        throw new Error("Admin session expired");
       }
 
       let json;
@@ -350,8 +367,21 @@
         for (let endpoint of endpoints) {
           try {
             console.log(`🔄 Trying endpoint: ${API_BASE}${endpoint}`);
-            const data = await fetchWithAuth(`${API_BASE}${endpoint}`);
-            users = data;
+            
+            // For admin endpoints, we need to send the email
+            if (endpoint.startsWith('/admin/')) {
+              const data = await fetchAdminData(`${API_BASE}${endpoint}`, {
+                method: 'POST',
+                body: JSON.stringify({}) // Email will be added automatically
+              });
+              users = data;
+            } else {
+              // For public endpoints, use regular fetch
+              const data = await fetch(`${API_BASE}${endpoint}`);
+              if (!data.ok) throw new Error('Endpoint failed');
+              users = await data.json();
+            }
+            
             workingEndpoint = endpoint;
             console.log(`✅ Success with ${endpoint}`);
             break;
@@ -400,20 +430,24 @@
 
       } catch (err) {
         console.error("❌ Failed to load users:", err);
-        document.getElementById("totalBalance").textContent = "Error loading data";
         
-        const tbody = document.querySelector("#usersTable tbody");
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="6" class="error">
-              Failed to load users: ${err.message}
-              <br><br>
-              <button onclick="loadUsers()" style="background: #38bdf8; margin-top: 10px;">
-                🔄 Retry
-              </button>
-            </td>
-          </tr>
-        `;
+        // Don't show error if it's due to session expiry (already handled)
+        if (err.message !== "Admin session expired") {
+          document.getElementById("totalBalance").textContent = "Error loading data";
+          
+          const tbody = document.querySelector("#usersTable tbody");
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" class="error">
+                Failed to load users: ${err.message}
+                <br><br>
+                <button onclick="loadUsers()" style="background: #38bdf8; margin-top: 10px;">
+                  🔄 Retry
+                </button>
+              </td>
+            </tr>
+          `;
+        }
       }
     }
 
@@ -430,5 +464,6 @@
       loadUsers();
     });
   </script>
+  
 </body>
 </html>
