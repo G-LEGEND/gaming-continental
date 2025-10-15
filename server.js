@@ -143,7 +143,123 @@ app.post("/admin/logout", (req, res) => {
   res.json({ message: "Admin logged out ✅" });
 });
 
-// ---------- TEMPORARY ADMIN DEPOSIT ENDPOINTS (Add these) ----------
+// ---------- ADMIN WITHDRAWAL ENDPOINTS (ADDED) ----------
+
+// ✅ Get all withdrawals (NO TOKEN - session based)
+app.post("/admin/withdrawals", requireAdmin, async (req, res) => {
+  try {
+    console.log("📥 Fetching all withdrawals for admin...");
+    const withdrawals = await Withdraw.find()
+      .populate("userId", "nickname email balance phoneNumber bankDetails")
+      .sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${withdrawals.length} withdrawals`);
+    res.json(withdrawals);
+  } catch (err) {
+    console.error("❌ Error fetching withdrawals:", err);
+    res.status(500).json({ error: "Failed to fetch withdrawals" });
+  }
+});
+
+// ✅ Approve withdrawal (NO TOKEN - session based)
+app.post("/admin/withdrawals/approve/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`📥 Approving withdrawal: ${id}`);
+    
+    const withdrawal = await Withdraw.findById(id).populate("userId");
+    
+    if (!withdrawal) {
+      return res.status(404).json({ error: "Withdrawal not found" });
+    }
+
+    if (withdrawal.status !== "pending") {
+      return res.status(400).json({ error: "Withdrawal already processed" });
+    }
+
+    // Check if user still has sufficient balance
+    if (withdrawal.userId.balance < withdrawal.amount) {
+      return res.status(400).json({ error: "User has insufficient balance" });
+    }
+
+    // ✅ NOW deduct the balance (only when approved)
+    await User.findByIdAndUpdate(withdrawal.userId._id, {
+      $inc: { balance: -withdrawal.amount }
+    });
+
+    // Update withdrawal status
+    withdrawal.status = "approved";
+    await withdrawal.save();
+
+    // ✅ UPDATE WITHDRAWAL HISTORY TO APPROVED
+    await History.findOneAndUpdate(
+      { 
+        transactionId: withdrawal._id.toString(),
+        type: "withdraw" 
+      },
+      {
+        status: "completed",
+        description: `Withdrawal approved - ${withdrawal.amount} sent to ${withdrawal.accountDetails?.bankName || 'bank'}`
+      }
+    );
+
+    console.log(`✅ Withdrawal ${id} approved successfully`);
+    res.json({ 
+      message: "Withdrawal approved successfully ✅", 
+      withdrawal 
+    });
+  } catch (err) {
+    console.error("Approve withdrawal error:", err);
+    res.status(500).json({ error: "Failed to approve withdrawal" });
+  }
+});
+
+// ✅ Reject withdrawal (NO TOKEN - session based)
+app.post("/admin/withdrawals/reject/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    
+    console.log(`📥 Rejecting withdrawal: ${id}`);
+    
+    const withdrawal = await Withdraw.findById(id);
+    
+    if (!withdrawal) {
+      return res.status(404).json({ error: "Withdrawal not found" });
+    }
+
+    if (withdrawal.status !== "pending") {
+      return res.status(400).json({ error: "Withdrawal already processed" });
+    }
+
+    withdrawal.status = "rejected";
+    withdrawal.adminNote = note || "Request rejected";
+    await withdrawal.save();
+
+    // ✅ UPDATE WITHDRAWAL HISTORY TO REJECTED
+    await History.findOneAndUpdate(
+      { 
+        transactionId: withdrawal._id.toString(),
+        type: "withdraw" 
+      },
+      {
+        status: "rejected",
+        description: `Withdrawal rejected - ${withdrawal.adminNote}`
+      }
+    );
+
+    console.log(`✅ Withdrawal ${id} rejected successfully`);
+    res.json({ 
+      message: "Withdrawal rejected successfully ❌", 
+      withdrawal 
+    });
+  } catch (err) {
+    console.error("Reject withdrawal error:", err);
+    res.status(500).json({ error: "Failed to reject withdrawal" });
+  }
+});
+
+// ---------- TEMPORARY ADMIN DEPOSIT ENDPOINTS ----------
 
 // ✅ Get all deposits (NO TOKEN - session based)
 app.post("/admin/deposits", requireAdmin, async (req, res) => {
@@ -178,21 +294,6 @@ app.post("/admin/users", requireAdmin, async (req, res) => {
   }
 });
 
-// ✅ Get all withdrawals (NO TOKEN - session based)
-app.post("/admin/withdrawals", requireAdmin, async (req, res) => {
-  try {
-    console.log("📥 Fetching all withdrawals for admin...");
-    const withdrawals = await Withdraw.find()
-      .populate("userId", "nickname email")
-      .sort({ createdAt: -1 });
-
-    console.log(`✅ Found ${withdrawals.length} withdrawals`);
-    res.json(withdrawals);
-  } catch (err) {
-    console.error("❌ Error fetching withdrawals:", err);
-    res.status(500).json({ error: "Failed to fetch withdrawals" });
-  }
-});
 // ---------- Routes ----------
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
@@ -205,6 +306,7 @@ const depositRoutes = require("./routes/deposit");
 const paymentRoutes = require("./routes/payment");
 const betRoutes = require("./routes/bet");
 const livestreamRoutes = require("./routes/livestream");
+const withdrawalRoutes = require("./routes/withdrawal"); // Add this line
 
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
@@ -217,6 +319,7 @@ app.use("/deposit", depositRoutes);
 app.use("/payment", paymentRoutes);
 app.use("/bets", betRoutes);
 app.use("/livestream", livestreamRoutes);
+app.use("/withdraw", withdrawalRoutes); // Add this line
 
 // Comment out these admin-specific routes since we're using the main ones
 // app.use("/admin/livestream", requireAdmin, livestreamRoutes);
@@ -225,7 +328,6 @@ app.use("/livestream", livestreamRoutes);
 
 app.use("/tournament", tournamentRoutes);
 app.use("/tournament/public", publicTournamentRoutes);
-
 
 // ---------- Withdrawals ----------
 app.post("/withdraw", async (req, res) => {
