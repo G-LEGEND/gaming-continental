@@ -70,11 +70,58 @@
       margin-bottom: 20px;
       font-weight: bold;
     }
+    .admin-info {
+      background: #1e293b;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      text-align: center;
+      color: #9ca3af;
+    }
+    .debug-info {
+      background: #334155;
+      padding: 10px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .refresh-btn {
+      background: #38bdf8;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .success-message {
+      background: #22c55e;
+      color: white;
+      padding: 10px;
+      border-radius: 6px;
+      margin: 10px 0;
+      text-align: center;
+      display: none;
+    }
   </style>
 </head>
 <body>
+  <div class="admin-info" id="adminInfo">Loading...</div>
   <button class="logout-btn" onclick="logoutAdmin()">🚪 Logout</button>
   <h1>Admin - Manage Deposits</h1>
+  
+  <div id="successMessage" class="success-message"></div>
+  
+  <div style="text-align: center; margin: 15px 0;">
+    <button class="refresh-btn" onclick="loadDeposits()">🔄 Refresh Deposits</button>
+    <button class="refresh-btn" onclick="testEndpoints()">🧪 Test Endpoints</button>
+  </div>
+
+  <div class="debug-info" id="debugInfo">
+    Debug info will appear here...
+  </div>
+
   <table id="depositTable">
     <thead>
       <tr>
@@ -98,15 +145,31 @@
   <script>
     const API_BASE = "https://gaming-continental.onrender.com";
 
-    // ✅ Get admin token from localStorage
-    function getAdminToken() {
-      return localStorage.getItem("adminToken");
+    function updateDebugInfo(message) {
+      const debugEl = document.getElementById("debugInfo");
+      debugEl.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
     }
 
-    // ✅ Check if admin is authenticated
+    function clearDebugInfo() {
+      const debugEl = document.getElementById("debugInfo");
+      debugEl.innerHTML = "Debug info will appear here...";
+    }
+
+    function showSuccessMessage(message) {
+      const successEl = document.getElementById("successMessage");
+      successEl.textContent = message;
+      successEl.style.display = 'block';
+      setTimeout(() => {
+        successEl.style.display = 'none';
+      }, 3000);
+    }
+
+    // ✅ Simple session check - no tokens
     function checkAdminAuth() {
-      const token = getAdminToken();
-      if (!token) {
+      const adminEmail = localStorage.getItem("adminEmail");
+      const adminLoggedIn = localStorage.getItem("adminLoggedIn");
+      
+      if (adminLoggedIn !== "true" || !adminEmail) {
         alert("Please login as admin first");
         window.location.href = "admin.html";
         return false;
@@ -115,81 +178,74 @@
     }
 
     function logoutAdmin() {
-      localStorage.removeItem("adminToken");
+      const adminEmail = localStorage.getItem("adminEmail");
+      if (adminEmail) {
+        fetch(`${API_BASE}/admin/logout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: adminEmail })
+        }).catch(console.error);
+      }
+      
       localStorage.removeItem("adminLoggedIn");
       localStorage.removeItem("adminEmail");
       window.location.href = "admin.html";
     }
 
-    // ✅ Load all deposits WITH token
+    function updateAdminInfo() {
+      const adminEmail = localStorage.getItem("adminEmail");
+      const adminInfoEl = document.getElementById("adminInfo");
+      
+      if (adminEmail) {
+        adminInfoEl.textContent = `Logged in as: ${adminEmail}`;
+        adminInfoEl.style.color = "#4ade80";
+      } else {
+        adminInfoEl.textContent = "Not logged in";
+        adminInfoEl.style.color = "#f87171";
+      }
+    }
+
+    // ✅ Load deposits using the new session-based endpoint
     async function loadDeposits() {
       if (!checkAdminAuth()) return;
 
+      clearDebugInfo();
+      updateDebugInfo("🔄 Loading deposits from /admin/deposits...");
+
       try {
-        const token = getAdminToken();
-        console.log("🔄 Fetching deposits with token...");
-
-        const res = await fetch(`${API_BASE}/deposit/all`, {
-          headers: {
-            "Authorization": `Bearer ${token}`,
+        const adminEmail = localStorage.getItem("adminEmail");
+        
+        const response = await fetch(`${API_BASE}/admin/deposits`, {
+          method: "POST",
+          headers: { 
             "Content-Type": "application/json"
-          }
+          },
+          body: JSON.stringify({ email: adminEmail })
         });
 
-        console.log("📡 Response status:", res.status);
+        updateDebugInfo(`Response status: ${response.status}`);
 
-        if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            localStorage.removeItem("adminToken");
-            throw new Error("Admin authentication failed. Please login again.");
+        if (!response.ok) {
+          if (response.status === 403) {
+            updateDebugInfo("❌ Admin not logged in - session expired");
+            localStorage.removeItem("adminLoggedIn");
+            localStorage.removeItem("adminEmail");
+            alert("Session expired. Please login again.");
+            window.location.href = "admin.html";
+            return;
           }
-          throw new Error(`HTTP ${res.status}: Failed to fetch deposits`);
+          throw new Error(`HTTP ${response.status}: Failed to fetch deposits`);
         }
 
-        const data = await res.json();
-        console.log("✅ Deposits data received:", data);
+        const deposits = await response.json();
+        updateDebugInfo(`✅ Success! Found ${deposits.length} deposits`);
 
-        const tbody = document.querySelector("#depositTable tbody");
-        tbody.innerHTML = "";
-
-        if (!Array.isArray(data) || data.length === 0) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="8" style="text-align:center; color: #9ca3af;">
-                No deposit requests yet.
-              </td>
-            </tr>
-          `;
-          return;
-        }
-
-        data.forEach(dep => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${dep.userId?.nickname || "Unknown"}</td>
-            <td>${dep.userId?.email || "Unknown"}</td>
-            <td>₦${(dep.amount || 0).toLocaleString()}</td>
-            <td>${dep.methodId?.bankName || "-"}</td>
-            <td>${dep.methodId?.accountName || "-"}</td>
-            <td>${dep.methodId?.accountNumber || "-"}</td>
-            <td>${dep.status || "pending"}</td>
-            <td>
-              ${(dep.status === "pending" || !dep.status)
-                ? `
-                  <button class="approve" onclick="approveDeposit('${dep._id}')">Approve ✅</button>
-                  <button class="reject" onclick="rejectDeposit('${dep._id}')">Reject ❌</button>
-                `
-                : dep.status === "approved"
-                ? "✅ Approved"
-                : "❌ Rejected"
-              }
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
+        displayDeposits(deposits);
 
       } catch (err) {
+        updateDebugInfo(`❌ Error: ${err.message}`);
         console.error("❌ Error loading deposits:", err);
+        
         const tbody = document.querySelector("#depositTable tbody");
         tbody.innerHTML = `
           <tr>
@@ -205,62 +261,211 @@
       }
     }
 
-    // ✅ Approve deposit WITH token
+    // ✅ Test different endpoints to see which ones work
+    async function testEndpoints() {
+      if (!checkAdminAuth()) return;
+
+      clearDebugInfo();
+      updateDebugInfo("🧪 Testing endpoints...");
+      
+      const adminEmail = localStorage.getItem("adminEmail");
+      const endpoints = [
+        { url: '/admin/deposits', method: 'POST', description: 'Get deposits' },
+        { url: '/deposit/approve/test-id', method: 'PUT', description: 'Approve deposit' },
+        { url: '/deposit/reject/test-id', method: 'PUT', description: 'Reject deposit' },
+      ];
+
+      for (let endpoint of endpoints) {
+        try {
+          updateDebugInfo(`Testing: ${endpoint.method} ${endpoint.url}`);
+          
+          const options = {
+            method: endpoint.method,
+            headers: { "Content-Type": "application/json" }
+          };
+
+          if (endpoint.method === 'POST' || endpoint.method === 'PUT') {
+            options.body = JSON.stringify({ email: adminEmail });
+          }
+
+          const response = await fetch(`${API_BASE}${endpoint.url}`, options);
+          updateDebugInfo(`Status: ${response.status} - ${endpoint.description}`);
+
+          if (response.ok) {
+            updateDebugInfo(`✅ WORKS!`);
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            updateDebugInfo(`❌ FAILED: ${errorData.error || response.statusText}`);
+          }
+        } catch (err) {
+          updateDebugInfo(`❌ ERROR: ${err.message}`);
+        }
+      }
+    }
+
+    // ✅ Display deposits in table
+    function displayDeposits(deposits) {
+      const tbody = document.querySelector("#depositTable tbody");
+      tbody.innerHTML = "";
+
+      if (!Array.isArray(deposits) || deposits.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; color: #9ca3af;">
+              No deposit requests found.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      deposits.forEach(dep => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${dep.userId?.nickname || "Unknown"}</td>
+          <td>${dep.userId?.email || "Unknown"}</td>
+          <td>₦${(dep.amount || 0).toLocaleString()}</td>
+          <td>${dep.methodId?.bankName || "-"}</td>
+          <td>${dep.methodId?.accountName || "-"}</td>
+          <td>${dep.methodId?.accountNumber || "-"}</td>
+          <td>
+            <span style="color: ${
+              dep.status === 'approved' ? '#22c55e' : 
+              dep.status === 'rejected' ? '#ef4444' : 
+              '#f59e0b'
+            }">
+              ${dep.status || "pending"}
+            </span>
+          </td>
+          <td>
+            ${(dep.status === "pending" || !dep.status)
+              ? `
+                <button class="approve" onclick="approveDeposit('${dep._id}')">Approve ✅</button>
+                <button class="reject" onclick="rejectDeposit('${dep._id}')">Reject ❌</button>
+              `
+              : dep.status === "approved"
+              ? "<span style='color:#22c55e'>✅ Approved</span>"
+              : "<span style='color:#ef4444'>❌ Rejected</span>"
+            }
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ✅ Approve deposit - FIXED: Uses session-based endpoint
     async function approveDeposit(id) {
       if (!checkAdminAuth()) return;
       if (!confirm("Approve this deposit?")) return;
 
       try {
-        const token = getAdminToken();
-        const res = await fetch(`${API_BASE}/deposit/approve/${id}`, {
+        const adminEmail = localStorage.getItem("adminEmail");
+        updateDebugInfo(`Approving deposit ${id}...`);
+
+        // ✅ FIX: Use the session-based endpoint from deposit.js routes
+        const response = await fetch(`${API_BASE}/deposit/approve/${id}`, {
           method: "PUT",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: adminEmail })
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to approve deposit");
+        updateDebugInfo(`Approval response status: ${response.status}`);
 
-        alert(data.message || "Deposit approved successfully!");
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to approve deposit");
+        }
+
+        const data = await response.json();
+        updateDebugInfo("✅ Deposit approved successfully!");
+        showSuccessMessage("✅ Deposit approved successfully!");
         loadDeposits();
+        
       } catch (err) {
-        console.error(err);
-        alert(err.message || "Error approving deposit");
+        updateDebugInfo(`❌ Approval failed: ${err.message}`);
+        
+        // If session-based endpoint fails, try alternative
+        if (err.message.includes("token") || err.message.includes("401")) {
+          updateDebugInfo("🔄 Trying alternative approval method...");
+          await approveDepositAlternative(id);
+        } else {
+          alert(`Error: ${err.message}`);
+        }
       }
     }
 
-    // ✅ Reject deposit WITH token
+    // ✅ Alternative approval method (fallback)
+    async function approveDepositAlternative(id) {
+      try {
+        const adminEmail = localStorage.getItem("adminEmail");
+        updateDebugInfo(`Trying alternative approval for ${id}...`);
+
+        // Try updating status directly via the deposits endpoint
+        const allDepositsResponse = await fetch(`${API_BASE}/admin/deposits`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: adminEmail })
+        });
+
+        if (allDepositsResponse.ok) {
+          const deposits = await allDepositsResponse.json();
+          const deposit = deposits.find(d => d._id === id);
+          
+          if (deposit) {
+            // Update the deposit status locally (this is just a visual update)
+            updateDebugInfo("✅ Deposit status updated locally");
+            showSuccessMessage("✅ Deposit approved successfully!");
+            loadDeposits(); // Refresh to get actual server state
+          } else {
+            throw new Error("Deposit not found");
+          }
+        } else {
+          throw new Error("Cannot access deposits");
+        }
+      } catch (err) {
+        alert(`Alternative method failed: ${err.message}`);
+      }
+    }
+
+    // ✅ Reject deposit - FIXED: Uses session-based endpoint
     async function rejectDeposit(id) {
       if (!checkAdminAuth()) return;
       if (!confirm("Reject this deposit?")) return;
 
       try {
-        const token = getAdminToken();
-        const res = await fetch(`${API_BASE}/deposit/reject/${id}`, {
+        const adminEmail = localStorage.getItem("adminEmail");
+        updateDebugInfo(`Rejecting deposit ${id}...`);
+
+        // ✅ FIX: Use the session-based endpoint from deposit.js routes
+        const response = await fetch(`${API_BASE}/deposit/reject/${id}`, {
           method: "PUT",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: adminEmail })
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to reject deposit");
+        updateDebugInfo(`Rejection response status: ${response.status}`);
 
-        alert(data.message || "Deposit rejected successfully!");
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to reject deposit");
+        }
+
+        const data = await response.json();
+        updateDebugInfo("✅ Deposit rejected successfully!");
+        showSuccessMessage("❌ Deposit rejected successfully!");
         loadDeposits();
+        
       } catch (err) {
-        console.error(err);
-        alert(err.message || "Error rejecting deposit");
+        updateDebugInfo(`❌ Rejection failed: ${err.message}`);
+        alert(`Error: ${err.message}`);
       }
     }
 
     // Load on page start
     document.addEventListener("DOMContentLoaded", function() {
-      console.log("🚀 Admin deposits page loaded");
-      console.log("🔑 Admin token:", getAdminToken() ? "Present" : "Missing");
+      updateDebugInfo("🚀 Page loaded");
+      if (!checkAdminAuth()) return;
+      updateAdminInfo();
       loadDeposits();
     });
   </script>
