@@ -19,9 +19,14 @@ const PORT = process.env.PORT || 10000;
 // ---------- Middlewares ----------
 app.use(
   cors({
-    origin: "*",
+    origin: [
+      "https://h-gamingcontinental.netlify.app",
+      "https://gaming-continental.onrender.com",
+      "http://localhost:3000"
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
   })
 );
 app.use(express.json());
