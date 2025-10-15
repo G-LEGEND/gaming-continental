@@ -4,25 +4,42 @@ const History = require("../models/History");
 const User = require("../models/User");
 const Tournament = require("../models/Tournament");
 
-// ✅ Simple admin session check (NO TOKEN)
+// ✅ Simple admin session check (NO TOKEN) - FIXED VERSION
 function requireAdmin(req, res, next) {
   const { email } = req.body;
   
+  console.log("🔍 Admin auth check - Email:", email);
+  console.log("🔍 Request body:", req.body);
+  
   if (!email) {
+    console.log("❌ No email provided");
     return res.status(400).json({ error: "Admin email required" });
   }
   
   // Get loggedInAdmins from app context
-  const loggedInAdmins = req.app.get('loggedInAdmins');
-  console.log(`🔍 Checking admin session for: ${email}`);
-  
-  if (!loggedInAdmins || !loggedInAdmins.has(email)) {
-    console.log(`❌ Admin ${email} not logged in`);
-    return res.status(403).json({ error: "Admin not logged in" });
+  try {
+    const loggedInAdmins = req.app.get('loggedInAdmins');
+    console.log("🔍 Logged in admins:", loggedInAdmins ? Array.from(loggedInAdmins.keys()) : 'No loggedInAdmins');
+    
+    if (!loggedInAdmins || !loggedInAdmins.has(email)) {
+      console.log(`❌ Admin ${email} not logged in or session expired`);
+      return res.status(403).json({ error: "Admin not logged in or session expired" });
+    }
+    
+    // Check if session is expired (24 hours)
+    const loginTime = loggedInAdmins.get(email);
+    if (Date.now() - loginTime > 24 * 60 * 60 * 1000) {
+      loggedInAdmins.delete(email);
+      console.log(`❌ Admin session expired for: ${email}`);
+      return res.status(403).json({ error: "Session expired" });
+    }
+    
+    console.log(`✅ Admin ${email} is logged in and authorized`);
+    next();
+  } catch (error) {
+    console.error("❌ Error in admin auth:", error);
+    return res.status(500).json({ error: "Authentication error" });
   }
-  
-  console.log(`✅ Admin ${email} is logged in`);
-  next();
 }
 
 // ==================== ADMIN TOURNAMENT ENDPOINTS ====================
@@ -30,7 +47,10 @@ function requireAdmin(req, res, next) {
 // ✅ Admin: Get all tournaments
 router.post("/admin/all", requireAdmin, async (req, res) => {
   try {
+    console.log("📥 Fetching all tournaments for admin...");
     const tournaments = await Tournament.find().sort({ createdAt: -1 });
+    
+    console.log(`✅ Found ${tournaments.length} tournaments`);
     res.json(tournaments);
   } catch (err) {
     console.error("Admin get tournaments error:", err);
@@ -38,33 +58,71 @@ router.post("/admin/all", requireAdmin, async (req, res) => {
   }
 });
 
-// ✅ Admin: Create tournament
+// ✅ Admin: Create tournament - FIXED WITH BETTER ERROR HANDLING
 router.post("/admin/add", requireAdmin, async (req, res) => {
   try {
     const { title, maxPlayers, minAmount, maxAmount, description, image } = req.body;
 
+    console.log("📥 Creating tournament with data:", { title, maxPlayers, minAmount, maxAmount });
+
     if (!title || !maxPlayers || !minAmount || !maxAmount || !description) {
+      console.log("❌ Missing required fields");
       return res.status(400).json({ error: "All fields are required" });
     }
 
+    // Validate numeric values
+    const maxPlayersNum = parseInt(maxPlayers);
+    const minAmountNum = parseFloat(minAmount);
+    const maxAmountNum = parseFloat(maxAmount);
+
+    if (isNaN(maxPlayersNum) || maxPlayersNum <= 0) {
+      return res.status(400).json({ error: "Max players must be a positive number" });
+    }
+
+    if (isNaN(minAmountNum) || minAmountNum <= 0) {
+      return res.status(400).json({ error: "Minimum amount must be a positive number" });
+    }
+
+    if (isNaN(maxAmountNum) || maxAmountNum <= 0) {
+      return res.status(400).json({ error: "Maximum amount must be a positive number" });
+    }
+
+    if (minAmountNum > maxAmountNum) {
+      return res.status(400).json({ error: "Minimum amount cannot be greater than maximum amount" });
+    }
+
     const tournament = await Tournament.create({
-      title,
-      maxPlayers,
-      minAmount,
-      maxAmount,
-      description,
-      image: image || "",
+      title: title.trim(),
+      maxPlayers: maxPlayersNum,
+      minAmount: minAmountNum,
+      maxAmount: maxAmountNum,
+      description: description.trim(),
+      image: (image || "").trim(),
       status: "open",
       registeredPlayers: 0,
       players: []
     });
 
+    console.log(`✅ Tournament created: ${tournament.title}`);
+    
     res.json({ 
       message: "Tournament created successfully ✅", 
       tournament 
     });
   } catch (err) {
-    console.error("Admin create tournament error:", err);
+    console.error("❌ Admin create tournament error:", err);
+    
+    // Handle duplicate title error
+    if (err.code === 11000) {
+      return res.status(400).json({ error: "A tournament with this title already exists" });
+    }
+    
+    // Handle validation errors
+    if (err.name === 'ValidationError') {
+      const errors = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ error: errors.join(', ') });
+    }
+    
     res.status(500).json({ error: "Failed to create tournament" });
   }
 });
@@ -72,12 +130,17 @@ router.post("/admin/add", requireAdmin, async (req, res) => {
 // ✅ Admin: Close tournament
 router.post("/admin/close/:id", requireAdmin, async (req, res) => {
   try {
+    console.log(`📥 Closing tournament: ${req.params.id}`);
     const tournament = await Tournament.findById(req.params.id);
-    if (!tournament) return res.status(404).json({ error: "Tournament not found" });
+    if (!tournament) {
+      console.log("❌ Tournament not found");
+      return res.status(404).json({ error: "Tournament not found" });
+    }
 
     tournament.status = "closed";
     await tournament.save();
 
+    console.log(`✅ Tournament closed: ${tournament.title}`);
     res.json({ message: "Tournament closed successfully ✅", tournament });
   } catch (err) {
     console.error("Admin close tournament error:", err);
@@ -88,12 +151,17 @@ router.post("/admin/close/:id", requireAdmin, async (req, res) => {
 // ✅ Admin: Open tournament
 router.post("/admin/open/:id", requireAdmin, async (req, res) => {
   try {
+    console.log(`📥 Opening tournament: ${req.params.id}`);
     const tournament = await Tournament.findById(req.params.id);
-    if (!tournament) return res.status(404).json({ error: "Tournament not found" });
+    if (!tournament) {
+      console.log("❌ Tournament not found");
+      return res.status(404).json({ error: "Tournament not found" });
+    }
 
     tournament.status = "open";
     await tournament.save();
 
+    console.log(`✅ Tournament opened: ${tournament.title}`);
     res.json({ message: "Tournament reopened successfully ✅", tournament });
   } catch (err) {
     console.error("Admin open tournament error:", err);
@@ -104,12 +172,17 @@ router.post("/admin/open/:id", requireAdmin, async (req, res) => {
 // ✅ Admin: Delete tournament
 router.post("/admin/delete/:id", requireAdmin, async (req, res) => {
   try {
+    console.log(`📥 Deleting tournament: ${req.params.id}`);
     const tournament = await Tournament.findById(req.params.id);
-    if (!tournament) return res.status(404).json({ error: "Tournament not found" });
+    if (!tournament) {
+      console.log("❌ Tournament not found");
+      return res.status(404).json({ error: "Tournament not found" });
+    }
 
     tournament.status = "deleted";
     await tournament.save();
 
+    console.log(`✅ Tournament deleted: ${tournament.title}`);
     res.json({ message: "Tournament deleted successfully ✅" });
   } catch (err) {
     console.error("Admin delete tournament error:", err);
@@ -120,9 +193,14 @@ router.post("/admin/delete/:id", requireAdmin, async (req, res) => {
 // ✅ Admin: Get tournament players
 router.post("/admin/players/:id", requireAdmin, async (req, res) => {
   try {
+    console.log(`📥 Getting players for tournament: ${req.params.id}`);
     const tournament = await Tournament.findById(req.params.id).populate("players.userId");
-    if (!tournament) return res.status(404).json({ error: "Tournament not found" });
+    if (!tournament) {
+      console.log("❌ Tournament not found");
+      return res.status(404).json({ error: "Tournament not found" });
+    }
 
+    console.log(`✅ Found ${tournament.players.length} players`);
     res.json(tournament.players || []);
   } catch (err) {
     console.error("Admin get players error:", err);
@@ -134,13 +212,20 @@ router.post("/admin/players/:id", requireAdmin, async (req, res) => {
 router.post("/admin/result/:regId", requireAdmin, async (req, res) => {
   try {
     const { status, position, prize } = req.body;
+    console.log(`📥 Setting player result: ${req.params.regId}`, { status, position, prize });
     
     // Find tournament that contains this registration
     const tournament = await Tournament.findOne({ "players._id": req.params.regId });
-    if (!tournament) return res.status(404).json({ error: "Registration not found" });
+    if (!tournament) {
+      console.log("❌ Registration not found");
+      return res.status(404).json({ error: "Registration not found" });
+    }
 
     const player = tournament.players.id(req.params.regId);
-    if (!player) return res.status(404).json({ error: "Player not found" });
+    if (!player) {
+      console.log("❌ Player not found");
+      return res.status(404).json({ error: "Player not found" });
+    }
 
     player.status = status;
     if (position) player.position = position;
@@ -169,6 +254,7 @@ router.post("/admin/result/:regId", requireAdmin, async (req, res) => {
 
     await tournament.save();
 
+    console.log(`✅ Player result updated for: ${tournament.title}`);
     res.json({ message: "Player result updated successfully ✅" });
   } catch (err) {
     console.error("Admin set result error:", err);
@@ -180,9 +266,13 @@ router.post("/admin/result/:regId", requireAdmin, async (req, res) => {
 router.post("/admin/add-balance", requireAdmin, async (req, res) => {
   try {
     const { userId, amount, description } = req.body;
+    console.log(`📥 Adding balance to user: ${userId}`, { amount, description });
     
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      console.log("❌ User not found");
+      return res.status(404).json({ error: "User not found" });
+    }
 
     user.balance += amount;
     await user.save();
@@ -197,6 +287,7 @@ router.post("/admin/add-balance", requireAdmin, async (req, res) => {
       createdAt: new Date()
     });
 
+    console.log(`✅ Balance added to user: ${user.nickname}, New balance: ${user.balance}`);
     res.json({ 
       message: "Balance added successfully ✅", 
       newBalance: user.balance 
