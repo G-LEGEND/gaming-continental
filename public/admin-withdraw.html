@@ -57,11 +57,46 @@
     .status-rejected { color:#dc2626; font-weight:bold; }
     .status-pending { color:#f59e0b; font-weight:bold; }
     .loading { opacity:0.6; pointer-events:none; }
+    .logout-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+    .admin-info {
+      background: #1e293b;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      text-align: center;
+      color: #9ca3af;
+    }
+    .refresh-btn {
+      background: #38bdf8;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 5px;
+    }
   </style>
 </head>
 <body>
+  <div class="admin-info" id="adminInfo">Loading...</div>
+  <button class="logout-btn" onclick="logoutAdmin()">🚪 Logout</button>
+  
   <div class="center">
     <h1>🏦 Admin Withdrawals</h1>
+    
+    <div style="text-align: center; margin: 15px 0;">
+      <button class="refresh-btn" onclick="loadWithdrawals()">🔄 Refresh Withdrawals</button>
+    </div>
+    
     <table id="withdrawTable" aria-live="polite">
       <thead>
         <tr>
@@ -82,22 +117,72 @@
   </div>
 
   <script>
-    const API_BASE = "https://gaming-continental.onrender.com/admin/withdraw";
+    const API_BASE = "https://gaming-continental.onrender.com";
+
+    // ✅ Simple session check - no tokens
+    function checkAdminAuth() {
+      const adminEmail = localStorage.getItem("adminEmail");
+      const adminLoggedIn = localStorage.getItem("adminLoggedIn");
+      
+      if (adminLoggedIn !== "true" || !adminEmail) {
+        alert("Please login as admin first");
+        window.location.href = "admin.html";
+        return false;
+      }
+      return true;
+    }
+
+    function logoutAdmin() {
+      const adminEmail = localStorage.getItem("adminEmail");
+      if (adminEmail) {
+        fetch(`${API_BASE}/admin/logout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: adminEmail })
+        }).catch(console.error);
+      }
+      
+      localStorage.removeItem("adminLoggedIn");
+      localStorage.removeItem("adminEmail");
+      window.location.href = "admin.html";
+    }
+
+    function updateAdminInfo() {
+      const adminEmail = localStorage.getItem("adminEmail");
+      const adminInfoEl = document.getElementById("adminInfo");
+      
+      if (adminEmail) {
+        adminInfoEl.textContent = `Logged in as: ${adminEmail}`;
+        adminInfoEl.style.color = "#4ade80";
+      } else {
+        adminInfoEl.textContent = "Not logged in";
+        adminInfoEl.style.color = "#f87171";
+      }
+    }
 
     async function loadWithdrawals() {
-      const token = localStorage.getItem("adminToken");
-      if (!token) {
-        alert("Admin token missing — please login again.");
-        window.location.href = "admin.html";
-        return;
-      }
+      if (!checkAdminAuth()) return;
 
       try {
-        const res = await fetch(`${API_BASE}/all`, {
-          headers: { Authorization: "Bearer " + token }
+        const adminEmail = localStorage.getItem("adminEmail");
+        
+        // ✅ Use session-based endpoint from main server
+        const res = await fetch(`${API_BASE}/admin/withdrawals`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ email: adminEmail })
         });
 
         if (!res.ok) {
+          if (res.status === 403) {
+            localStorage.removeItem("adminLoggedIn");
+            localStorage.removeItem("adminEmail");
+            alert("Session expired. Please login again.");
+            window.location.href = "admin.html";
+            return;
+          }
           const err = await res.json().catch(() => ({ error: "Failed to load" }));
           throw new Error(err.error || "Failed to load withdrawals");
         }
@@ -106,7 +191,7 @@
         const tbody = document.querySelector("#withdrawTable tbody");
         tbody.innerHTML = "";
 
-        if (withdrawals.length === 0) {
+        if (!Array.isArray(withdrawals) || withdrawals.length === 0) {
           tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">No withdrawal requests found</td></tr>`;
           return;
         }
@@ -149,11 +234,11 @@
             </td>
             <td>${bankName}</td>
             <td>${phoneNumber}</td>
-            <td class="status-${w.status}">${w.status.toUpperCase()}</td>
-            <td class="muted">${new Date(w.createdAt).toLocaleString()}</td>
+            <td class="status-${w.status}">${w.status ? w.status.toUpperCase() : 'PENDING'}</td>
+            <td class="muted">${w.createdAt ? new Date(w.createdAt).toLocaleString() : 'Unknown'}</td>
             <td class="actions">
               ${
-                w.status === "pending"
+                w.status === "pending" || !w.status
                   ? `<button class="approve" onclick="approveWithdrawal('${w._id}')">Approve</button>
                      <button class="decline" onclick="rejectWithdrawal('${w._id}')">Decline</button>`
                   : w.status === "approved"
@@ -186,18 +271,22 @@
     }
 
     async function approveWithdrawal(id) {
+      if (!checkAdminAuth()) return;
       if (!confirm("Approve this withdrawal?")) return;
-      const token = localStorage.getItem("adminToken");
+      
+      const adminEmail = localStorage.getItem("adminEmail");
       const table = document.getElementById("withdrawTable");
 
       try {
         table.classList.add("loading");
-        const res = await fetch(`${API_BASE}/approve/${id}`, {
-          method: "PUT",
+        
+        // ✅ Use session-based endpoint from admin routes
+        const res = await fetch(`${API_BASE}/admin/withdrawals/approve/${id}`, {
+          method: "POST",
           headers: {
-            Authorization: "Bearer " + token,
             "Content-Type": "application/json"
-          }
+          },
+          body: JSON.stringify({ email: adminEmail })
         });
 
         const data = await res.json();
@@ -214,20 +303,23 @@
     }
 
     async function rejectWithdrawal(id) {
+      if (!checkAdminAuth()) return;
       const note = prompt("Reason for rejection (optional):");
       if (note === null) return;
-      const token = localStorage.getItem("adminToken");
+      
+      const adminEmail = localStorage.getItem("adminEmail");
       const table = document.getElementById("withdrawTable");
 
       try {
         table.classList.add("loading");
-        const res = await fetch(`${API_BASE}/reject/${id}`, {
-          method: "PUT",
+        
+        // ✅ Use session-based endpoint from admin routes
+        const res = await fetch(`${API_BASE}/admin/withdrawals/reject/${id}`, {
+          method: "POST",
           headers: {
-            Authorization: "Bearer " + token,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ note })
+          body: JSON.stringify({ email: adminEmail, note })
         });
 
         const data = await res.json();
@@ -243,8 +335,15 @@
       }
     }
 
+    // Load on page start
+    document.addEventListener("DOMContentLoaded", function() {
+      if (!checkAdminAuth()) return;
+      updateAdminInfo();
+      loadWithdrawals();
+    });
+
+    // Auto-refresh every 30 seconds
     setInterval(loadWithdrawals, 30000);
-    document.addEventListener("DOMContentLoaded", loadWithdrawals);
   </script>
 </body>
 </html>
