@@ -143,29 +143,13 @@ app.post("/admin/logout", (req, res) => {
   res.json({ message: "Admin logged out ✅" });
 });
 
-// ---------- ADMIN WITHDRAWAL ENDPOINTS (ADDED) ----------
+// ---------- ADMIN WITHDRAWAL ENDPOINTS (ADD THESE) ----------
 
-// ✅ Get all withdrawals (NO TOKEN - session based)
-app.post("/admin/withdrawals", requireAdmin, async (req, res) => {
-  try {
-    console.log("📥 Fetching all withdrawals for admin...");
-    const withdrawals = await Withdraw.find()
-      .populate("userId", "nickname email balance phoneNumber bankDetails")
-      .sort({ createdAt: -1 });
-
-    console.log(`✅ Found ${withdrawals.length} withdrawals`);
-    res.json(withdrawals);
-  } catch (err) {
-    console.error("❌ Error fetching withdrawals:", err);
-    res.status(500).json({ error: "Failed to fetch withdrawals" });
-  }
-});
-
-// ✅ Approve withdrawal (NO TOKEN - session based)
+// ✅ Approve withdrawal (NO TOKEN - session based) - FIXED ENDPOINT
 app.post("/admin/withdrawals/approve/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    console.log(`📥 Approving withdrawal: ${id}`);
+    console.log(`📥 Approving withdrawal via admin endpoint: ${id}`);
     
     const withdrawal = await Withdraw.findById(id).populate("userId");
     
@@ -203,7 +187,7 @@ app.post("/admin/withdrawals/approve/:id", requireAdmin, async (req, res) => {
       }
     );
 
-    console.log(`✅ Withdrawal ${id} approved successfully`);
+    console.log(`✅ Withdrawal ${id} approved successfully via admin endpoint`);
     res.json({ 
       message: "Withdrawal approved successfully ✅", 
       withdrawal 
@@ -214,13 +198,13 @@ app.post("/admin/withdrawals/approve/:id", requireAdmin, async (req, res) => {
   }
 });
 
-// ✅ Reject withdrawal (NO TOKEN - session based)
+// ✅ Reject withdrawal (NO TOKEN - session based) - FIXED ENDPOINT
 app.post("/admin/withdrawals/reject/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { note } = req.body;
     
-    console.log(`📥 Rejecting withdrawal: ${id}`);
+    console.log(`📥 Rejecting withdrawal via admin endpoint: ${id}`);
     
     const withdrawal = await Withdraw.findById(id);
     
@@ -248,7 +232,7 @@ app.post("/admin/withdrawals/reject/:id", requireAdmin, async (req, res) => {
       }
     );
 
-    console.log(`✅ Withdrawal ${id} rejected successfully`);
+    console.log(`✅ Withdrawal ${id} rejected successfully via admin endpoint`);
     res.json({ 
       message: "Withdrawal rejected successfully ❌", 
       withdrawal 
@@ -294,6 +278,22 @@ app.post("/admin/users", requireAdmin, async (req, res) => {
   }
 });
 
+// ✅ Get all withdrawals (NO TOKEN - session based)
+app.post("/admin/withdrawals", requireAdmin, async (req, res) => {
+  try {
+    console.log("📥 Fetching all withdrawals for admin...");
+    const withdrawals = await Withdraw.find()
+      .populate("userId", "nickname email balance phoneNumber bankDetails")
+      .sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${withdrawals.length} withdrawals`);
+    res.json(withdrawals);
+  } catch (err) {
+    console.error("❌ Error fetching withdrawals:", err);
+    res.status(500).json({ error: "Failed to fetch withdrawals" });
+  }
+});
+
 // ---------- Routes ----------
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
@@ -306,7 +306,7 @@ const depositRoutes = require("./routes/deposit");
 const paymentRoutes = require("./routes/payment");
 const betRoutes = require("./routes/bet");
 const livestreamRoutes = require("./routes/livestream");
-// REMOVED: const withdrawalRoutes = require("./routes/withdrawal"); // This file doesn't exist
+const withdrawRoutes = require("./routes/withdraw"); // ✅ ADD THIS LINE
 
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
@@ -319,7 +319,7 @@ app.use("/deposit", depositRoutes);
 app.use("/payment", paymentRoutes);
 app.use("/bets", betRoutes);
 app.use("/livestream", livestreamRoutes);
-// REMOVED: app.use("/withdraw", withdrawalRoutes); // This route doesn't exist
+app.use("/withdraw", withdrawRoutes); // ✅ ADD THIS LINE
 
 // Comment out these admin-specific routes since we're using the main ones
 // app.use("/admin/livestream", requireAdmin, livestreamRoutes);
