@@ -306,7 +306,7 @@ const depositRoutes = require("./routes/deposit");
 const paymentRoutes = require("./routes/payment");
 const betRoutes = require("./routes/bet");
 const livestreamRoutes = require("./routes/livestream");
-const withdrawalRoutes = require("./routes/withdrawal"); // Add this line
+// REMOVED: const withdrawalRoutes = require("./routes/withdrawal"); // This file doesn't exist
 
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
@@ -319,7 +319,7 @@ app.use("/deposit", depositRoutes);
 app.use("/payment", paymentRoutes);
 app.use("/bets", betRoutes);
 app.use("/livestream", livestreamRoutes);
-app.use("/withdraw", withdrawalRoutes); // Add this line
+// REMOVED: app.use("/withdraw", withdrawalRoutes); // This route doesn't exist
 
 // Comment out these admin-specific routes since we're using the main ones
 // app.use("/admin/livestream", requireAdmin, livestreamRoutes);
