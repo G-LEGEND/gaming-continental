@@ -1,4 +1,5 @@
-<!DOCTYPE html>  <html lang="en">  
+<!DOCTYPE html>  
+<html lang="en">  
 <head>  
   <meta charset="UTF-8">  
   <title>Admin - Tournament Management</title>  
@@ -58,44 +59,67 @@
       border: 1px solid #e5e7eb;   
       border-radius: 6px;   
     }  
+    .admin-info {
+      background: #1e293b;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      text-align: center;
+      color: #9ca3af;
+    }
+    .logout-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
   </style>  
 </head>  
 <body>  
+  <div class="admin-info" id="adminInfo">Loading...</div>
+  <button class="logout-btn" onclick="logoutAdmin()">🚪 Logout</button>
+  
   <div class="wrap">  
-    <h1>Admin — Tournament Management</h1>  <div id="msg" role="status" aria-live="polite"></div>  
+    <h1>Admin — Tournament Management</h1>  
+    <div id="msg" role="status" aria-live="polite"></div>  
 
-<form id="tournamentForm" class="card" autocomplete="off">  
-  <input type="text" id="title" placeholder="Title" required>  
-  <input type="number" id="maxPlayers" placeholder="Max Players (e.g. 30)" required>  
-  <input type="number" id="minAmount" placeholder="Minimum Amount" step="0.01" required>  
-  <input type="number" id="maxAmount" placeholder="Maximum Amount" step="0.01" required>  
-  <textarea id="description" placeholder="Tournament description..." rows="4" required></textarea>  
-  <input type="text" id="image" placeholder="Image URL (optional)">  
-  <div style="display:flex; gap:8px; margin-top:8px;">  
-    <button id="addBtn" type="submit" class="btn-primary">Add Tournament</button>  
-    <button id="clearBtn" type="button" class="btn-secondary">Clear</button>  
+    <form id="tournamentForm" class="card" autocomplete="off">  
+      <input type="text" id="title" placeholder="Title" required>  
+      <input type="number" id="maxPlayers" placeholder="Max Players (e.g. 30)" required>  
+      <input type="number" id="minAmount" placeholder="Minimum Amount" step="0.01" required>  
+      <input type="number" id="maxAmount" placeholder="Maximum Amount" step="0.01" required>  
+      <textarea id="description" placeholder="Tournament description..." rows="4" required></textarea>  
+      <input type="text" id="image" placeholder="Image URL (optional)">  
+      <div style="display:flex; gap:8px; margin-top:8px;">  
+        <button id="addBtn" type="submit" class="btn-primary">Add Tournament</button>  
+        <button id="clearBtn" type="button" class="btn-secondary">Clear</button>  
+      </div>  
+    </form>  
+
+    <h2>Existing Tournaments</h2>  
+    <div id="tournamentList"></div>  
+
+    <!-- View Players Modal -->  
+    <div id="playersModal" class="modal">  
+      <div class="modal-content">  
+        <h3>Tournament Players</h3>  
+        <div id="modalPlayersList"></div>  
+        <button onclick="closePlayersModal()" class="btn-secondary" style="margin-top: 15px;">Close</button>  
+      </div>  
+    </div>
   </div>  
-</form>  
 
-<h2>Existing Tournaments</h2>  
-<div id="tournamentList"></div>  
-
-<!-- View Players Modal -->  
-<div id="playersModal" class="modal">  
-  <div class="modal-content">  
-    <h3>Tournament Players</h3>  
-    <div id="modalPlayersList"></div>  
-    <button onclick="closePlayersModal()" class="btn-secondary" style="margin-top: 15px;">Close</button>  
-  </div>  
-</div>
-
-  </div>  <script>  
+  <script>  
 /* ---------- Config ---------- */  
-const API_BASE = "https://gaming-continental.onrender.com/tournament/public";  
+const API_BASE = "https://gaming-continental.onrender.com/tournament";  
   
 /* ---------- Helpers ---------- */  
-function getAdminToken() {  
-  return localStorage.getItem("adminToken");  
+function getAdminEmail() {  
+  return localStorage.getItem("adminEmail");  
 }  
   
 function escapeHtml(str = "") {  
@@ -122,24 +146,34 @@ function getStatusBadge(status) {
   return badges[status] || '';  
 }  
   
-/* Check token and redirect if missing/invalid */  
-function ensureTokenOrRedirect() {  
-  const token = getAdminToken();  
-  if (!token) {  
+/* Check admin session and redirect if missing */  
+function ensureAdminOrRedirect() {  
+  const email = getAdminEmail();  
+  const loggedIn = localStorage.getItem("adminLoggedIn");
+  
+  if (!email || loggedIn !== "true") {  
     alert("Admin session missing — please log in.");  
     window.location.href = "admin.html";  
-    throw new Error("Missing admin token");  
+    throw new Error("Missing admin session");  
   }  
-  return token;  
+  return email;  
 }  
   
-/* Handle API responses */  
-async function fetchWithAuth(url, opts = {}) {  
-  const token = ensureTokenOrRedirect();  
+/* Handle API requests with admin session */  
+async function fetchWithAdminAuth(url, opts = {}) {  
+  const email = ensureAdminOrRedirect();  
   opts.headers = Object.assign({}, opts.headers || {}, {  
-    "Content-Type": "application/json",  
-    "Authorization": "Bearer " + token  
+    "Content-Type": "application/json"  
   });  
+
+  // Add admin email to request body for POST requests
+  if (opts.method === "POST" && opts.body) {
+    const body = JSON.parse(opts.body);
+    body.email = email;
+    opts.body = JSON.stringify(body);
+  } else if (opts.method === "POST") {
+    opts.body = JSON.stringify({ email });
+  }
   
   let res;  
   try {  
@@ -148,8 +182,9 @@ async function fetchWithAuth(url, opts = {}) {
     throw new Error("Network error: " + (err.message || err));  
   }  
   
-  if (res.status === 401 || res.status === 403) {  
-    localStorage.removeItem("adminToken");  
+  if (res.status === 403) {  
+    localStorage.removeItem("adminEmail");  
+    localStorage.removeItem("adminLoggedIn");
     alert("Session expired. Please log in again.");  
     window.location.href = "admin.html";  
     throw new Error("Unauthorized");  
@@ -165,6 +200,34 @@ async function fetchWithAuth(url, opts = {}) {
   
   return json;  
 }  
+
+function logoutAdmin() {
+  const adminEmail = localStorage.getItem("adminEmail");
+  if (adminEmail) {
+    fetch(`${API_BASE.replace('/tournament', '')}/admin/logout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: adminEmail })
+    }).catch(console.error);
+  }
+  
+  localStorage.removeItem("adminLoggedIn");
+  localStorage.removeItem("adminEmail");
+  window.location.href = "admin.html";
+}
+
+function updateAdminInfo() {
+  const adminEmail = localStorage.getItem("adminEmail");
+  const adminInfoEl = document.getElementById("adminInfo");
+  
+  if (adminEmail) {
+    adminInfoEl.textContent = `Logged in as: ${adminEmail}`;
+    adminInfoEl.style.color = "#4ade80";
+  } else {
+    adminInfoEl.textContent = "Not logged in";
+    adminInfoEl.style.color = "#f87171";
+  }
+}
   
 /* ---------- Form submit: Add tournament ---------- */  
 const form = document.getElementById("tournamentForm");  
@@ -177,7 +240,7 @@ form.addEventListener("submit", async (e) => {
   showMsg("");  
   
   try {  
-    ensureTokenOrRedirect();  
+    ensureAdminOrRedirect();  
   
     const payload = {  
       title: document.getElementById("title").value.trim(),  
@@ -196,7 +259,8 @@ form.addEventListener("submit", async (e) => {
     addBtn.disabled = true;  
     addBtn.textContent = "Uploading...";  
   
-    const result = await fetchWithAuth(`${API_BASE}/add`, {  
+    // ✅ UPDATED: Use admin endpoint with session auth
+    const result = await fetchWithAdminAuth(`${API_BASE}/admin/add`, {  
       method: "POST",  
       body: JSON.stringify(payload)  
     });  
@@ -222,7 +286,8 @@ clearBtn.addEventListener("click", () => {
 async function loadTournaments() {  
   showMsg("Loading tournaments...");  
   try {  
-    const list = await fetchWithAuth(`${API_BASE}`, { method: "GET" }) || [];  
+    // ✅ UPDATED: Use admin endpoint with session auth
+    const list = await fetchWithAdminAuth(`${API_BASE}/admin/all`, { method: "POST" }) || [];  
     renderTournamentList(list);  
     showMsg("");  
   } catch (err) {  
@@ -288,8 +353,9 @@ async function closeTournament(tournamentId) {
   if (!confirm("Are you sure you want to close this tournament? Users won't be able to register.")) return;  
     
   try {  
-    await fetchWithAuth(`${API_BASE}/close/${tournamentId}`, {  
-      method: "PUT"  
+    // ✅ UPDATED: Use admin endpoint with session auth
+    await fetchWithAdminAuth(`${API_BASE}/admin/close/${tournamentId}`, {  
+      method: "POST"  
     });  
     showMsg("Tournament closed successfully");  
     await loadTournaments();  
@@ -301,8 +367,9 @@ async function closeTournament(tournamentId) {
   
 async function openTournament(tournamentId) {  
   try {  
-    await fetchWithAuth(`${API_BASE}/open/${tournamentId}`, {  
-      method: "PUT"  
+    // ✅ UPDATED: Use admin endpoint with session auth
+    await fetchWithAdminAuth(`${API_BASE}/admin/open/${tournamentId}`, {  
+      method: "POST"  
     });  
     showMsg("Tournament reopened successfully");  
     await loadTournaments();  
@@ -316,8 +383,9 @@ async function deleteTournament(tournamentId) {
   if (!confirm("Are you sure you want to delete this tournament? This action cannot be undone.")) return;  
     
   try {  
-    await fetchWithAuth(`${API_BASE}/delete/${tournamentId}`, {  
-      method: "DELETE"  
+    // ✅ UPDATED: Use admin endpoint with session auth
+    await fetchWithAdminAuth(`${API_BASE}/admin/delete/${tournamentId}`, {  
+      method: "POST"  
     });  
     showMsg("Tournament deleted successfully");  
     await loadTournaments();  
@@ -335,7 +403,8 @@ async function viewPlayers(tournamentId) {
   showMsg("Loading players...");  
     
   try {  
-    const players = await fetchWithAuth(`${API_BASE}/players/${tournamentId}`, { method: "GET" }) || [];  
+    // ✅ UPDATED: Use admin endpoint with session auth
+    const players = await fetchWithAdminAuth(`${API_BASE}/admin/players/${tournamentId}`, { method: "POST" }) || [];  
     renderPlayersModal(players);  
     document.getElementById('playersModal').style.display = 'block';  
     showMsg("");  
@@ -399,7 +468,8 @@ async function setPlayerResult(regId, status) {
   }  
   
   try {  
-    await fetchWithAuth(`${API_BASE}/result/${regId}`, {  
+    // ✅ UPDATED: Use admin endpoint with session auth
+    await fetchWithAdminAuth(`${API_BASE}/admin/result/${regId}`, {  
       method: "POST",  
       body: JSON.stringify({ status, position, prize })  
     });  
@@ -428,7 +498,8 @@ async function addBalanceToPlayer(userId, nickname) {
   if (description === null) return;  
   
   try {  
-    const result = await fetchWithAuth(`${API_BASE}/add-balance`, {  
+    // ✅ UPDATED: Use admin endpoint with session auth
+    const result = await fetchWithAdminAuth(`${API_BASE}/admin/add-balance`, {  
       method: "POST",  
       body: JSON.stringify({   
         userId,   
@@ -449,11 +520,13 @@ async function addBalanceToPlayer(userId, nickname) {
 /* ---------- Init ---------- */  
 document.addEventListener("DOMContentLoaded", () => {  
   try {  
-    ensureTokenOrRedirect();  
+    ensureAdminOrRedirect();  
+    updateAdminInfo();
     loadTournaments();  
   } catch (err) {  
     console.error("Initialization error:", err);  
   }  
 });  
-</script>  </body>  
+</script>  
+</body>  
 </html>
