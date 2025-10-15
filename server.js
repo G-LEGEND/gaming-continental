@@ -322,8 +322,8 @@ app.use("/livestream", livestreamRoutes);
 app.use("/withdraw", withdrawRoutes); // ✅ ADD THIS LINE
 
 // Comment out these admin-specific routes since we're using the main ones
-// app.use("/admin/livestream", requireAdmin, livestreamRoutes);
-// app.use("/admin/tournament", requireAdmin, tournamentRoutes);
+app.use("/admin/livestream", livestreamRoutes);
+app.use("/admin/tournament", tournamentRoutes);
 app.use("/admin", adminRoutes);
 
 app.use("/tournament", tournamentRoutes);
