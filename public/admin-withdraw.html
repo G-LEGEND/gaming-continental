@@ -84,6 +84,14 @@
       cursor: pointer;
       margin: 5px;
     }
+    .debug-info {
+      background: #334155;
+      padding: 10px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
@@ -95,6 +103,11 @@
     
     <div style="text-align: center; margin: 15px 0;">
       <button class="refresh-btn" onclick="loadWithdrawals()">🔄 Refresh Withdrawals</button>
+      <button class="refresh-btn" onclick="testAllEndpoints()">🧪 Test All Endpoints</button>
+    </div>
+
+    <div class="debug-info" id="debugInfo">
+      Debug info will appear here...
     </div>
     
     <table id="withdrawTable" aria-live="polite">
@@ -118,6 +131,16 @@
 
   <script>
     const API_BASE = "https://gaming-continental.onrender.com";
+
+    function updateDebugInfo(message) {
+      const debugEl = document.getElementById("debugInfo");
+      debugEl.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+    }
+
+    function clearDebugInfo() {
+      const debugEl = document.getElementById("debugInfo");
+      debugEl.innerHTML = "Debug info will appear here...";
+    }
 
     // ✅ Simple session check - no tokens
     function checkAdminAuth() {
@@ -160,13 +183,82 @@
       }
     }
 
+    // ✅ Test ALL possible endpoints to find the right one
+    async function testAllEndpoints() {
+      if (!checkAdminAuth()) return;
+
+      clearDebugInfo();
+      updateDebugInfo("🧪 Testing ALL withdrawal endpoints...");
+      
+      const adminEmail = localStorage.getItem("adminEmail");
+      
+      // Test all possible combinations
+      const endpoints = [
+        // From your main server.js
+        { url: '/admin/withdrawals', method: 'POST', description: 'Main server endpoint' },
+        
+        // From withdrawal routes (if they exist)
+        { url: '/withdraw/all', method: 'POST', description: 'Withdrawal routes - POST all' },
+        { url: '/withdraw/all', method: 'GET', description: 'Withdrawal routes - GET all' },
+        
+        // From admin routes
+        { url: '/admin/withdrawals', method: 'GET', description: 'Admin routes - GET withdrawals' },
+        
+        // Alternative endpoints
+        { url: '/withdraw', method: 'GET', description: 'Base withdraw endpoint' },
+        { url: '/admin/withdraw', method: 'GET', description: 'Admin withdraw endpoint' },
+        
+        // Test the endpoints we know work
+        { url: '/admin/deposits', method: 'POST', description: 'KNOWN WORKING: Deposits endpoint' },
+      ];
+
+      for (let endpoint of endpoints) {
+        try {
+          updateDebugInfo(`Testing: ${endpoint.method} ${endpoint.url}`);
+          
+          const options = {
+            method: endpoint.method,
+            headers: { "Content-Type": "application/json" }
+          };
+
+          if (endpoint.method === 'POST') {
+            options.body = JSON.stringify({ email: adminEmail });
+          }
+
+          const response = await fetch(`${API_BASE}${endpoint.url}`, options);
+          
+          if (response.ok) {
+            const data = await response.json();
+            updateDebugInfo(`✅ WORKS! Found: ${Array.isArray(data) ? data.length + ' items' : 'data'}`);
+            
+            // If this is a withdrawals endpoint that works, use it
+            if (endpoint.url.includes('withdraw') && Array.isArray(data)) {
+              updateDebugInfo(`🎯 USING THIS ENDPOINT FOR WITHDRAWALS!`);
+              displayWithdrawals(data);
+              return; // Stop testing, we found a working endpoint
+            }
+          } else {
+            updateDebugInfo(`❌ FAILED: ${response.status} - ${endpoint.description}`);
+          }
+        } catch (err) {
+          updateDebugInfo(`❌ ERROR: ${err.message}`);
+        }
+      }
+      
+      updateDebugInfo("❌ No working withdrawal endpoints found!");
+    }
+
     async function loadWithdrawals() {
       if (!checkAdminAuth()) return;
+
+      clearDebugInfo();
+      updateDebugInfo("🔄 Loading withdrawals...");
 
       try {
         const adminEmail = localStorage.getItem("adminEmail");
         
-        // ✅ Use session-based endpoint from main server
+        // Try the endpoint we know exists from your main server.js
+        updateDebugInfo("Trying /admin/withdrawals (from main server)...");
         const res = await fetch(`${API_BASE}/admin/withdrawals`, {
           method: "POST",
           headers: { 
@@ -174,6 +266,8 @@
           },
           body: JSON.stringify({ email: adminEmail })
         });
+
+        updateDebugInfo(`Response status: ${res.status}`);
 
         if (!res.ok) {
           if (res.status === 403) {
@@ -183,76 +277,86 @@
             window.location.href = "admin.html";
             return;
           }
-          const err = await res.json().catch(() => ({ error: "Failed to load" }));
-          throw new Error(err.error || "Failed to load withdrawals");
-        }
-
-        const withdrawals = await res.json();
-        const tbody = document.querySelector("#withdrawTable tbody");
-        tbody.innerHTML = "";
-
-        if (!Array.isArray(withdrawals) || withdrawals.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">No withdrawal requests found</td></tr>`;
+          
+          // If this endpoint doesn't work, test all endpoints
+          updateDebugInfo("❌ Endpoint failed, testing all endpoints...");
+          await testAllEndpoints();
           return;
         }
 
-        withdrawals.forEach((w, i) => {
-          let acct = {};
-          if (typeof w.accountDetails === "string") {
-            acct = { accountNumber: w.accountDetails };
-          } else {
-            acct = w.accountDetails || {};
-          }
+        const withdrawals = await res.json();
+        updateDebugInfo(`✅ Success! Found ${withdrawals.length} withdrawals`);
+        displayWithdrawals(withdrawals);
 
-          const user = w.userId || {};
-          const userLabel = user.nickname || user.email || "Unknown User";
-          const accountName =
-            acct.accountName ||
-            `${acct.firstName || ""} ${acct.lastName || ""}`.trim() ||
-            "Not provided";
-          const accountNumber = acct.accountNumber || "-";
-          const bankName = acct.bankName || "-";
-          const phoneNumber = acct.phoneNumber || user.phoneNumber || "-";
-
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${i + 1}</td>
-            <td>
-              <div>${userLabel}</div>
-              <div class="muted">${user.email || ""}</div>
-              <div class="muted">Balance: ₦${(user.balance || 0).toLocaleString()}</div>
-            </td>
-            <td><strong>₦${Number(w.amount).toLocaleString()}</strong></td>
-            <td>${accountName}</td>
-            <td>
-              <span id="acct-${w._id}">${accountNumber}</span>
-              ${
-                accountNumber && accountNumber !== "-"
-                  ? `<button class="copy-btn" onclick="copyToClipboard('${accountNumber}')">Copy</button>`
-                  : ""
-              }
-            </td>
-            <td>${bankName}</td>
-            <td>${phoneNumber}</td>
-            <td class="status-${w.status}">${w.status ? w.status.toUpperCase() : 'PENDING'}</td>
-            <td class="muted">${w.createdAt ? new Date(w.createdAt).toLocaleString() : 'Unknown'}</td>
-            <td class="actions">
-              ${
-                w.status === "pending" || !w.status
-                  ? `<button class="approve" onclick="approveWithdrawal('${w._id}')">Approve</button>
-                     <button class="decline" onclick="rejectWithdrawal('${w._id}')">Decline</button>`
-                  : w.status === "approved"
-                  ? '<span class="status-approved">✅ APPROVED</span>'
-                  : '<span class="status-rejected">❌ REJECTED</span>'
-              }
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
       } catch (err) {
+        updateDebugInfo(`❌ Error: ${err.message}`);
         console.error("Error loading withdrawals:", err);
-        alert("Error: " + err.message);
       }
+    }
+
+    // ✅ Display withdrawals in table
+    function displayWithdrawals(withdrawals) {
+      const tbody = document.querySelector("#withdrawTable tbody");
+      tbody.innerHTML = "";
+
+      if (!Array.isArray(withdrawals) || withdrawals.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">No withdrawal requests found</td></tr>`;
+        return;
+      }
+
+      withdrawals.forEach((w, i) => {
+        let acct = {};
+        if (typeof w.accountDetails === "string") {
+          acct = { accountNumber: w.accountDetails };
+        } else {
+          acct = w.accountDetails || {};
+        }
+
+        const user = w.userId || {};
+        const userLabel = user.nickname || user.email || "Unknown User";
+        const accountName =
+          acct.accountName ||
+          `${acct.firstName || ""} ${acct.lastName || ""}`.trim() ||
+          "Not provided";
+        const accountNumber = acct.accountNumber || "-";
+        const bankName = acct.bankName || "-";
+        const phoneNumber = acct.phoneNumber || user.phoneNumber || "-";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>
+            <div>${userLabel}</div>
+            <div class="muted">${user.email || ""}</div>
+            <div class="muted">Balance: ₦${(user.balance || 0).toLocaleString()}</div>
+          </td>
+          <td><strong>₦${Number(w.amount).toLocaleString()}</strong></td>
+          <td>${accountName}</td>
+          <td>
+            <span id="acct-${w._id}">${accountNumber}</span>
+            ${
+              accountNumber && accountNumber !== "-"
+                ? `<button class="copy-btn" onclick="copyToClipboard('${accountNumber}')">Copy</button>`
+                : ""
+            }
+          </td>
+          <td>${bankName}</td>
+          <td>${phoneNumber}</td>
+          <td class="status-${w.status}">${w.status ? w.status.toUpperCase() : 'PENDING'}</td>
+          <td class="muted">${w.createdAt ? new Date(w.createdAt).toLocaleString() : 'Unknown'}</td>
+          <td class="actions">
+            ${
+              w.status === "pending" || !w.status
+                ? `<button class="approve" onclick="approveWithdrawal('${w._id}')">Approve</button>
+                   <button class="decline" onclick="rejectWithdrawal('${w._id}')">Decline</button>`
+                : w.status === "approved"
+                ? '<span class="status-approved">✅ APPROVED</span>'
+                : '<span class="status-rejected">❌ REJECTED</span>'
+            }
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     function copyToClipboard(text) {
@@ -279,23 +383,42 @@
 
       try {
         table.classList.add("loading");
+        updateDebugInfo(`Approving withdrawal ${id}...`);
         
-        // ✅ Use session-based endpoint from admin routes
-        const res = await fetch(`${API_BASE}/admin/withdrawals/approve/${id}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ email: adminEmail })
-        });
+        // Try multiple approval endpoints
+        const endpoints = [
+          '/admin/withdrawals/approve/' + id,
+          '/withdraw/approve/' + id,
+          '/admin/withdraw/approve/' + id
+        ];
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to approve withdrawal");
+        for (let endpoint of endpoints) {
+          try {
+            updateDebugInfo(`Trying: POST ${endpoint}`);
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: adminEmail })
+            });
 
-        alert("✅ Withdrawal approved successfully!");
-        loadWithdrawals();
+            if (res.ok) {
+              const data = await res.json();
+              updateDebugInfo("✅ Withdrawal approved successfully!");
+              alert("✅ Withdrawal approved successfully!");
+              loadWithdrawals();
+              return;
+            } else {
+              updateDebugInfo(`❌ Failed: ${res.status}`);
+            }
+          } catch (err) {
+            updateDebugInfo(`❌ Error: ${err.message}`);
+          }
+        }
+        
+        throw new Error("No approval endpoint worked");
+
       } catch (err) {
-        console.error("Approve error:", err);
+        updateDebugInfo(`❌ Approval failed: ${err.message}`);
         alert("❌ " + err.message);
       } finally {
         table.classList.remove("loading");
@@ -312,23 +435,42 @@
 
       try {
         table.classList.add("loading");
+        updateDebugInfo(`Rejecting withdrawal ${id}...`);
         
-        // ✅ Use session-based endpoint from admin routes
-        const res = await fetch(`${API_BASE}/admin/withdrawals/reject/${id}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ email: adminEmail, note })
-        });
+        // Try multiple rejection endpoints
+        const endpoints = [
+          '/admin/withdrawals/reject/' + id,
+          '/withdraw/reject/' + id,
+          '/admin/withdraw/reject/' + id
+        ];
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to reject withdrawal");
+        for (let endpoint of endpoints) {
+          try {
+            updateDebugInfo(`Trying: POST ${endpoint}`);
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: adminEmail, note })
+            });
 
-        alert("❌ Withdrawal rejected!");
-        loadWithdrawals();
+            if (res.ok) {
+              const data = await res.json();
+              updateDebugInfo("✅ Withdrawal rejected successfully!");
+              alert("❌ Withdrawal rejected!");
+              loadWithdrawals();
+              return;
+            } else {
+              updateDebugInfo(`❌ Failed: ${res.status}`);
+            }
+          } catch (err) {
+            updateDebugInfo(`❌ Error: ${err.message}`);
+          }
+        }
+        
+        throw new Error("No rejection endpoint worked");
+
       } catch (err) {
-        console.error("Reject error:", err);
+        updateDebugInfo(`❌ Rejection failed: ${err.message}`);
         alert("❌ " + err.message);
       } finally {
         table.classList.remove("loading");
@@ -337,6 +479,7 @@
 
     // Load on page start
     document.addEventListener("DOMContentLoaded", function() {
+      updateDebugInfo("🚀 Page loaded");
       if (!checkAdminAuth()) return;
       updateAdminInfo();
       loadWithdrawals();
