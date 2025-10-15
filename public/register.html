@@ -18,7 +18,6 @@
 
   <main class="auth-container">
     <div class="auth-card">
-      <!-- Brand Section -->
       <div class="auth-header">
         <div class="auth-icon">🎮</div>
         <div class="auth-title">Join Gaming Continental</div>
@@ -28,7 +27,7 @@
       <form id="registerForm">
         <div class="form-group">
           <label class="form-label" for="nickname">Nickname</label>
-          <input type="text" id="nickname" name="username" class="form-input" placeholder="Enter your gaming nickname" required />
+          <input type="text" id="nickname" name="nickname" class="form-input" placeholder="Enter your gaming nickname" required />
         </div>
 
         <div class="form-group">
@@ -43,7 +42,7 @@
 
         <div class="form-group">
           <label class="form-label" for="regConfirm">Confirm Password</label>
-          <input type="password" id="regConfirm" name="confirm" class="form-input" placeholder="Repeat your password" required />
+          <input type="password" id="regConfirm" name="confirmPassword" class="form-input" placeholder="Repeat your password" required />
         </div>
 
         <button type="submit" class="btn btn-primary" id="submitBtn">
@@ -69,16 +68,14 @@
       const nickname = document.getElementById("nickname").value.trim();
       const email = document.getElementById("regEmail").value.trim();
       const password = document.getElementById("regPassword").value.trim();
-      const confirm = document.getElementById("regConfirm").value.trim();
+      const confirmPassword = document.getElementById("regConfirm").value.trim();
       const msg = document.getElementById("registerMessage");
       const submitBtn = document.getElementById("submitBtn");
 
-      // Clear previous messages
       msg.textContent = "";
       msg.className = "message";
-      
-      // Validation
-      if (password !== confirm) {
+
+      if (password !== confirmPassword) {
         msg.textContent = "❌ Passwords do not match";
         msg.className = "message error";
         return;
@@ -90,7 +87,6 @@
         return;
       }
 
-      // Show loading state
       submitBtn.textContent = "Creating Account...";
       submitBtn.disabled = true;
       submitBtn.classList.add('loading');
@@ -102,18 +98,17 @@
           body: JSON.stringify({ 
             nickname, 
             email: email.toLowerCase(), 
-            password 
+            password,
+            confirmPassword // ✅ Added this so backend sees it
           }),
         });
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Registration failed");
 
-        // Show success message
         msg.textContent = "✅ Account created successfully! Redirecting...";
         msg.className = "message success";
 
-        // Auto-login after successful registration
         setTimeout(async () => {
           try {
             const loginRes = await fetch(`${API_BASE}/auth/login`, {
@@ -124,7 +119,6 @@
 
             const loginData = await loginRes.json();
             if (loginRes.ok) {
-              // Save login info
               localStorage.setItem("token", loginData.token);
               localStorage.setItem("userId", loginData.user._id);
               localStorage.setItem("userEmail", loginData.user.email);
@@ -132,7 +126,6 @@
               
               window.location.href = "/dashboard.html";
             } else {
-              // If auto-login fails, redirect to login page
               window.location.href = "/index.html";
             }
           } catch (loginErr) {
@@ -146,19 +139,18 @@
         msg.textContent = "❌ " + (err.message || "Registration failed. Try again.");
         msg.className = "message error";
       } finally {
-        // Reset button state
         submitBtn.textContent = "Create Account";
         submitBtn.disabled = false;
         submitBtn.classList.remove('loading');
       }
     });
 
-    // Add input validation
+    // Auto lowercase email input
     document.getElementById('regEmail').addEventListener('input', function(e) {
       this.value = this.value.toLowerCase();
     });
 
-    // Real-time password match checking
+    // Live password match feedback
     document.getElementById('regConfirm').addEventListener('input', function() {
       const password = document.getElementById('regPassword').value;
       const confirm = this.value;
@@ -173,13 +165,6 @@
       } else {
         msg.textContent = "";
         msg.className = "message";
-      }
-    });
-
-    // Enter key support
-    document.getElementById('regConfirm').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        document.getElementById('registerForm').dispatchEvent(new Event('submit'));
       }
     });
   </script>
