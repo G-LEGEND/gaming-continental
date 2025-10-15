@@ -38,6 +38,34 @@ const Bet = require("./models/Bet");
 const Withdraw = require("./models/Withdrawal");
 const History = require("./models/History");
 
+// ---------- Admin Session Management ----------
+let loggedInAdmins = new Map(); // email -> timestamp
+
+// Make it available to all routes
+app.set('loggedInAdmins', loggedInAdmins);
+
+// ---------- Simple Admin Middleware ----------
+function requireAdmin(req, res, next) {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ error: "Admin email required" });
+  }
+  
+  if (!loggedInAdmins.has(email)) {
+    return res.status(403).json({ error: "Admin not logged in" });
+  }
+  
+  // Check if session is expired (24 hours)
+  const loginTime = loggedInAdmins.get(email);
+  if (Date.now() - loginTime > 24 * 60 * 60 * 1000) {
+    loggedInAdmins.delete(email);
+    return res.status(403).json({ error: "Session expired" });
+  }
+  
+  next();
+}
+
 // ---------- Seed Default Admins ----------
 async function seedAdmins() {
   const admins = [
@@ -86,8 +114,6 @@ app.get("/auth/me", async (req, res) => {
 });
 
 // ---------- Admin Login (UPDATED - SIMPLE SESSION) ----------
-let loggedInAdmins = new Map(); // email -> timestamp
-
 app.post("/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -117,27 +143,56 @@ app.post("/admin/logout", (req, res) => {
   res.json({ message: "Admin logged out ✅" });
 });
 
-// ---------- Middleware: simple admin check (UPDATED) ----------
-function requireAdmin(req, res, next) {
-  const { email } = req.body;
-  
-  if (!email) {
-    return res.status(400).json({ error: "Admin email required" });
+// ---------- TEMPORARY ADMIN DEPOSIT ENDPOINTS (Add these) ----------
+
+// ✅ Get all deposits (NO TOKEN - session based)
+app.post("/admin/deposits", requireAdmin, async (req, res) => {
+  try {
+    console.log("📥 Fetching all deposits for admin...");
+    const deposits = await Deposit.find()
+      .populate("userId", "email nickname")
+      .populate("methodId", "bankName accountName accountNumber")
+      .sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${deposits.length} deposits`);
+    res.json(deposits);
+  } catch (err) {
+    console.error("❌ Error fetching deposits:", err);
+    res.status(500).json({ error: "Failed to fetch deposits" });
   }
-  
-  if (!loggedInAdmins.has(email)) {
-    return res.status(403).json({ error: "Admin not logged in" });
+});
+
+// ✅ Get all users (NO TOKEN - session based)
+app.post("/admin/users", requireAdmin, async (req, res) => {
+  try {
+    console.log("📥 Fetching all users for admin...");
+    const users = await User.find()
+      .select("nickname email balance fifaPoints snookerPoints")
+      .sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${users.length} users`);
+    res.json(users);
+  } catch (err) {
+    console.error("❌ Error fetching users:", err);
+    res.status(500).json({ error: "Failed to fetch users" });
   }
-  
-  // Optional: Check if session is expired (24 hours)
-  const loginTime = loggedInAdmins.get(email);
-  if (Date.now() - loginTime > 24 * 60 * 60 * 1000) {
-    loggedInAdmins.delete(email);
-    return res.status(403).json({ error: "Session expired" });
+});
+
+// ✅ Get all withdrawals (NO TOKEN - session based)
+app.post("/admin/withdrawals", requireAdmin, async (req, res) => {
+  try {
+    console.log("📥 Fetching all withdrawals for admin...");
+    const withdrawals = await Withdraw.find()
+      .populate("userId", "nickname email")
+      .sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${withdrawals.length} withdrawals`);
+    res.json(withdrawals);
+  } catch (err) {
+    console.error("❌ Error fetching withdrawals:", err);
+    res.status(500).json({ error: "Failed to fetch withdrawals" });
   }
-  
-  next();
-}
+});
 
 // ---------- Routes ----------
 const authRoutes = require("./routes/auth");
