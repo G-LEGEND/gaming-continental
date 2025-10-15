@@ -4,10 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin - Global Leaderboard | Gaming Continental</title>
-  <link rel="stylesheet" href="/style.css">
   <style>
     body {
-      font-family: "Poppins", sans-serif;
+      font-family: Arial, sans-serif;
       background: #0f172a;
       margin: 0;
       padding: 15px;
@@ -51,7 +50,6 @@
       padding: 10px 18px;
       font-size: 14px;
       cursor: pointer;
-      transition: 0.3s;
     }
     .refresh-btn:hover { 
       background: #1d4ed8; 
@@ -62,7 +60,6 @@
       background: #1e293b;
       border-radius: 10px;
       overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     }
     th, td {
       text-align: center;
@@ -92,7 +89,6 @@
       padding: 6px 10px;
       border-radius: 6px;
       cursor: pointer;
-      transition: 0.3s;
     }
     .save-btn:hover { 
       background: #16a34a; 
@@ -140,18 +136,11 @@
     .logout-btn:hover { 
       background: #b91c1c; 
     }
-    @media (max-width: 700px) {
-      body { padding: 10px; }
-      th, td { font-size: 13px; padding: 8px; }
-      .top-bar { flex-direction: column; }
-      .refresh-btn { width: 100%; }
-    }
   </style>
 </head>
 <body>
   <h1>🏆 Admin Global Leaderboard</h1>
 
-  <!-- Admin Info Bar -->
   <div class="admin-info">
     <strong>Logged in as:</strong> <span id="adminEmail"></span>
     <button class="logout-btn" onclick="logout()">🚪 Logout</button>
@@ -177,18 +166,18 @@
         <th>Date Joined</th>
       </tr>
     </thead>
-    <tbody></tbody>
+    <tbody id="tableBody"></tbody>
   </table>
 
   <script>
-    const API_BASE = "https://gaming-continental.onrender.com";
-    const tbody = document.querySelector("#rankTable tbody");
-    let usersData = [];
+    // Global variables
+    var API_BASE = "https://gaming-continental.onrender.com";
+    var usersData = [];
 
     // Check if admin is logged in
     function checkAdminAuth() {
-      const adminLoggedIn = localStorage.getItem("adminLoggedIn");
-      const adminEmail = localStorage.getItem("adminEmail");
+      var adminLoggedIn = localStorage.getItem("adminLoggedIn");
+      var adminEmail = localStorage.getItem("adminEmail");
       
       if (!adminLoggedIn || !adminEmail) {
         alert("Please log in as admin first.");
@@ -201,173 +190,257 @@
     }
 
     // Logout function
-    async function logout() {
-      const adminEmail = localStorage.getItem("adminEmail");
+    function logout() {
+      var adminEmail = localStorage.getItem("adminEmail");
       
-      try {
-        if (adminEmail) {
-          await fetch(API_BASE + "/admin/logout", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: adminEmail })
-          });
-        }
-      } catch (err) {
-        console.error("Logout error:", err);
-      } finally {
-        localStorage.removeItem("adminLoggedIn");
-        localStorage.removeItem("adminEmail");
-        localStorage.removeItem("loginTime");
-        window.location.href = "admin.html";
-      }
+      // Call logout endpoint
+      fetch(API_BASE + "/admin/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail })
+      }).catch(function(err) {
+        console.log("Logout error:", err);
+      });
+      
+      // Clear storage and redirect
+      localStorage.removeItem("adminLoggedIn");
+      localStorage.removeItem("adminEmail");
+      localStorage.removeItem("loginTime");
+      window.location.href = "admin.html";
     }
 
-    // Load Leaderboard
-    async function loadRanks() {
+    // Load Leaderboard - USING PUBLIC ENDPOINT
+    function loadRanks() {
       if (!checkAdminAuth()) return;
 
-      const adminEmail = localStorage.getItem("adminEmail");
+      var tbody = document.getElementById("tableBody");
 
-      try {
-        tbody.innerHTML = '<tr><td colspan="8" class="no-data">Loading leaderboard...</td></tr>';
-        
-        const res = await fetch(API_BASE + "/admin/rank/all", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: adminEmail })
-        });
-        
-        const users = await res.json();
-        
-        if (!res.ok) {
-          throw new Error(users.error || "Failed to load rank");
+      // Show loading
+      tbody.innerHTML = '<tr><td colspan="8" class="no-data">Loading leaderboard...</td></tr>';
+      
+      // Use PUBLIC endpoint to get all users (no auth required)
+      fetch(API_BASE + "/user/all")
+      .then(function(response) {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(function(users) {
+        console.log("Users loaded:", users);
+
+        // Process users data
+        usersData = [];
+        for (var i = 0; i < users.length; i++) {
+          var user = users[i];
+          var fifaPoints = user.fifaPoints || 0;
+          var snookerPoints = user.snookerPoints || 0;
+          var totalPoints = fifaPoints + snookerPoints;
+          
+          usersData.push({
+            _id: user._id,
+            nickname: user.nickname,
+            email: user.email,
+            fifaPoints: fifaPoints,
+            snookerPoints: snookerPoints,
+            totalPoints: totalPoints,
+            createdAt: user.createdAt
+          });
         }
 
-        usersData = users.map(function(u) {
-          return {
-            ...u,
-            totalPoints: (u.fifaPoints || 0) + (u.snookerPoints || 0)
-          };
-        }).sort(function(a, b) {
+        // Sort by total points
+        usersData.sort(function(a, b) {
           return b.totalPoints - a.totalPoints;
         });
 
         renderTable(usersData);
-      } catch (err) {
+      })
+      .catch(function(err) {
         console.error("Load rank error:", err);
-        if (err.message.includes("not logged in") || err.message.includes("Session")) {
-          alert("Session expired. Please log in again.");
-          logout();
-          return;
-        }
-        tbody.innerHTML = '<tr><td colspan="8" class="no-data" style="color:#f87171;">' + err.message + '</td></tr>';
-      }
+        tbody.innerHTML = '<tr><td colspan="8" class="no-data" style="color:#f87171;">Failed to load users: ' + err.message + '</td></tr>';
+      });
     }
 
     // Render Leaderboard Table
     function renderTable(data) {
+      var tbody = document.getElementById("tableBody");
       tbody.innerHTML = "";
-      if (!data.length) {
+
+      if (!data || data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="no-data">No users found.</td></tr>';
         return;
       }
 
-      data.forEach(function(u, i) {
-        const pos = i + 1;
-        let badgeClass = "";
-        let medal = "";
-        if (pos === 1) { 
+      for (var i = 0; i < data.length; i++) {
+        var user = data[i];
+        var rank = i + 1;
+        var badgeClass = "";
+        var medal = "";
+        
+        if (rank === 1) { 
           badgeClass = "gold"; 
           medal = "🥇"; 
-        } else if (pos === 2) { 
+        } else if (rank === 2) { 
           badgeClass = "silver"; 
           medal = "🥈"; 
-        } else if (pos === 3) { 
+        } else if (rank === 3) { 
           badgeClass = "bronze"; 
           medal = "🥉"; 
         }
 
-        const tr = document.createElement("tr");
-        tr.innerHTML = 
-          '<td class="rank-badge ' + badgeClass + '">' + pos + ' ' + medal + '</td>' +
-          '<td>' + (u.nickname || "—") + '</td>' +
-          '<td>' + u.email + '</td>' +
-          '<td>' + (u.fifaPoints || 0) + '</td>' +
-          '<td>' + (u.snookerPoints || 0) + '</td>' +
-          '<td><b>' + u.totalPoints + '</b></td>' +
-          '<td>' +
-          '<select id="cat-' + u._id + '">' +
-          '<option value="fifa">FIFA</option>' +
-          '<option value="snooker">Snooker</option>' +
-          '</select>' +
-          '<input type="number" id="points-' + u._id + '" class="points-input" placeholder="Add">' +
-          '<button class="save-btn" onclick="addPoints(\'' + u._id + '\')">Save</button>' +
-          '</td>' +
-          '<td>' + (u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—') + '</td>';
-        tbody.appendChild(tr);
-      });
+        var row = document.createElement("tr");
+        
+        // Rank cell
+        var rankCell = document.createElement("td");
+        rankCell.className = "rank-badge " + badgeClass;
+        rankCell.textContent = rank + " " + medal;
+        row.appendChild(rankCell);
+        
+        // Nickname cell
+        var nicknameCell = document.createElement("td");
+        nicknameCell.textContent = user.nickname || "—";
+        row.appendChild(nicknameCell);
+        
+        // Email cell
+        var emailCell = document.createElement("td");
+        emailCell.textContent = user.email;
+        row.appendChild(emailCell);
+        
+        // FIFA Points cell
+        var fifaCell = document.createElement("td");
+        fifaCell.textContent = user.fifaPoints;
+        row.appendChild(fifaCell);
+        
+        // Snooker Points cell
+        var snookerCell = document.createElement("td");
+        snookerCell.textContent = user.snookerPoints;
+        row.appendChild(snookerCell);
+        
+        // Total Points cell
+        var totalCell = document.createElement("td");
+        totalCell.innerHTML = "<b>" + user.totalPoints + "</b>";
+        row.appendChild(totalCell);
+        
+        // Add Points cell
+        var pointsCell = document.createElement("td");
+        
+        // Create select dropdown
+        var select = document.createElement("select");
+        select.id = "cat-" + user._id;
+        
+        var option1 = document.createElement("option");
+        option1.value = "fifa";
+        option1.textContent = "FIFA";
+        select.appendChild(option1);
+        
+        var option2 = document.createElement("option");
+        option2.value = "snooker";
+        option2.textContent = "Snooker";
+        select.appendChild(option2);
+        
+        // Create points input
+        var input = document.createElement("input");
+        input.type = "number";
+        input.id = "points-" + user._id;
+        input.className = "points-input";
+        input.placeholder = "Add";
+        
+        // Create save button
+        var button = document.createElement("button");
+        button.className = "save-btn";
+        button.textContent = "Save";
+        button.onclick = (function(userId) {
+          return function() {
+            addPoints(userId);
+          };
+        })(user._id);
+        
+        pointsCell.appendChild(select);
+        pointsCell.appendChild(input);
+        pointsCell.appendChild(button);
+        row.appendChild(pointsCell);
+        
+        // Date Joined cell
+        var dateCell = document.createElement("td");
+        if (user.createdAt) {
+          var date = new Date(user.createdAt);
+          dateCell.textContent = date.toLocaleDateString();
+        } else {
+          dateCell.textContent = "—";
+        }
+        row.appendChild(dateCell);
+        
+        tbody.appendChild(row);
+      }
     }
 
-    // Add Points to a User
-    async function addPoints(userId) {
+    // Add Points to a User - This still uses admin endpoint
+    function addPoints(userId) {
       if (!checkAdminAuth()) return;
-
-      const adminEmail = localStorage.getItem("adminEmail");
-      const category = document.getElementById("cat-" + userId).value;
-      const pointsInput = document.getElementById("points-" + userId);
-      const points = parseInt(pointsInput.value);
+      
+      var adminEmail = localStorage.getItem("adminEmail");
+      var categorySelect = document.getElementById("cat-" + userId);
+      var pointsInput = document.getElementById("points-" + userId);
+      
+      var category = categorySelect.value;
+      var points = parseInt(pointsInput.value);
 
       if (!points || points <= 0) {
         alert("Enter valid points");
         return;
       }
 
-      try {
-        const res = await fetch(API_BASE + "/admin/rank/add-points/" + userId, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ 
-            category: category, 
-            points: points,
-            email: adminEmail
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || "Failed to add points");
+      // Use admin endpoint for adding points (requires session)
+      fetch(API_BASE + "/admin/rank/add-points/" + userId, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          category: category, 
+          points: points,
+          email: adminEmail
+        })
+      })
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(data) {
+        if (data.error) {
+          throw new Error(data.error);
         }
-
         alert("✅ " + data.message);
-        loadRanks();
-      } catch (err) {
+        pointsInput.value = ""; // Clear input
+        loadRanks(); // Refresh the table
+      })
+      .catch(function(err) {
         console.error("Add points error:", err);
-        if (err.message.includes("not logged in") || err.message.includes("Session")) {
-          alert("Session expired. Please log in again.");
-          logout();
-          return;
-        }
         alert("❌ " + err.message);
-      }
+      });
     }
 
     // Search / Filter
     function filterUsers() {
-      const search = document.getElementById("searchInput").value.toLowerCase();
-      const filtered = usersData.filter(function(u) {
-        return (u.nickname && u.nickname.toLowerCase().includes(search)) ||
-               (u.email && u.email.toLowerCase().includes(search));
-      });
-      renderTable(filtered);
+      var search = document.getElementById("searchInput").value.toLowerCase();
+      var filteredData = [];
+
+      for (var i = 0; i < usersData.length; i++) {
+        var user = usersData[i];
+        var nicknameMatch = user.nickname && user.nickname.toLowerCase().indexOf(search) > -1;
+        var emailMatch = user.email && user.email.toLowerCase().indexOf(search) > -1;
+        
+        if (nicknameMatch || emailMatch) {
+          filteredData.push(user);
+        }
+      }
+
+      renderTable(filteredData);
     }
 
     // Initialize on page load
-    document.addEventListener("DOMContentLoaded", function() {
+    window.onload = function() {
       if (checkAdminAuth()) {
         loadRanks();
       }
-    });
+    };
   </script>
 </body>
 </html>
