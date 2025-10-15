@@ -103,11 +103,19 @@
           return;
         }
 
-        // ✅ FIXED: Save admin session info to localStorage
+        // ✅ UPDATED: Save admin token AND session info to localStorage
+        if (data.token) {
+          localStorage.setItem("adminToken", data.token);
+          console.log("✅ Admin token saved:", data.token.substring(0, 20) + "...");
+        } else {
+          console.warn("⚠️ No token returned from server");
+        }
+        
         localStorage.setItem("adminLoggedIn", "true");
         localStorage.setItem("adminEmail", email);
         
         console.log("✅ Admin session saved to localStorage:");
+        console.log("adminToken:", localStorage.getItem("adminToken") ? "Present" : "Missing");
         console.log("adminLoggedIn:", localStorage.getItem("adminLoggedIn"));
         console.log("adminEmail:", localStorage.getItem("adminEmail"));
 
@@ -135,14 +143,20 @@
     document.addEventListener('DOMContentLoaded', function() {
       const isLoggedIn = localStorage.getItem("adminLoggedIn");
       const adminEmail = localStorage.getItem("adminEmail");
+      const adminToken = localStorage.getItem("adminToken");
+      
       console.log("🔍 Admin page loaded - Current session:");
+      console.log("adminToken:", adminToken ? "Present" : "Missing");
       console.log("adminLoggedIn:", isLoggedIn);
       console.log("adminEmail:", adminEmail);
       
       // If already logged in, redirect to dashboard
-      if (isLoggedIn && adminEmail) {
+      if (isLoggedIn && adminEmail && adminToken) {
         console.log("🔄 Already logged in, redirecting...");
         window.location.href = "admin-dashboard.html";
+      } else if (isLoggedIn && !adminToken) {
+        console.log("⚠️ Session exists but no token - clearing session");
+        localStorage.clear();
       }
     });
   </script>
