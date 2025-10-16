@@ -16,10 +16,16 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ POST /livestream - Add new live stream (ADMIN ONLY)
+// ✅ POST /livestream - Add new live stream (ADMIN ONLY - with session validation)
 router.post("/", async (req, res) => {
   try {
-    const { tournament, link, description } = req.body;
+    const { tournament, link, description, email } = req.body;
+    
+    // Check admin session
+    const loggedInAdmins = req.app.get('loggedInAdmins');
+    if (!email || !loggedInAdmins || !loggedInAdmins.has(email)) {
+      return res.status(403).json({ error: "Admin not logged in" });
+    }
     
     if (!tournament || !link) {
       return res.status(400).json({ error: "Tournament title and YouTube link are required" });
@@ -34,7 +40,7 @@ router.post("/", async (req, res) => {
       tournament,
       link,
       description: description || 'Watch this exciting live gaming tournament',
-      createdBy: req.admin.id // From verifyAdmin middleware
+      createdBy: null // Since we don't have admin user IDs, set to null
     });
 
     const populatedStream = await LiveStream.findById(newStream._id)
@@ -50,9 +56,17 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ✅ DELETE /livestream/:id - Delete live stream (ADMIN ONLY)
+// ✅ DELETE /livestream/:id - Delete live stream (ADMIN ONLY - with session validation)
 router.delete("/:id", async (req, res) => {
   try {
+    const { email } = req.body;
+    
+    // Check admin session
+    const loggedInAdmins = req.app.get('loggedInAdmins');
+    if (!email || !loggedInAdmins || !loggedInAdmins.has(email)) {
+      return res.status(403).json({ error: "Admin not logged in" });
+    }
+
     const stream = await LiveStream.findById(req.params.id);
     
     if (!stream) {
@@ -68,10 +82,16 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// ✅ PUT /livestream/:id - Update live stream (ADMIN ONLY)
+// ✅ PUT /livestream/:id - Update live stream (ADMIN ONLY - with session validation)
 router.put("/:id", async (req, res) => {
   try {
-    const { tournament, link, description, isActive } = req.body;
+    const { tournament, link, description, isActive, email } = req.body;
+    
+    // Check admin session
+    const loggedInAdmins = req.app.get('loggedInAdmins');
+    if (!email || !loggedInAdmins || !loggedInAdmins.has(email)) {
+      return res.status(403).json({ error: "Admin not logged in" });
+    }
     
     const stream = await LiveStream.findById(req.params.id);
     if (!stream) {
