@@ -210,6 +210,15 @@
     .form-row .form-group {
       flex: 1;
     }
+
+    .admin-info {
+      background: #e8f4fd;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      text-align: center;
+      border-left: 4px solid #2563eb;
+    }
   </style>
 </head>
 <body>
@@ -349,7 +358,7 @@
       document.getElementById('streamCount').textContent = `${count} stream${count !== 1 ? 's' : ''}`;
     }
 
-    // Add new stream
+    // Add new stream - FIXED ENDPOINT
     document.getElementById('streamForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -369,6 +378,7 @@
       submitBtn.disabled = true;
 
       try {
+        // FIXED: Use /livestream endpoint instead of /admin/livestream
         const res = await fetch(`${API_BASE}/livestream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -394,7 +404,7 @@
       }
     });
 
-    // Delete stream
+    // Delete stream - FIXED ENDPOINT
     async function deleteStream(streamId) {
       if (!checkAdminAuth()) return;
       
@@ -403,6 +413,7 @@
       const adminEmail = localStorage.getItem("adminEmail");
 
       try {
+        // FIXED: Use /livestream endpoint instead of /admin/livestream
         const res = await fetch(`${API_BASE}/livestream/${streamId}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
