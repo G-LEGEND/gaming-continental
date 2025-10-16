@@ -20,9 +20,12 @@ router.post("/", async (req, res) => {
   try {
     const { tournament, link, description, email } = req.body;
     
+    console.log("📥 Adding new livestream:", { tournament, link, email });
+    
     // Check admin session
     const loggedInAdmins = req.app.get('loggedInAdmins');
     if (!email || !loggedInAdmins || !loggedInAdmins.has(email)) {
+      console.log("❌ Admin not logged in:", email);
       return res.status(403).json({ error: "Admin not logged in" });
     }
     
@@ -36,18 +39,20 @@ router.post("/", async (req, res) => {
     }
 
     const newStream = await LiveStream.create({
-      tournament,
-      link,
-      description: description || 'Watch this exciting live gaming tournament',
-      createdBy: email // Store admin email instead of ObjectId
+      tournament: tournament.trim(),
+      link: link.trim(),
+      description: (description || 'Watch this exciting live gaming tournament').trim(),
+      createdBy: email // Store admin email as string
     });
 
+    console.log("✅ Live stream created successfully:", newStream._id);
+    
     res.status(201).json({ 
       message: "Live stream added successfully ✅", 
       stream: newStream 
     });
   } catch (err) {
-    console.error("Error adding live stream:", err);
+    console.error("❌ Error adding live stream:", err);
     res.status(500).json({ error: "Failed to add live stream: " + err.message });
   }
 });
@@ -75,43 +80,6 @@ router.delete("/:id", async (req, res) => {
   } catch (err) {
     console.error("Error deleting live stream:", err);
     res.status(500).json({ error: "Failed to delete live stream" });
-  }
-});
-
-// ✅ PUT /livestream/:id - Update live stream (ADMIN ONLY - with session validation)
-router.put("/:id", async (req, res) => {
-  try {
-    const { tournament, link, description, isActive, email } = req.body;
-    
-    // Check admin session
-    const loggedInAdmins = req.app.get('loggedInAdmins');
-    if (!email || !loggedInAdmins || !loggedInAdmins.has(email)) {
-      return res.status(403).json({ error: "Admin not logged in" });
-    }
-    
-    const stream = await LiveStream.findById(req.params.id);
-    if (!stream) {
-      return res.status(404).json({ error: "Live stream not found" });
-    }
-
-    const updatedStream = await LiveStream.findByIdAndUpdate(
-      req.params.id,
-      { 
-        tournament, 
-        link, 
-        description, 
-        isActive 
-      },
-      { new: true, runValidators: true }
-    );
-
-    res.json({ 
-      message: "Live stream updated successfully ✅", 
-      stream: updatedStream 
-    });
-  } catch (err) {
-    console.error("Error updating live stream:", err);
-    res.status(500).json({ error: "Failed to update live stream" });
   }
 });
 
