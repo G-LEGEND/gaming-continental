@@ -223,7 +223,12 @@
         </div>
         <div class="admin-actions">
           <button class="btn btn-secondary" onclick="goToLivePage()">👀 View Live Page</button>
+          <button class="btn btn-danger" onclick="logout()">🚪 Logout</button>
         </div>
+      </div>
+      
+      <div class="admin-info">
+        <strong>Logged in as:</strong> <span id="adminEmail"></span>
       </div>
       
       <form id="streamForm">
@@ -262,8 +267,45 @@
   <script>
     const API_BASE = "https://gaming-continental.onrender.com";
 
-    // Load existing streams (no token)
+    // Check if admin is logged in
+    function checkAdminAuth() {
+      var adminLoggedIn = localStorage.getItem("adminLoggedIn");
+      var adminEmail = localStorage.getItem("adminEmail");
+      
+      if (!adminLoggedIn || !adminEmail) {
+        alert("Please log in as admin first.");
+        window.location.href = "admin.html";
+        return false;
+      }
+      
+      document.getElementById("adminEmail").textContent = adminEmail;
+      return true;
+    }
+
+    // Logout function
+    function logout() {
+      var adminEmail = localStorage.getItem("adminEmail");
+      
+      // Call logout endpoint
+      fetch(API_BASE + "/admin/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail })
+      }).catch(function(err) {
+        console.log("Logout error:", err);
+      });
+      
+      // Clear storage and redirect
+      localStorage.removeItem("adminLoggedIn");
+      localStorage.removeItem("adminEmail");
+      localStorage.removeItem("loginTime");
+      window.location.href = "admin.html";
+    }
+
+    // Load existing streams
     async function loadStreams() {
+      if (!checkAdminAuth()) return;
+
       try {
         const response = await fetch(`${API_BASE}/livestream`);
         const streams = await response.json();
@@ -291,7 +333,7 @@
               <div class="stream-title">${stream.tournament}</div>
               <div class="stream-url">${stream.link}</div>
               <div class="stream-meta">
-                Added by: ${stream.createdBy?.email || 'Admin'} • ${new Date(stream.createdAt).toLocaleDateString()}
+                Added: ${new Date(stream.createdAt).toLocaleDateString()}
               </div>
             </div>
             <div class="stream-actions">
@@ -307,9 +349,13 @@
       document.getElementById('streamCount').textContent = `${count} stream${count !== 1 ? 's' : ''}`;
     }
 
-    // Add new stream (no token)
+    // Add new stream
     document.getElementById('streamForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      if (!checkAdminAuth()) return;
+      
+      const adminEmail = localStorage.getItem("adminEmail");
       const title = document.getElementById('streamTitle').value.trim();
       const url = document.getElementById('streamUrl').value.trim();
       const description = document.getElementById('streamDescription').value.trim();
@@ -323,13 +369,14 @@
       submitBtn.disabled = true;
 
       try {
-        const res = await fetch(`${API_BASE}/admin/livestream`, {
+        const res = await fetch(`${API_BASE}/livestream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             tournament: title,
             link: url,
-            description: description || 'Watch this exciting live gaming tournament'
+            description: description || 'Watch this exciting live gaming tournament',
+            email: adminEmail  // Include admin email for session validation
           })
         });
 
@@ -347,13 +394,19 @@
       }
     });
 
-    // Delete stream (no token)
+    // Delete stream
     async function deleteStream(streamId) {
+      if (!checkAdminAuth()) return;
+      
       if (!confirm('Are you sure you want to delete this stream?')) return;
 
+      const adminEmail = localStorage.getItem("adminEmail");
+
       try {
-        const res = await fetch(`${API_BASE}/admin/livestream/${streamId}`, {
+        const res = await fetch(`${API_BASE}/livestream/${streamId}`, {
           method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: adminEmail })  // Include admin email for session validation
         });
 
         const result = await res.json();
@@ -380,7 +433,12 @@
       window.location.href = 'live.html';
     }
 
-    document.addEventListener('DOMContentLoaded', loadStreams);
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      if (checkAdminAuth()) {
+        loadStreams();
+      }
+    });
   </script>
 </body>
 </html>
