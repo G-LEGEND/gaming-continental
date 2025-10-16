@@ -22,6 +22,10 @@ const liveStreamSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin',
+    required: false // Make it optional
+  },
+  createdByEmail: { // Add email field for tracking
+    type: String,
     required: true
   }
 }, {

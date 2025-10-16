@@ -6,7 +6,6 @@ const LiveStream = require("../models/LiveStream");
 router.get("/", async (req, res) => {
   try {
     const streams = await LiveStream.find({ isActive: true })
-      .populate('createdBy', 'email')
       .sort({ createdAt: -1 });
     
     res.json(streams);
@@ -40,19 +39,16 @@ router.post("/", async (req, res) => {
       tournament,
       link,
       description: description || 'Watch this exciting live gaming tournament',
-      createdBy: null // Since we don't have admin user IDs, set to null
+      createdBy: email // Store admin email instead of ObjectId
     });
-
-    const populatedStream = await LiveStream.findById(newStream._id)
-      .populate('createdBy', 'email');
 
     res.status(201).json({ 
       message: "Live stream added successfully ✅", 
-      stream: populatedStream 
+      stream: newStream 
     });
   } catch (err) {
     console.error("Error adding live stream:", err);
-    res.status(500).json({ error: "Failed to add live stream" });
+    res.status(500).json({ error: "Failed to add live stream: " + err.message });
   }
 });
 
@@ -107,7 +103,7 @@ router.put("/:id", async (req, res) => {
         isActive 
       },
       { new: true, runValidators: true }
-    ).populate('createdBy', 'email');
+    );
 
     res.json({ 
       message: "Live stream updated successfully ✅", 
