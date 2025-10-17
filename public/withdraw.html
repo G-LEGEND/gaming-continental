@@ -164,6 +164,10 @@
       return;
     }
 
+    console.log("🔄 Initializing withdraw page...");
+    console.log("📋 User data from localStorage:", user);
+    console.log("🏦 Bank details check:", user?.bankDetails);
+
     // Show data immediately from localStorage
     displayUserData(user);
     
@@ -174,23 +178,40 @@
     loadHistory();
   }
 
-  // ✅ Display user data immediately
+  // ✅ IMPROVED: Display user data with better detection
   function displayUserData(userData) {
+    console.log("🔄 Displaying user data:", userData);
+    
     // Update balance
     balanceEl.innerText = (userData.balance || 0).toFixed(2);
     
-    // Check bank details
+    // Check bank details - MORE ROBUST CHECK
     const bankDetails = userData?.bankDetails;
+    const hasBankDetails = bankDetails && 
+                          bankDetails.accountNumber && 
+                          bankDetails.accountNumber.trim().length >= 10 &&
+                          bankDetails.bankName && 
+                          bankDetails.bankName.trim().length > 0;
     
-    if (bankDetails && bankDetails.accountNumber) {
+    console.log("🏦 Bank details validation:", {
+      hasBankDetails: hasBankDetails,
+      accountNumber: bankDetails?.accountNumber,
+      bankName: bankDetails?.bankName,
+      accountName: bankDetails?.accountName
+    });
+
+    if (hasBankDetails) {
       // Show bank details and withdraw form
       bankDetailsInfo.style.display = 'block';
       withdrawForm.style.display = 'block';
       noBankDetails.style.display = 'none';
       
       // Display bank details
-      document.getElementById('displayAccountName').textContent = 
-        bankDetails.accountName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || "Not provided";
+      const accountName = bankDetails.accountName || 
+                         `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 
+                         "Not provided";
+      
+      document.getElementById('displayAccountName').textContent = accountName;
       document.getElementById('displayAccountNumber').textContent = bankDetails.accountNumber;
       document.getElementById('displayBankName').textContent = bankDetails.bankName;
       
@@ -200,11 +221,11 @@
       bankDetailsInfo.style.display = 'none';
       withdrawForm.style.display = 'none';
       noBankDetails.style.display = 'block';
-      console.log("❌ No bank details found");
+      console.log("❌ No valid bank details found");
     }
   }
 
-  // ✅ Force refresh user data from server
+  // ✅ IMPROVED: Force refresh user data from server
   async function forceRefreshUserData() {
     if (!userId) return;
 
@@ -217,7 +238,9 @@
       if (res.ok) {
         const freshUser = await res.json();
         
-        // Update localStorage
+        console.log("✅ Fresh user data from server:", freshUser);
+        
+        // Update localStorage with fresh data
         localStorage.setItem("user", JSON.stringify(freshUser));
         user = freshUser;
         
@@ -227,7 +250,7 @@
         
         showTempMessage("✅ Bank details updated!", false);
       } else {
-        console.log("❌ Failed to refresh user data");
+        console.log("❌ Failed to refresh user data from server");
         showTempMessage("⚠️ Using cached data", true);
       }
       
@@ -387,33 +410,68 @@
     }
   }
 
-  // ✅ Check for bank details every 2 seconds (as backup)
+  // ✅ IMPROVED: Check for bank details with better detection
   function startBankDetailsChecker() {
     setInterval(() => {
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const hasBankDetails = currentUser?.bankDetails?.accountNumber;
+      const hasBankDetails = currentUser?.bankDetails?.accountNumber && 
+                            currentUser?.bankDetails?.accountNumber.trim().length >= 10;
+      
+      console.log("🔄 Auto-check bank details:", {
+        hasBankDetails: hasBankDetails,
+        accountNumber: currentUser?.bankDetails?.accountNumber
+      });
       
       if (hasBankDetails && noBankDetails.style.display !== 'none') {
-        console.log("🔄 Auto-detected bank details, refreshing...");
+        console.log("🔄 Auto-detected bank details, refreshing display...");
         displayUserData(currentUser);
       }
     }, 2000);
   }
 
+  // ✅ NEW: Listen for storage events (when account.html updates localStorage)
+  function setupStorageListener() {
+    window.addEventListener('storage', function(e) {
+      console.log("📦 Storage event detected:", e.key);
+      if (e.key === 'user') {
+        console.log("🔄 User data updated in another tab, refreshing...");
+        const updatedUser = JSON.parse(e.newValue || "{}");
+        user = updatedUser;
+        displayUserData(updatedUser);
+      }
+    });
+  }
+
+  // ✅ NEW: Check URL parameters for refresh triggers
+  function checkUrlParameters() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('refresh') === 'true') {
+      console.log("🔄 URL refresh parameter detected");
+      forceRefreshUserData();
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+
   // Initialize when page loads
   document.addEventListener("DOMContentLoaded", () => {
+    console.log("🚀 Withdraw page loaded");
     initializePage();
     startBankDetailsChecker();
+    setupStorageListener();
+    checkUrlParameters();
   });
 
-  // ✅ Listen for clicks on the page to trigger refresh
-  document.addEventListener('click', () => {
-    // Quick check if we need to refresh
-    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-    if (currentUser?.bankDetails?.accountNumber && !user?.bankDetails?.accountNumber) {
+  // ✅ IMPROVED: Listen for page visibility changes
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+      console.log("🔄 Page became visible, checking for updates...");
+      // Quick refresh when user comes back to the page
+      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
       displayUserData(currentUser);
     }
   });
+
 </script>
 </body>
 </html>
