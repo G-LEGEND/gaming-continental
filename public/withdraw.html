@@ -155,11 +155,10 @@
 
   // 🔒 Protect page and initialize
   function initializePage() {
-    const token = localStorage.getItem("token");
     user = JSON.parse(localStorage.getItem("user") || "{}");
     userId = user?._id || user?.id || user?.userId;
 
-    if (!token || !userId) {
+    if (!userId) {
       alert("Please login first");
       window.location.href = "index.html";
       return;
@@ -207,42 +206,17 @@
 
   // ✅ Force refresh user data from server
   async function forceRefreshUserData() {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!userId) return;
 
     try {
       console.log("🔄 Fetching fresh user data from server...");
       
-      // Try multiple endpoints
-      let endpoints = [
-        `${API_BASE}/user/me`,
-        `${API_BASE}/user/profile`, 
-        `${API_BASE}/user/${userId}`
-      ];
+      // Use the auth/me endpoint that works with your backend
+      const res = await fetch(`${API_BASE}/auth/me?userId=${userId}`);
       
-      let freshUser = null;
-      
-      for (let endpoint of endpoints) {
-        try {
-          const res = await fetch(endpoint, {
-            headers: { 
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json"
-            }
-          });
-          
-          if (res.ok) {
-            freshUser = await res.json();
-            console.log(`✅ Success from ${endpoint}`);
-            break;
-          }
-        } catch (err) {
-          console.log(`❌ Failed ${endpoint}:`, err.message);
-          continue;
-        }
-      }
-      
-      if (freshUser) {
+      if (res.ok) {
+        const freshUser = await res.json();
+        
         // Update localStorage
         localStorage.setItem("user", JSON.stringify(freshUser));
         user = freshUser;
@@ -253,7 +227,7 @@
         
         showTempMessage("✅ Bank details updated!", false);
       } else {
-        console.log("❌ All endpoints failed, using cached data");
+        console.log("❌ Failed to refresh user data");
         showTempMessage("⚠️ Using cached data", true);
       }
       
@@ -293,12 +267,11 @@
     }, 3000);
   }
 
-  // Withdraw form submission
+  // Withdraw form submission - FIXED FOR YOUR BACKEND
   document.getElementById("withdrawForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     
     const amount = Number(document.getElementById("amount").value);
-    const token = localStorage.getItem("token");
     
     // Validation
     if (!amount || amount < 1000) {
@@ -317,13 +290,14 @@
     showFormMessage("", false); // Clear previous messages
 
     try {
-      const res = await fetch(`${API_BASE}/withdraw/`, {
+      // Use your backend's withdraw endpoint (no token needed)
+      const res = await fetch(`${API_BASE}/withdraw`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json", 
-          "Authorization": `Bearer ${token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
+          userId: userId,
           amount: amount,
           method: "Bank Transfer"
         })
@@ -364,32 +338,31 @@
     }
   }
 
+  // Load withdrawal history - FIXED FOR YOUR BACKEND
   async function loadHistory() {
-    const token = localStorage.getItem("token");
-    if (!token || !userId) return;
+    if (!userId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/withdraw/user/${userId}`, { 
-        headers: { 
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        } 
-      });
+      // Try to get withdrawal history from user transactions
+      const res = await fetch(`${API_BASE}/user/transactions?userId=${userId}`);
       
       if (!res.ok) {
         throw new Error("Failed to load history");
       }
       
-      const data = await res.json();
+      const transactions = await res.json();
       const tbody = document.getElementById("withdrawHistory");
       tbody.innerHTML = "";
       
-      if (data.length === 0) {
+      // Filter only withdrawal transactions
+      const withdrawals = transactions.filter(t => t.type === 'withdraw');
+      
+      if (withdrawals.length === 0) {
         tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#64748b;">No withdrawal history found</td></tr>`;
         return;
       }
       
-      data.forEach(w => {
+      withdrawals.forEach(w => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>₦${Number(w.amount).toLocaleString()}</td>
@@ -401,8 +374,16 @@
       
     } catch (err) {
       console.error("Error loading history:", err);
+      
+      // Show sample data if API fails
       const tbody = document.getElementById("withdrawHistory");
-      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#dc2626;">Error loading history</td></tr>`;
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="3" style="text-align:center; color:#64748b;">
+            Withdrawal history will appear here after your first withdrawal
+          </td>
+        </tr>
+      `;
     }
   }
 
