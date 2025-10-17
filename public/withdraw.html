@@ -324,7 +324,7 @@
     }, 3000);
   }
 
-  // Withdraw form submission - USING TOKEN AUTH LIKE OLD VERSION
+  // ✅✅✅ FIXED: Withdraw form submission - NOW INCLUDES userId IN BODY
   document.getElementById("withdrawForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     
@@ -348,7 +348,7 @@
     showFormMessage("", false);
 
     try {
-      // Use token authentication like old version
+      // ✅✅✅ FIX: Include userId in the request body
       const res = await fetch(`${API_BASE}/withdraw`, {
         method: "POST",
         headers: { 
@@ -356,6 +356,7 @@
           "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
+          userId: userId, // ✅ ADD THIS LINE - Include userId in body
           amount: amount,
           method: "Bank Transfer"
         })
