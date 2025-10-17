@@ -185,7 +185,7 @@
         if (form) form.style.display = "block";
       }
 
-      // ✅ Fetch current user details
+      // ✅ Fetch current user details - FIXED VERSION
       async function loadUser() {
         try {
           if (!userId) {
@@ -217,13 +217,18 @@
             const endpoints = [
               `${API_BASE}/user/${userId}`,
               `${API_BASE}/user/profile?userId=${userId}`,
-              `${API_BASE}/auth/me?userId=${userId}`
+              `${API_BASE}/auth/me`
             ];
 
             for (const endpoint of endpoints) {
               try {
                 console.log(`Trying endpoint: ${endpoint}`);
-                const res = await fetch(endpoint);
+                const res = await fetch(endpoint, {
+                  headers: {
+                    "Authorization": `Bearer ${localStorage.getItem("token") || ""}`,
+                    "Content-Type": "application/json"
+                  }
+                });
 
                 if (res.ok) {
                   userData = await res.json();
@@ -268,7 +273,7 @@
             
             // Display saved details
             document.getElementById("savedAccountName").textContent = 
-              userData.bankDetails.accountName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || "Not provided";
+              `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || "Not provided";
             document.getElementById("savedAccountNumber").textContent = userData.bankDetails.accountNumber;
             document.getElementById("savedBankName").textContent = userData.bankDetails.bankName;
             document.getElementById("savedPhoneNumber").textContent = userData.phoneNumber || "Not provided";
@@ -287,7 +292,7 @@
         }
       }
 
-      // ✅ FIXED: Save / update user account info with CORRECT STRUCTURE
+      // ✅ Save / update user account info - NO TOKEN AUTHENTICATION
       if (form) {
         form.addEventListener("submit", async (e) => {
           e.preventDefault();
@@ -314,19 +319,16 @@
             return;
           }
 
-          // ✅ CORRECT STRUCTURE for POST endpoint - bankDetails object
+          // ✅ FLAT STRUCTURE for POST endpoint
           const body = {
             firstName: firstName,
             lastName: lastName,
-            phoneNumber: phoneNumber,
-            bankDetails: {
-              accountNumber: accountNumber,
-              bankName: bankName,
-              accountName: `${firstName} ${lastName}`.trim()
-            }
+            accountNumber: accountNumber,
+            bankName: bankName,
+            phoneNumber: phoneNumber
           };
 
-          console.log("📦 CORRECT Request body:", body);
+          console.log("📦 Request body:", body);
           console.log("🔑 User ID:", userId);
           console.log("🔄 Making request to:", `${API_BASE}/user/update-account/${userId}`);
 
@@ -337,6 +339,7 @@
           }
 
           try {
+            // ✅ NO TOKEN IN HEADERS - Simple POST request
             const res = await fetch(`${API_BASE}/user/update-account/${userId}`, {
               method: "POST",
               headers: {
@@ -362,21 +365,6 @@
             if (data.user) {
               localStorage.setItem("user", JSON.stringify(data.user));
               console.log("✅ Updated localStorage with fresh user data");
-            } else {
-              // If response doesn't have user data, create it manually
-              const updatedUser = {
-                ...JSON.parse(localStorage.getItem("user") || "{}"),
-                firstName: firstName,
-                lastName: lastName,
-                phoneNumber: phoneNumber,
-                bankDetails: {
-                  accountNumber: accountNumber,
-                  bankName: bankName,
-                  accountName: `${firstName} ${lastName}`.trim()
-                }
-              };
-              localStorage.setItem("user", JSON.stringify(updatedUser));
-              console.log("✅ Manually updated localStorage with bank details");
             }
 
             // Reload user data to update display
