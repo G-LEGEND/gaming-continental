@@ -93,12 +93,24 @@
       opacity: 0.7;
       pointer-events: none;
     }
+    .debug-info {
+      background: #e2e8f0;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 10px 0;
+      font-size: 12px;
+      color: #4a5568;
+      display: none; /* Hide by default, show for debugging */
+    }
   </style>
 </head>
 <body>
   <div class="card">
     <h2>Withdraw Funds</h2>
     <div>Balance: ₦<strong id="balance">0.00</strong></div>
+
+    <!-- Debug Info -->
+    <div id="debugInfo" class="debug-info"></div>
 
     <!-- Bank Details Display -->
     <div id="bankDetailsInfo" class="bank-details" style="display: none;">
@@ -149,9 +161,78 @@
   const noBankDetails = document.getElementById("noBankDetails");
   const errorMessage = document.getElementById("errorMessage");
   const successMessage = document.getElementById("successMessage");
+  const debugInfo = document.getElementById("debugInfo");
 
   let user = null;
   let userId = null;
+
+  // ✅ IMPROVED: Check for bank details with multiple fallbacks
+  function hasBankDetails(userData) {
+    if (!userData) return false;
+    
+    // Check multiple possible structures
+    const bankDetails = userData.bankDetails;
+    
+    // Structure 1: bankDetails object with accountNumber
+    if (bankDetails && bankDetails.accountNumber && bankDetails.accountNumber.toString().trim().length >= 10) {
+      return true;
+    }
+    
+    // Structure 2: Direct properties on user object
+    if (userData.accountNumber && userData.accountNumber.toString().trim().length >= 10) {
+      return true;
+    }
+    
+    // Structure 3: Check if bankDetails exists but might have different structure
+    if (bankDetails && typeof bankDetails === 'object') {
+      // Check all properties to see if any look like account numbers
+      for (let key in bankDetails) {
+        const value = bankDetails[key];
+        if (typeof value === 'string' && /^\d{10,}$/.test(value.trim())) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  // ✅ IMPROVED: Get bank details with multiple fallbacks
+  function getBankDetails(userData) {
+    if (!userData) return null;
+    
+    const bankDetails = userData.bankDetails || {};
+    const result = {
+      accountName: '',
+      accountNumber: '',
+      bankName: ''
+    };
+    
+    // Try to extract account number from multiple possible locations
+    if (bankDetails.accountNumber) {
+      result.accountNumber = bankDetails.accountNumber.toString().trim();
+    } else if (userData.accountNumber) {
+      result.accountNumber = userData.accountNumber.toString().trim();
+    }
+    
+    // Try to extract bank name from multiple possible locations
+    if (bankDetails.bankName) {
+      result.bankName = bankDetails.bankName.toString().trim();
+    } else if (userData.bankName) {
+      result.bankName = userData.bankName.toString().trim();
+    }
+    
+    // Try to extract account name from multiple possible locations
+    if (bankDetails.accountName) {
+      result.accountName = bankDetails.accountName.toString().trim();
+    } else if (userData.accountName) {
+      result.accountName = userData.accountName.toString().trim();
+    } else if (userData.firstName || userData.lastName) {
+      result.accountName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+    }
+    
+    return result;
+  }
 
   // 🔒 Protect page and initialize
   function initializePage() {
@@ -165,8 +246,12 @@
     }
 
     console.log("🔄 Initializing withdraw page...");
-    console.log("📋 User data from localStorage:", user);
-    console.log("🏦 Bank details check:", user?.bankDetails);
+    console.log("📋 Full user data:", user);
+    console.log("🏦 Bank details object:", user?.bankDetails);
+    console.log("🔍 Has bank details check:", hasBankDetails(user));
+
+    // Show debug info
+    showDebugInfo();
 
     // Show data immediately from localStorage
     displayUserData(user);
@@ -178,42 +263,47 @@
     loadHistory();
   }
 
-  // ✅ IMPROVED: Display user data with better detection
+  // ✅ Show debug information
+  function showDebugInfo() {
+    const debugHtml = `
+      <strong>Debug Info:</strong><br>
+      User ID: ${userId}<br>
+      Has Bank Details: ${hasBankDetails(user)}<br>
+      Bank Details Object: ${JSON.stringify(user?.bankDetails || {})}<br>
+      Account Number: ${user?.bankDetails?.accountNumber || 'NOT FOUND'}<br>
+      Bank Name: ${user?.bankDetails?.bankName || 'NOT FOUND'}
+    `;
+    debugInfo.innerHTML = debugHtml;
+    debugInfo.style.display = 'block'; // Show debug info
+  }
+
+  // ✅ Display user data immediately
   function displayUserData(userData) {
-    console.log("🔄 Displaying user data:", userData);
+    console.log("🔄 Displaying user data");
     
     // Update balance
     balanceEl.innerText = (userData.balance || 0).toFixed(2);
     
-    // Check bank details - MORE ROBUST CHECK
-    const bankDetails = userData?.bankDetails;
-    const hasBankDetails = bankDetails && 
-                          bankDetails.accountNumber && 
-                          bankDetails.accountNumber.trim().length >= 10 &&
-                          bankDetails.bankName && 
-                          bankDetails.bankName.trim().length > 0;
+    // Check if user has bank details
+    const hasDetails = hasBankDetails(userData);
+    const bankDetails = getBankDetails(userData);
     
-    console.log("🏦 Bank details validation:", {
-      hasBankDetails: hasBankDetails,
-      accountNumber: bankDetails?.accountNumber,
-      bankName: bankDetails?.bankName,
-      accountName: bankDetails?.accountName
+    console.log("🏦 Bank details analysis:", {
+      hasDetails: hasDetails,
+      extractedDetails: bankDetails,
+      rawBankDetails: userData?.bankDetails
     });
 
-    if (hasBankDetails) {
+    if (hasDetails && bankDetails.accountNumber) {
       // Show bank details and withdraw form
       bankDetailsInfo.style.display = 'block';
       withdrawForm.style.display = 'block';
       noBankDetails.style.display = 'none';
       
       // Display bank details
-      const accountName = bankDetails.accountName || 
-                         `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 
-                         "Not provided";
-      
-      document.getElementById('displayAccountName').textContent = accountName;
+      document.getElementById('displayAccountName').textContent = bankDetails.accountName || "Not provided";
       document.getElementById('displayAccountNumber').textContent = bankDetails.accountNumber;
-      document.getElementById('displayBankName').textContent = bankDetails.bankName;
+      document.getElementById('displayBankName').textContent = bankDetails.bankName || "Not provided";
       
       console.log("✅ Bank details found and displayed");
     } else {
@@ -222,10 +312,17 @@
       withdrawForm.style.display = 'none';
       noBankDetails.style.display = 'block';
       console.log("❌ No valid bank details found");
+      
+      // Show what we found for debugging
+      console.log("🔍 What we found instead:", {
+        bankDetails: userData?.bankDetails,
+        accountNumber: userData?.accountNumber,
+        bankName: userData?.bankName
+      });
     }
   }
 
-  // ✅ IMPROVED: Force refresh user data from server
+  // ✅ Force refresh user data from server
   async function forceRefreshUserData() {
     if (!userId) return;
 
@@ -243,6 +340,9 @@
         // Update localStorage with fresh data
         localStorage.setItem("user", JSON.stringify(freshUser));
         user = freshUser;
+        
+        // Update debug info
+        showDebugInfo();
         
         // Update display with fresh data
         displayUserData(freshUser);
@@ -290,7 +390,7 @@
     }, 3000);
   }
 
-  // Withdraw form submission - FIXED FOR YOUR BACKEND
+  // Withdraw form submission
   document.getElementById("withdrawForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     
@@ -310,10 +410,9 @@
     // Disable button while processing
     submitBtn.disabled = true;
     submitBtn.textContent = "Processing...";
-    showFormMessage("", false); // Clear previous messages
+    showFormMessage("", false);
 
     try {
-      // Use your backend's withdraw endpoint (no token needed)
       const res = await fetch(`${API_BASE}/withdraw`, {
         method: "POST",
         headers: { 
@@ -361,12 +460,11 @@
     }
   }
 
-  // Load withdrawal history - FIXED FOR YOUR BACKEND
+  // Load withdrawal history
   async function loadHistory() {
     if (!userId) return;
 
     try {
-      // Try to get withdrawal history from user transactions
       const res = await fetch(`${API_BASE}/user/transactions?userId=${userId}`);
       
       if (!res.ok) {
@@ -377,7 +475,6 @@
       const tbody = document.getElementById("withdrawHistory");
       tbody.innerHTML = "";
       
-      // Filter only withdrawal transactions
       const withdrawals = transactions.filter(t => t.type === 'withdraw');
       
       if (withdrawals.length === 0) {
@@ -398,7 +495,6 @@
     } catch (err) {
       console.error("Error loading history:", err);
       
-      // Show sample data if API fails
       const tbody = document.getElementById("withdrawHistory");
       tbody.innerHTML = `
         <tr>
@@ -410,17 +506,11 @@
     }
   }
 
-  // ✅ IMPROVED: Check for bank details with better detection
+  // Check for bank details
   function startBankDetailsChecker() {
     setInterval(() => {
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const hasBankDetails = currentUser?.bankDetails?.accountNumber && 
-                            currentUser?.bankDetails?.accountNumber.trim().length >= 10;
-      
-      console.log("🔄 Auto-check bank details:", {
-        hasBankDetails: hasBankDetails,
-        accountNumber: currentUser?.bankDetails?.accountNumber
-      });
+      const hasBankDetails = hasBankDetails(currentUser);
       
       if (hasBankDetails && noBankDetails.style.display !== 'none') {
         console.log("🔄 Auto-detected bank details, refreshing display...");
@@ -429,47 +519,11 @@
     }, 2000);
   }
 
-  // ✅ NEW: Listen for storage events (when account.html updates localStorage)
-  function setupStorageListener() {
-    window.addEventListener('storage', function(e) {
-      console.log("📦 Storage event detected:", e.key);
-      if (e.key === 'user') {
-        console.log("🔄 User data updated in another tab, refreshing...");
-        const updatedUser = JSON.parse(e.newValue || "{}");
-        user = updatedUser;
-        displayUserData(updatedUser);
-      }
-    });
-  }
-
-  // ✅ NEW: Check URL parameters for refresh triggers
-  function checkUrlParameters() {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('refresh') === 'true') {
-      console.log("🔄 URL refresh parameter detected");
-      forceRefreshUserData();
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }
-
   // Initialize when page loads
   document.addEventListener("DOMContentLoaded", () => {
     console.log("🚀 Withdraw page loaded");
     initializePage();
     startBankDetailsChecker();
-    setupStorageListener();
-    checkUrlParameters();
-  });
-
-  // ✅ IMPROVED: Listen for page visibility changes
-  document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) {
-      console.log("🔄 Page became visible, checking for updates...");
-      // Quick refresh when user comes back to the page
-      const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-      displayUserData(currentUser);
-    }
   });
 
 </script>
