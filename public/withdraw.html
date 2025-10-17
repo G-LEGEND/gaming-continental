@@ -166,71 +166,70 @@
   let user = null;
   let userId = null;
 
-  // ✅ IMPROVED: Check for bank details with multiple fallbacks
+  // ✅ FIXED: Check for bank details with FLAT STRUCTURE (matching account.html)
   function hasBankDetails(userData) {
     if (!userData) return false;
     
-    // Check multiple possible structures
-    const bankDetails = userData.bankDetails;
+    console.log("🔍 Checking bank details in user data:", userData);
     
-    // Structure 1: bankDetails object with accountNumber
-    if (bankDetails && bankDetails.accountNumber && bankDetails.accountNumber.toString().trim().length >= 10) {
-      return true;
-    }
-    
-    // Structure 2: Direct properties on user object
+    // Check FLAT structure (from account.html)
     if (userData.accountNumber && userData.accountNumber.toString().trim().length >= 10) {
+      console.log("✅ Found bank details in FLAT structure");
       return true;
     }
     
-    // Structure 3: Check if bankDetails exists but might have different structure
-    if (bankDetails && typeof bankDetails === 'object') {
-      // Check all properties to see if any look like account numbers
-      for (let key in bankDetails) {
-        const value = bankDetails[key];
-        if (typeof value === 'string' && /^\d{10,}$/.test(value.trim())) {
-          return true;
-        }
-      }
+    // Also check nested structure (backward compatibility)
+    if (userData.bankDetails && userData.bankDetails.accountNumber && userData.bankDetails.accountNumber.toString().trim().length >= 10) {
+      console.log("✅ Found bank details in NESTED structure");
+      return true;
     }
     
+    console.log("❌ No valid bank details found");
     return false;
   }
 
-  // ✅ IMPROVED: Get bank details with multiple fallbacks
+  // ✅ FIXED: Get bank details with FLAT STRUCTURE support
   function getBankDetails(userData) {
     if (!userData) return null;
     
-    const bankDetails = userData.bankDetails || {};
     const result = {
       accountName: '',
       accountNumber: '',
       bankName: ''
     };
     
-    // Try to extract account number from multiple possible locations
-    if (bankDetails.accountNumber) {
-      result.accountNumber = bankDetails.accountNumber.toString().trim();
-    } else if (userData.accountNumber) {
+    console.log("🔄 Extracting bank details from:", userData);
+    
+    // ✅ FLAT STRUCTURE (from account.html)
+    if (userData.accountNumber) {
       result.accountNumber = userData.accountNumber.toString().trim();
+      console.log("📋 Using FLAT structure accountNumber:", result.accountNumber);
     }
     
-    // Try to extract bank name from multiple possible locations
-    if (bankDetails.bankName) {
-      result.bankName = bankDetails.bankName.toString().trim();
-    } else if (userData.bankName) {
+    if (userData.bankName) {
       result.bankName = userData.bankName.toString().trim();
+      console.log("📋 Using FLAT structure bankName:", result.bankName);
     }
     
-    // Try to extract account name from multiple possible locations
-    if (bankDetails.accountName) {
-      result.accountName = bankDetails.accountName.toString().trim();
-    } else if (userData.accountName) {
-      result.accountName = userData.accountName.toString().trim();
+    // ✅ NESTED STRUCTURE (backward compatibility)
+    if (!result.accountNumber && userData.bankDetails && userData.bankDetails.accountNumber) {
+      result.accountNumber = userData.bankDetails.accountNumber.toString().trim();
+      console.log("📋 Using NESTED structure accountNumber:", result.accountNumber);
+    }
+    
+    if (!result.bankName && userData.bankDetails && userData.bankDetails.bankName) {
+      result.bankName = userData.bankDetails.bankName.toString().trim();
+      console.log("📋 Using NESTED structure bankName:", result.bankName);
+    }
+    
+    // Get account name
+    if (userData.bankDetails && userData.bankDetails.accountName) {
+      result.accountName = userData.bankDetails.accountName.toString().trim();
     } else if (userData.firstName || userData.lastName) {
       result.accountName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
     }
     
+    console.log("🎯 Final extracted bank details:", result);
     return result;
   }
 
@@ -247,8 +246,6 @@
 
     console.log("🔄 Initializing withdraw page...");
     console.log("📋 Full user data:", user);
-    console.log("🏦 Bank details object:", user?.bankDetails);
-    console.log("🔍 Has bank details check:", hasBankDetails(user));
 
     // Show debug info
     showDebugInfo();
@@ -265,13 +262,16 @@
 
   // ✅ Show debug information
   function showDebugInfo() {
+    const bankDetails = getBankDetails(user);
     const debugHtml = `
       <strong>Debug Info:</strong><br>
       User ID: ${userId}<br>
       Has Bank Details: ${hasBankDetails(user)}<br>
+      Account Number (FLAT): ${user?.accountNumber || 'NOT FOUND'}<br>
+      Bank Name (FLAT): ${user?.bankName || 'NOT FOUND'}<br>
       Bank Details Object: ${JSON.stringify(user?.bankDetails || {})}<br>
-      Account Number: ${user?.bankDetails?.accountNumber || 'NOT FOUND'}<br>
-      Bank Name: ${user?.bankDetails?.bankName || 'NOT FOUND'}
+      Extracted Account: ${bankDetails?.accountNumber || 'NOT FOUND'}<br>
+      Extracted Bank: ${bankDetails?.bankName || 'NOT FOUND'}
     `;
     debugInfo.innerHTML = debugHtml;
     debugInfo.style.display = 'block'; // Show debug info
@@ -291,7 +291,9 @@
     console.log("🏦 Bank details analysis:", {
       hasDetails: hasDetails,
       extractedDetails: bankDetails,
-      rawBankDetails: userData?.bankDetails
+      accountNumberFlat: userData?.accountNumber,
+      bankNameFlat: userData?.bankName,
+      bankDetailsNested: userData?.bankDetails
     });
 
     if (hasDetails && bankDetails.accountNumber) {
@@ -312,13 +314,6 @@
       withdrawForm.style.display = 'none';
       noBankDetails.style.display = 'block';
       console.log("❌ No valid bank details found");
-      
-      // Show what we found for debugging
-      console.log("🔍 What we found instead:", {
-        bankDetails: userData?.bankDetails,
-        accountNumber: userData?.accountNumber,
-        bankName: userData?.bankName
-      });
     }
   }
 
