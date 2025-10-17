@@ -93,24 +93,12 @@
       opacity: 0.7;
       pointer-events: none;
     }
-    .debug-info {
-      background: #e2e8f0;
-      padding: 10px;
-      border-radius: 8px;
-      margin: 10px 0;
-      font-size: 12px;
-      color: #4a5568;
-      display: none; /* Hide by default, show for debugging */
-    }
   </style>
 </head>
 <body>
   <div class="card">
     <h2>Withdraw Funds</h2>
     <div>Balance: ₦<strong id="balance">0.00</strong></div>
-
-    <!-- Debug Info -->
-    <div id="debugInfo" class="debug-info"></div>
 
     <!-- Bank Details Display -->
     <div id="bankDetailsInfo" class="bank-details" style="display: none;">
@@ -161,94 +149,24 @@
   const noBankDetails = document.getElementById("noBankDetails");
   const errorMessage = document.getElementById("errorMessage");
   const successMessage = document.getElementById("successMessage");
-  const debugInfo = document.getElementById("debugInfo");
 
   let user = null;
   let userId = null;
 
-  // ✅ FIXED: Check for bank details with FLAT STRUCTURE (matching account.html)
-  function hasBankDetails(userData) {
-    if (!userData) return false;
-    
-    console.log("🔍 Checking bank details in user data:", userData);
-    
-    // Check FLAT structure (from account.html)
-    if (userData.accountNumber && userData.accountNumber.toString().trim().length >= 10) {
-      console.log("✅ Found bank details in FLAT structure");
-      return true;
-    }
-    
-    // Also check nested structure (backward compatibility)
-    if (userData.bankDetails && userData.bankDetails.accountNumber && userData.bankDetails.accountNumber.toString().trim().length >= 10) {
-      console.log("✅ Found bank details in NESTED structure");
-      return true;
-    }
-    
-    console.log("❌ No valid bank details found");
-    return false;
-  }
-
-  // ✅ FIXED: Get bank details with FLAT STRUCTURE support
-  function getBankDetails(userData) {
-    if (!userData) return null;
-    
-    const result = {
-      accountName: '',
-      accountNumber: '',
-      bankName: ''
-    };
-    
-    console.log("🔄 Extracting bank details from:", userData);
-    
-    // ✅ FLAT STRUCTURE (from account.html)
-    if (userData.accountNumber) {
-      result.accountNumber = userData.accountNumber.toString().trim();
-      console.log("📋 Using FLAT structure accountNumber:", result.accountNumber);
-    }
-    
-    if (userData.bankName) {
-      result.bankName = userData.bankName.toString().trim();
-      console.log("📋 Using FLAT structure bankName:", result.bankName);
-    }
-    
-    // ✅ NESTED STRUCTURE (backward compatibility)
-    if (!result.accountNumber && userData.bankDetails && userData.bankDetails.accountNumber) {
-      result.accountNumber = userData.bankDetails.accountNumber.toString().trim();
-      console.log("📋 Using NESTED structure accountNumber:", result.accountNumber);
-    }
-    
-    if (!result.bankName && userData.bankDetails && userData.bankDetails.bankName) {
-      result.bankName = userData.bankDetails.bankName.toString().trim();
-      console.log("📋 Using NESTED structure bankName:", result.bankName);
-    }
-    
-    // Get account name
-    if (userData.bankDetails && userData.bankDetails.accountName) {
-      result.accountName = userData.bankDetails.accountName.toString().trim();
-    } else if (userData.firstName || userData.lastName) {
-      result.accountName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-    }
-    
-    console.log("🎯 Final extracted bank details:", result);
-    return result;
-  }
-
-  // 🔒 Protect page and initialize
+  // 🔒 Protect page and initialize - USING TOKEN AUTH LIKE OLD VERSION
   function initializePage() {
+    const token = localStorage.getItem("token");
     user = JSON.parse(localStorage.getItem("user") || "{}");
     userId = user?._id || user?.id || user?.userId;
 
-    if (!userId) {
+    if (!token || !userId) {
       alert("Please login first");
       window.location.href = "index.html";
       return;
     }
 
     console.log("🔄 Initializing withdraw page...");
-    console.log("📋 Full user data:", user);
-
-    // Show debug info
-    showDebugInfo();
+    console.log("📋 User data from localStorage:", user);
 
     // Show data immediately from localStorage
     displayUserData(user);
@@ -260,52 +178,46 @@
     loadHistory();
   }
 
-  // ✅ Show debug information
-  function showDebugInfo() {
-    const bankDetails = getBankDetails(user);
-    const debugHtml = `
-      <strong>Debug Info:</strong><br>
-      User ID: ${userId}<br>
-      Has Bank Details: ${hasBankDetails(user)}<br>
-      Account Number (FLAT): ${user?.accountNumber || 'NOT FOUND'}<br>
-      Bank Name (FLAT): ${user?.bankName || 'NOT FOUND'}<br>
-      Bank Details Object: ${JSON.stringify(user?.bankDetails || {})}<br>
-      Extracted Account: ${bankDetails?.accountNumber || 'NOT FOUND'}<br>
-      Extracted Bank: ${bankDetails?.bankName || 'NOT FOUND'}
-    `;
-    debugInfo.innerHTML = debugHtml;
-    debugInfo.style.display = 'block'; // Show debug info
-  }
-
-  // ✅ Display user data immediately
+  // ✅ Display user data immediately - CHECK BOTH FLAT AND NESTED STRUCTURES
   function displayUserData(userData) {
-    console.log("🔄 Displaying user data");
+    console.log("🔄 Displaying user data:", userData);
     
     // Update balance
     balanceEl.innerText = (userData.balance || 0).toFixed(2);
     
-    // Check if user has bank details
-    const hasDetails = hasBankDetails(userData);
-    const bankDetails = getBankDetails(userData);
+    // Check bank details - LOOK FOR BOTH FLAT AND NESTED STRUCTURES
+    let bankDetails = null;
+    let accountNumber = null;
+    let bankName = null;
+    let accountName = null;
     
-    console.log("🏦 Bank details analysis:", {
-      hasDetails: hasDetails,
-      extractedDetails: bankDetails,
-      accountNumberFlat: userData?.accountNumber,
-      bankNameFlat: userData?.bankName,
-      bankDetailsNested: userData?.bankDetails
-    });
-
-    if (hasDetails && bankDetails.accountNumber) {
+    // Check NESTED structure first (like old withdraw.html)
+    if (userData?.bankDetails?.accountNumber) {
+      bankDetails = userData.bankDetails;
+      accountNumber = bankDetails.accountNumber;
+      bankName = bankDetails.bankName;
+      accountName = bankDetails.accountName;
+      console.log("✅ Found bank details in NESTED structure");
+    } 
+    // Check FLAT structure (from account.html)
+    else if (userData?.accountNumber) {
+      accountNumber = userData.accountNumber;
+      bankName = userData.bankName;
+      accountName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+      console.log("✅ Found bank details in FLAT structure");
+    }
+    
+    if (accountNumber && accountNumber.toString().trim().length >= 10) {
       // Show bank details and withdraw form
       bankDetailsInfo.style.display = 'block';
       withdrawForm.style.display = 'block';
       noBankDetails.style.display = 'none';
       
       // Display bank details
-      document.getElementById('displayAccountName').textContent = bankDetails.accountName || "Not provided";
-      document.getElementById('displayAccountNumber').textContent = bankDetails.accountNumber;
-      document.getElementById('displayBankName').textContent = bankDetails.bankName || "Not provided";
+      document.getElementById('displayAccountName').textContent = 
+        accountName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || "Not provided";
+      document.getElementById('displayAccountNumber').textContent = accountNumber;
+      document.getElementById('displayBankName').textContent = bankName || "Not provided";
       
       console.log("✅ Bank details found and displayed");
     } else {
@@ -313,31 +225,58 @@
       bankDetailsInfo.style.display = 'none';
       withdrawForm.style.display = 'none';
       noBankDetails.style.display = 'block';
-      console.log("❌ No valid bank details found");
+      console.log("❌ No bank details found in either structure");
+      console.log("🔍 Nested bankDetails:", userData?.bankDetails);
+      console.log("🔍 Flat accountNumber:", userData?.accountNumber);
+      console.log("🔍 Flat bankName:", userData?.bankName);
     }
   }
 
-  // ✅ Force refresh user data from server
+  // ✅ Force refresh user data from server - USING TOKEN AUTH LIKE OLD VERSION
   async function forceRefreshUserData() {
-    if (!userId) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
     try {
       console.log("🔄 Fetching fresh user data from server...");
       
-      // Use the auth/me endpoint that works with your backend
-      const res = await fetch(`${API_BASE}/auth/me?userId=${userId}`);
+      // Try multiple endpoints WITH TOKEN like old version
+      let endpoints = [
+        `${API_BASE}/user/me`,
+        `${API_BASE}/user/profile`, 
+        `${API_BASE}/user/${userId}`,
+        `${API_BASE}/auth/me?userId=${userId}`
+      ];
       
-      if (res.ok) {
-        const freshUser = await res.json();
-        
-        console.log("✅ Fresh user data from server:", freshUser);
-        
-        // Update localStorage with fresh data
+      let freshUser = null;
+      
+      for (let endpoint of endpoints) {
+        try {
+          console.log(`🔍 Trying endpoint: ${endpoint}`);
+          const res = await fetch(endpoint, {
+            headers: { 
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
+          });
+          
+          if (res.ok) {
+            freshUser = await res.json();
+            console.log(`✅ Success from ${endpoint}:`, freshUser);
+            break;
+          } else {
+            console.log(`❌ ${endpoint} failed:`, res.status);
+          }
+        } catch (err) {
+          console.log(`⚠️ ${endpoint} error:`, err.message);
+          continue;
+        }
+      }
+      
+      if (freshUser) {
+        // Update localStorage
         localStorage.setItem("user", JSON.stringify(freshUser));
         user = freshUser;
-        
-        // Update debug info
-        showDebugInfo();
         
         // Update display with fresh data
         displayUserData(freshUser);
@@ -345,7 +284,7 @@
         
         showTempMessage("✅ Bank details updated!", false);
       } else {
-        console.log("❌ Failed to refresh user data from server");
+        console.log("❌ All endpoints failed, using cached data");
         showTempMessage("⚠️ Using cached data", true);
       }
       
@@ -385,11 +324,12 @@
     }, 3000);
   }
 
-  // Withdraw form submission
+  // Withdraw form submission - USING TOKEN AUTH LIKE OLD VERSION
   document.getElementById("withdrawForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     
     const amount = Number(document.getElementById("amount").value);
+    const token = localStorage.getItem("token");
     
     // Validation
     if (!amount || amount < 1000) {
@@ -408,13 +348,14 @@
     showFormMessage("", false);
 
     try {
+      // Use token authentication like old version
       const res = await fetch(`${API_BASE}/withdraw`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json"
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-          userId: userId,
           amount: amount,
           method: "Bank Transfer"
         })
@@ -455,29 +396,33 @@
     }
   }
 
-  // Load withdrawal history
+  // Load withdrawal history - USING TOKEN AUTH LIKE OLD VERSION
   async function loadHistory() {
-    if (!userId) return;
+    const token = localStorage.getItem("token");
+    if (!token || !userId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/user/transactions?userId=${userId}`);
+      const res = await fetch(`${API_BASE}/withdraw/user/${userId}`, { 
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        } 
+      });
       
       if (!res.ok) {
         throw new Error("Failed to load history");
       }
       
-      const transactions = await res.json();
+      const data = await res.json();
       const tbody = document.getElementById("withdrawHistory");
       tbody.innerHTML = "";
       
-      const withdrawals = transactions.filter(t => t.type === 'withdraw');
-      
-      if (withdrawals.length === 0) {
+      if (data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#64748b;">No withdrawal history found</td></tr>`;
         return;
       }
       
-      withdrawals.forEach(w => {
+      data.forEach(w => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>₦${Number(w.amount).toLocaleString()}</td>
@@ -489,26 +434,19 @@
       
     } catch (err) {
       console.error("Error loading history:", err);
-      
       const tbody = document.getElementById("withdrawHistory");
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="3" style="text-align:center; color:#64748b;">
-            Withdrawal history will appear here after your first withdrawal
-          </td>
-        </tr>
-      `;
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#64748b;">Withdrawal history will appear here after your first withdrawal</td></tr>`;
     }
   }
 
-  // Check for bank details
+  // ✅ Check for bank details every 2 seconds (as backup) - CHECK BOTH STRUCTURES
   function startBankDetailsChecker() {
     setInterval(() => {
       const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const hasBankDetails = hasBankDetails(currentUser);
+      const hasBankDetails = currentUser?.bankDetails?.accountNumber || currentUser?.accountNumber;
       
       if (hasBankDetails && noBankDetails.style.display !== 'none') {
-        console.log("🔄 Auto-detected bank details, refreshing display...");
+        console.log("🔄 Auto-detected bank details, refreshing...");
         displayUserData(currentUser);
       }
     }, 2000);
@@ -521,6 +459,17 @@
     startBankDetailsChecker();
   });
 
+  // ✅ Listen for clicks on the page to trigger refresh - CHECK BOTH STRUCTURES
+  document.addEventListener('click', () => {
+    // Quick check if we need to refresh
+    const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+    const currentHasBankDetails = currentUser?.bankDetails?.accountNumber || currentUser?.accountNumber;
+    const userHasBankDetails = user?.bankDetails?.accountNumber || user?.accountNumber;
+    
+    if (currentHasBankDetails && !userHasBankDetails) {
+      displayUserData(currentUser);
+    }
+  });
 </script>
 </body>
 </html>
