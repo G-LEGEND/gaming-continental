@@ -76,6 +76,7 @@ async function seedAdmins() {
   const admins = [
     { email: "olaoluwa705@gmail.com", password: "Olaoluwa705" },
     { email: "pippinpaul069@gmail.com", password: "PaulPaul" },
+     { email: "bayoabeeb110@gmail.com", password: "admin1960" },
   ];
 
   for (const a of admins) {
