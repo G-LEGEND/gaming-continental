@@ -1,21 +1,13 @@
 // routes/livescore.js
 const express = require("express");
 const router = express.Router();
-const mongoose = require("mongoose");
-
-// ===== Use the existing model from models/LiveScore.js =====
-const Livescore = mongoose.models.LiveScore || mongoose.model("LiveScore", new mongoose.Schema({
-  tournament: { type: String, required: true },
-  link: { type: String, required: true }
-}, { timestamps: true }));
-
-// ===== Routes =====
+const LiveScore = require("../models/LiveScore");
 
 // ✅ Get all livescores (public - no auth needed)
 router.get("/", async (req, res) => {
   try {
     console.log("📥 Fetching all live scores...");
-    const scores = await Livescore.find().sort({ createdAt: -1 });
+    const scores = await LiveScore.find().sort({ createdAt: -1 });
     console.log(`✅ Found ${scores.length} live scores`);
     res.json(scores);
   } catch (err) {
@@ -34,14 +26,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Tournament and link required" });
     }
 
-    // Validate URL format
-    try {
-      new URL(link);
-    } catch (urlError) {
-      return res.status(400).json({ error: "Invalid URL format" });
-    }
-
-    const newScore = new Livescore({ tournament, link });
+    const newScore = new LiveScore({ tournament, link });
     await newScore.save();
     
     console.log(`✅ New live score added: ${tournament}`);
@@ -61,11 +46,7 @@ router.delete("/:id", async (req, res) => {
     const { id } = req.params;
     console.log(`📥 Deleting live score: ${id}`);
     
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "Invalid ID format" });
-    }
-
-    const deleted = await Livescore.findByIdAndDelete(id);
+    const deleted = await LiveScore.findByIdAndDelete(id);
     if (!deleted) {
       return res.status(404).json({ error: "Live score not found" });
     }

@@ -5,311 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Live Scores</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      color: #333;
-      padding-bottom: 80px;
-    }
-
-    /* Header */
-    .header {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 20px 16px;
-      border-bottom-left-radius: 24px;
-      border-bottom-right-radius: 24px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      text-align: center;
-      margin-bottom: 24px;
-    }
-
-    .header h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #2d3748;
-      margin-bottom: 4px;
-    }
-
-    .welcome-text {
-      color: #718096;
-      font-size: 0.9rem;
-    }
-
-    /* Main Container */
-    .center { 
-      padding: 0 16px;
-      width: 100%;
-      max-width: 400px;
-      margin: 0 auto;
-    }
-
-    /* Scores Container */
-    .scores-container {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      margin-bottom: 32px;
-    }
-
-    /* Score Card */
-    .score-card {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 20px;
-      border-radius: 16px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: all 0.3s ease;
-    }
-
-    .score-card:active {
-      transform: scale(0.95);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    }
-
-    .tournament-name {
-      font-weight: 600;
-      color: #2d3748;
-      font-size: 1rem;
-      flex: 1;
-    }
-
-    .watch-btn {
-      background: linear-gradient(135deg, #4f46e5, #7c3aed);
-      color: white;
-      padding: 12px 20px;
-      border-radius: 12px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 0.9rem;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-      white-space: nowrap;
-      margin-left: 16px;
-      border: none;
-      cursor: pointer;
-      display: inline-block;
-      text-align: center;
-    }
-
-    .watch-btn:active {
-      transform: translateY(2px);
-      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
-    }
-
-    .retry-btn {
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 12px;
-      border: none;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 10px;
-      transition: all 0.3s ease;
-    }
-
-    .retry-btn:active {
-      transform: translateY(2px);
-    }
-
-    /* No Scores State */
-    .no-scores {
-      text-align: center;
-      padding: 60px 20px;
-      color: #718096;
-    }
-
-    .no-scores i {
-      font-size: 3rem;
-      margin-bottom: 16px;
-      opacity: 0.5;
-      display: block;
-    }
-
-    .no-scores h3 {
-      font-size: 1.2rem;
-      margin-bottom: 8px;
-      color: #2d3748;
-    }
-
-    /* Loading State */
-    .loading {
-      text-align: center;
-      padding: 60px 20px;
-      color: #718096;
-    }
-
-    .loading-spinner {
-      border: 3px solid #e2e8f0;
-      border-top: 3px solid #4f46e5;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 16px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    /* Error State */
-    .error-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: #718096;
-    }
-
-    .error-state i {
-      font-size: 3rem;
-      margin-bottom: 16px;
-      opacity: 0.5;
-      display: block;
-    }
-
-    .error-state h3 {
-      font-size: 1.2rem;
-      margin-bottom: 8px;
-      color: #2d3748;
-    }
-
-    .error-details {
-      font-size: 0.8rem;
-      color: #9ca3af;
-      margin-top: 8px;
-    }
-
-    /* Bottom Navigation */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(255, 255, 255, 0.98);
-      backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(255, 255, 255, 0.2);
-      display: flex;
-      justify-content: space-around;
-      padding: 12px 16px;
-      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    .nav-tab {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 8px 12px;
-      border-radius: 12px;
-      transition: all 0.3s ease;
-      cursor: pointer;
-      min-width: 60px;
-    }
-
-    .nav-tab:active {
-      background: rgba(79, 70, 229, 0.1);
-      transform: scale(0.95);
-    }
-
-    .nav-tab.active {
-      background: rgba(79, 70, 229, 0.1);
-    }
-
-    .tab-icon {
-      font-size: 1.5rem;
-      margin-bottom: 4px;
-      transition: all 0.3s ease;
-    }
-
-    .nav-tab.active .tab-icon {
-      transform: scale(1.1);
-      color: #4f46e5;
-    }
-
-    .tab-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #4a5568;
-    }
-
-    .nav-tab.active .tab-label {
-      color: #4f46e5;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 480px) {
-      .center {
-        padding: 0 12px;
-      }
-      
-      .header h1 {
-        font-size: 1.4rem;
-      }
-      
-      .score-card {
-        padding: 16px;
-        flex-direction: column;
-        gap: 12px;
-        text-align: center;
-      }
-      
-      .tournament-name {
-        margin-bottom: 8px;
-      }
-      
-      .watch-btn {
-        margin-left: 0;
-        width: 100%;
-        max-width: 200px;
-      }
-    }
-
-    @media (max-width: 320px) {
-      .score-card {
-        padding: 14px;
-      }
-      
-      .watch-btn {
-        padding: 10px 16px;
-        font-size: 0.85rem;
-      }
-    }
-
-    @media (min-width: 768px) {
-      .center {
-        max-width: 400px;
-      }
-      
-      .bottom-nav {
-        max-width: 400px;
-        margin-left: auto;
-        margin-right: auto;
-        border-radius: 20px 20px 0 0;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: calc(100% - 40px);
-      }
-    }
+    /* Your existing CSS styles */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; padding-bottom: 80px; }
+    .header { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 20px 16px; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 1.5rem; font-weight: 700; color: #2d3748; margin-bottom: 4px; }
+    .welcome-text { color: #718096; font-size: 0.9rem; }
+    .center { padding: 0 16px; width: 100%; max-width: 400px; margin: 0 auto; }
+    .scores-container { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
+    .score-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; }
+    .tournament-name { font-weight: 600; color: #2d3748; font-size: 1rem; flex: 1; }
+    .watch-btn { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; padding: 12px 20px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); white-space: nowrap; margin-left: 16px; border: none; cursor: pointer; display: inline-block; text-align: center; }
+    .debug-info { background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 8px; margin: 10px 0; font-family: monospace; font-size: 12px; }
   </style>
 </head>
 <body>
   <!-- Header -->
   <div class="header">
-    <h1>📺 Live Scores</h1>
-    <div class="welcome-text">Watch live tournaments in real-time</div>
+    <h1>📺 Live Scores - DEBUG MODE</h1>
+    <div class="welcome-text">Testing connection to server</div>
+  </div>
+
+  <!-- Debug Info -->
+  <div class="center">
+    <div class="debug-info" id="debugInfo">
+      Initializing debug...
+    </div>
   </div>
 
   <!-- Main Content -->
@@ -319,97 +40,71 @@
     </div>
   </div>
 
-  <!-- Bottom Navigation -->
-  <div class="bottom-nav">
-    <div class="nav-tab" data-page="dashboard.html">
-      <div class="tab-icon">🏠</div>
-      <div class="tab-label">Home</div>
-    </div>
-    <div class="nav-tab" data-page="tournament.html">
-      <div class="tab-icon">🎮</div>
-      <div class="tab-label">Tournament</div>
-    </div>
-    <div class="nav-tab active" data-page="livescores.html">
-      <div class="tab-icon">🔴</div>
-      <div class="tab-label">Live</div>
-    </div>
-    <div class="nav-tab" data-page="account.html">
-      <div class="tab-icon">👤</div>
-      <div class="tab-label">Account</div>
-    </div>
-  </div>
-
   <script>
+    // Debug function to update the debug info
+    function updateDebugInfo(message) {
+      const debugEl = document.getElementById('debugInfo');
+      const timestamp = new Date().toLocaleTimeString();
+      debugEl.innerHTML += `<br>[${timestamp}] ${message}`;
+      console.log(`[DEBUG] ${message}`);
+    }
+
     // Use current domain or fallback to your Render URL
     const API_BASE = window.location.origin === 'file://' 
       ? 'https://gaming-continental.onrender.com' 
       : window.location.origin;
 
-    console.log('🌐 API Base URL:', API_BASE);
-
-    // Simple timeout function for older browsers
-    function fetchWithTimeout(url, options = {}, timeout = 10000) {
-      return new Promise((resolve, reject) => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-          reject(new Error('Request timeout'));
-        }, timeout);
-
-        fetch(url, {
-          ...options,
-          signal: controller.signal
-        })
-          .then(resolve)
-          .catch(reject)
-          .finally(() => clearTimeout(timeoutId));
-      });
-    }
+    updateDebugInfo(`API_BASE: ${API_BASE}`);
+    updateDebugInfo(`Full URL: ${API_BASE}/livescore`);
 
     async function loadScores() {
       const list = document.getElementById("scoreList");
       
+      updateDebugInfo('Starting loadScores() function');
+      
       // Show loading state
       list.innerHTML = `
-        <div class="loading">
-          <div class="loading-spinner"></div>
+        <div style="text-align: center; padding: 60px 20px; color: #718096;">
+          <div style="border: 3px solid #e2e8f0; border-top: 3px solid #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px;"></div>
           <div>Loading live scores...</div>
+          <div style="font-size: 12px; margin-top: 10px;">Testing connection to: ${API_BASE}/livescore</div>
         </div>
       `;
 
       try {
-        console.log('📡 Fetching live scores from:', `${API_BASE}/livescore`);
+        updateDebugInfo('Making fetch request...');
         
-        const res = await fetchWithTimeout(
-          `${API_BASE}/livescore`,
-          {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          },
-          10000 // 10 second timeout
-        );
+        // Test the connection first with a simple fetch
+        const testStart = Date.now();
+        const res = await fetch(`${API_BASE}/livescore`);
+        const testEnd = Date.now();
+        
+        updateDebugInfo(`Fetch completed in ${testEnd - testStart}ms`);
+        updateDebugInfo(`Response status: ${res.status} ${res.statusText}`);
+        updateDebugInfo(`Response OK: ${res.ok}`);
         
         if (!res.ok) {
-          console.error('❌ Server response not OK:', res.status);
+          updateDebugInfo(`❌ Server returned error: ${res.status}`);
+          const errorText = await res.text();
+          updateDebugInfo(`Error response: ${errorText}`);
           throw new Error(`Server error: ${res.status} - ${res.statusText}`);
         }
         
+        updateDebugInfo('✅ Response OK, parsing JSON...');
         const scores = await res.json();
-        
-        console.log("✅ Live scores loaded successfully:", scores);
+        updateDebugInfo(`✅ JSON parsed successfully, got ${scores.length} scores`);
         
         // Clear loading state
         list.innerHTML = "";
         
         if (!scores || scores.length === 0) {
+          updateDebugInfo('No scores found, showing empty state');
           list.innerHTML = `
-            <div class="no-scores">
-              <i>📺</i>
-              <h3>No Live Matches</h3>
+            <div style="text-align: center; padding: 60px 20px; color: #718096;">
+              <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;">📺</div>
+              <h3 style="font-size: 1.2rem; margin-bottom: 8px; color: #2d3748;">No Live Matches</h3>
               <p>Check back later for live tournaments</p>
-              <button class="retry-btn" onclick="loadScores()">
+              <button onclick="loadScores()" style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 10px 20px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; margin-top: 10px;">
                 🔄 Refresh
               </button>
             </div>
@@ -417,17 +112,17 @@
           return;
         }
 
+        updateDebugInfo(`Displaying ${scores.length} scores`);
         // Display each live score
         scores.forEach(score => {
           const scoreCard = document.createElement("div");
           scoreCard.className = "score-card";
           
-          // Use consistent field names from your model
           const tournamentName = score.tournament || 'Live Match';
           const streamLink = score.link || '#';
           
           scoreCard.innerHTML = `
-            <div class="tournament-name">${escapeHtml(tournamentName)}</div>
+            <div class="tournament-name">${tournamentName}</div>
             <a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="watch-btn">
               📺 Watch Live
             </a>
@@ -435,8 +130,12 @@
           list.appendChild(scoreCard);
         });
 
+        updateDebugInfo('✅ Page loaded successfully!');
+
       } catch (err) {
-        console.error("❌ Error loading scores:", err);
+        updateDebugInfo(`❌ CATCH BLOCK: ${err.message}`);
+        updateDebugInfo(`❌ Error name: ${err.name}`);
+        updateDebugInfo(`❌ Error stack: ${err.stack}`);
         
         let errorMessage = "Please check your connection";
         if (err.message.includes('timeout')) {
@@ -448,12 +147,12 @@
         }
         
         list.innerHTML = `
-          <div class="error-state">
-            <i>❌</i>
-            <h3>Failed to Load</h3>
+          <div style="text-align: center; padding: 60px 20px; color: #718096;">
+            <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;">❌</div>
+            <h3 style="font-size: 1.2rem; margin-bottom: 8px; color: #2d3748;">Failed to Load</h3>
             <p>${errorMessage}</p>
-            <div class="error-details">Error: ${err.message}</div>
-            <button class="retry-btn" onclick="loadScores()">
+            <div style="font-size: 0.8rem; color: #9ca3af; margin-top: 8px;">Error: ${err.message}</div>
+            <button onclick="loadScores()" style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 10px 20px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; margin-top: 10px;">
               🔄 Try Again
             </button>
           </div>
@@ -461,76 +160,21 @@
       }
     }
 
-    function goPage(page) {
-      console.log('🔄 Navigating to:', page);
-      window.location.href = page;
-    }
-
-    // Set active tab based on current page
-    function setActiveTab() {
-      const currentPage = window.location.pathname.split('/').pop() || 'livescores.html';
-      const tabs = document.querySelectorAll('.nav-tab');
-      
-      console.log('📍 Current page:', currentPage);
-      
-      tabs.forEach(tab => {
-        const tabPage = tab.getAttribute('data-page');
-        tab.classList.remove('active');
-        if (tabPage === currentPage) {
-          tab.classList.add('active');
-          console.log('✅ Active tab set to:', tabPage);
-        }
-      });
-    }
-
-    // Setup navigation
-    function setupNavigation() {
-      const navTabs = document.querySelectorAll('.nav-tab');
-      
-      navTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-          const page = this.getAttribute('data-page');
-          console.log('👆 Tab clicked:', page);
-          goPage(page);
-        });
-      });
-    }
-
-    // Helper function to escape HTML
-    function escapeHtml(text) {
-      if (!text) return '';
-      return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
+    // Add CSS for loading spinner
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
 
     // Initialize when page loads
     document.addEventListener("DOMContentLoaded", function() {
-      console.log("🚀 Live scores page loaded");
-      console.log("📍 Current URL:", window.location.href);
-      
+      updateDebugInfo('DOM Content Loaded');
+      updateDebugInfo(`Current URL: ${window.location.href}`);
       loadScores();
-      setActiveTab();
-      setupNavigation();
-      
-      // Add pull-to-refresh functionality
-      let touchStartY = 0;
-      document.addEventListener('touchstart', e => {
-        touchStartY = e.touches[0].clientY;
-      });
-      
-      document.addEventListener('touchmove', e => {
-        const touchY = e.touches[0].clientY;
-        const diff = touchStartY - touchY;
-        
-        // If pulled down from top and scrolled to top
-        if (diff < -50 && window.scrollY === 0) {
-          loadScores();
-        }
-      });
     });
   </script>
 </body>
