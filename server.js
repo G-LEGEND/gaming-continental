@@ -400,5 +400,3 @@ app.get("*", (req, res) =>
 app.listen(PORT, () =>
   console.log(`🚀 Gaming Continental running on port ${PORT}`)
 );
-
-keep it for me 
