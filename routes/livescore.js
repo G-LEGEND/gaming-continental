@@ -4,36 +4,17 @@ const router = express.Router();
 const mongoose = require("mongoose");
 
 // ===== Use the existing model from models/LiveScore.js =====
-const Livescore = mongoose.model("LiveScore"); // Use the existing model
-
-// ===== Admin Middleware =====
-function requireAdmin(req, res, next) {
-  const { email } = req.body;
-  const loggedInAdmins = req.app.get('loggedInAdmins');
-  
-  if (!email) {
-    return res.status(400).json({ error: "Admin email required" });
-  }
-  
-  if (!loggedInAdmins || !loggedInAdmins.has(email)) {
-    return res.status(403).json({ error: "Admin not logged in" });
-  }
-  
-  // Check if session is expired (24 hours)
-  const loginTime = loggedInAdmins.get(email);
-  if (Date.now() - loginTime > 24 * 60 * 60 * 1000) {
-    loggedInAdmins.delete(email);
-    return res.status(403).json({ error: "Session expired" });
-  }
-  
-  next();
-}
+const Livescore = mongoose.models.LiveScore || mongoose.model("LiveScore", new mongoose.Schema({
+  tournament: { type: String, required: true },
+  link: { type: String, required: true }
+}, { timestamps: true }));
 
 // ===== Routes =====
 
 // ✅ Get all livescores (public - no auth needed)
 router.get("/", async (req, res) => {
   try {
+    console.log("📥 Fetching all live scores...");
     const scores = await Livescore.find().sort({ createdAt: -1 });
     console.log(`✅ Found ${scores.length} live scores`);
     res.json(scores);
@@ -43,10 +24,11 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ Add a new livescore (admin only)
-router.post("/", requireAdmin, async (req, res) => {
+// ✅ Add a new livescore
+router.post("/", async (req, res) => {
   try {
     const { tournament, link } = req.body;
+    console.log("📥 Adding new live score:", { tournament, link });
     
     if (!tournament || !link) {
       return res.status(400).json({ error: "Tournament and link required" });
@@ -73,10 +55,11 @@ router.post("/", requireAdmin, async (req, res) => {
   }
 });
 
-// ✅ Delete a livescore (admin only)
-router.delete("/:id", requireAdmin, async (req, res) => {
+// ✅ Delete a livescore
+router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`📥 Deleting live score: ${id}`);
     
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ error: "Invalid ID format" });
