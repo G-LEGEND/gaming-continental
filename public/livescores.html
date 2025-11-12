@@ -16,7 +16,7 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
       color: #333;
-      padding-bottom: 80px; /* Space for footer */
+      padding-bottom: 80px;
     }
 
     /* Header */
@@ -99,11 +99,29 @@
       margin-left: 16px;
       border: none;
       cursor: pointer;
+      display: inline-block;
+      text-align: center;
     }
 
     .watch-btn:active {
       transform: translateY(2px);
       box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+    }
+
+    .retry-btn {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 12px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: all 0.3s ease;
+    }
+
+    .retry-btn:active {
+      transform: translateY(2px);
     }
 
     /* No Scores State */
@@ -146,6 +164,32 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+
+    /* Error State */
+    .error-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #718096;
+    }
+
+    .error-state i {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+      display: block;
+    }
+
+    .error-state h3 {
+      font-size: 1.2rem;
+      margin-bottom: 8px;
+      color: #2d3748;
+    }
+
+    .error-details {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 8px;
     }
 
     /* Bottom Navigation */
@@ -285,7 +329,7 @@
       <div class="tab-icon">🎮</div>
       <div class="tab-label">Tournament</div>
     </div>
-    <div class="nav-tab active" data-page="live.html">
+    <div class="nav-tab active" data-page="livescores.html">
       <div class="tab-icon">🔴</div>
       <div class="tab-label">Live</div>
     </div>
@@ -296,7 +340,12 @@
   </div>
 
   <script>
-    const API_BASE = "https://gaming-continental.onrender.com";
+    // Use current domain or fallback to your Render URL
+    const API_BASE = window.location.origin === 'file://' 
+      ? 'https://gaming-continental.onrender.com' 
+      : window.location.origin;
+
+    console.log('🌐 API Base URL:', API_BASE);
 
     async function loadScores() {
       const list = document.getElementById("scoreList");
@@ -310,17 +359,28 @@
       `;
 
       try {
-        // ✅ FIXED: Use the full API_BASE URL
-        const res = await fetch(`${API_BASE}/livescore`);
+        console.log('📡 Fetching live scores from:', `${API_BASE}/livescore`);
+        
+        const res = await fetch(`${API_BASE}/livescore`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          // Add timeout
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
         
         if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
+          const errorText = await res.text();
+          console.error('❌ Server response not OK:', res.status, errorText);
+          throw new Error(`Server error: ${res.status} - ${res.statusText}`);
         }
         
         const scores = await res.json();
         
-        console.log("✅ Live scores loaded:", scores); // Debug log
+        console.log("✅ Live scores loaded successfully:", scores);
         
+        // Clear loading state
         list.innerHTML = "";
         
         if (!scores || scores.length === 0) {
@@ -329,22 +389,26 @@
               <i>📺</i>
               <h3>No Live Matches</h3>
               <p>Check back later for live tournaments</p>
+              <button class="retry-btn" onclick="loadScores()">
+                🔄 Refresh
+              </button>
             </div>
           `;
           return;
         }
 
+        // Display each live score
         scores.forEach(score => {
           const scoreCard = document.createElement("div");
           scoreCard.className = "score-card";
           
-          // ✅ FIXED: Better error handling for missing data
-          const tournamentName = score.tournament || score.name || 'Live Match';
-          const streamLink = score.link || score.streamUrl || '#';
+          // Use consistent field names from your model
+          const tournamentName = score.tournament || 'Live Match';
+          const streamLink = score.link || '#';
           
           scoreCard.innerHTML = `
-            <div class="tournament-name">${tournamentName}</div>
-            <a href="${streamLink}" target="_blank" class="watch-btn">
+            <div class="tournament-name">${escapeHtml(tournamentName)}</div>
+            <a href="${streamLink}" target="_blank" rel="noopener noreferrer" class="watch-btn">
               📺 Watch Live
             </a>
           `;
@@ -353,52 +417,110 @@
 
       } catch (err) {
         console.error("❌ Error loading scores:", err);
+        
+        let errorMessage = "Please check your connection";
+        if (err.name === 'TimeoutError') {
+          errorMessage = "Request timeout - server is taking too long to respond";
+        } else if (err.message.includes('Failed to fetch')) {
+          errorMessage = "Network error - cannot reach the server";
+        } else if (err.message.includes('Server error')) {
+          errorMessage = "Server is experiencing issues";
+        }
+        
         list.innerHTML = `
-          <div class="no-scores">
+          <div class="error-state">
             <i>❌</i>
             <h3>Failed to Load</h3>
-            <p>Please check your connection</p>
-            <p style="font-size: 12px; margin-top: 8px;">Error: ${err.message}</p>
+            <p>${errorMessage}</p>
+            <div class="error-details">Error: ${err.message}</div>
+            <button class="retry-btn" onclick="loadScores()">
+              🔄 Try Again
+            </button>
           </div>
         `;
       }
     }
 
     function goPage(page) {
+      console.log('🔄 Navigating to:', page);
       window.location.href = page;
     }
 
-    // Set active tab
+    // Set active tab based on current page
     function setActiveTab() {
-      const currentPage = window.location.pathname.split('/').pop() || 'live.html';
+      const currentPage = window.location.pathname.split('/').pop() || 'livescores.html';
       const tabs = document.querySelectorAll('.nav-tab');
       
+      console.log('📍 Current page:', currentPage);
+      
       tabs.forEach(tab => {
+        const tabPage = tab.getAttribute('data-page');
         tab.classList.remove('active');
-        if (tab.getAttribute('data-page') === currentPage) {
+        if (tabPage === currentPage) {
           tab.classList.add('active');
+          console.log('✅ Active tab set to:', tabPage);
         }
       });
     }
 
     // Setup navigation
     function setupNavigation() {
-      // Add click events to bottom nav tabs
       const navTabs = document.querySelectorAll('.nav-tab');
+      
       navTabs.forEach(tab => {
         tab.addEventListener('click', function() {
           const page = this.getAttribute('data-page');
+          console.log('👆 Tab clicked:', page);
           goPage(page);
         });
       });
     }
 
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Initialize when page loads
     document.addEventListener("DOMContentLoaded", function() {
       console.log("🚀 Live scores page loaded");
+      console.log("📍 Current URL:", window.location.href);
+      
       loadScores();
       setActiveTab();
       setupNavigation();
+      
+      // Add pull-to-refresh functionality
+      let touchStartY = 0;
+      document.addEventListener('touchstart', e => {
+        touchStartY = e.touches[0].clientY;
+      });
+      
+      document.addEventListener('touchmove', e => {
+        const touchY = e.touches[0].clientY;
+        const diff = touchStartY - touchY;
+        
+        // If pulled down from top and scrolled to top
+        if (diff < -50 && window.scrollY === 0) {
+          loadScores();
+        }
+      });
     });
+
+    // Add this to handle AbortSignal.timeout if not supported
+    if (!AbortSignal.timeout) {
+      AbortSignal.timeout = function(ms) {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(new DOMException('TimeoutError', 'TimeoutError')), ms);
+        return controller.signal;
+      };
+    }
   </script>
 </body>
 </html>

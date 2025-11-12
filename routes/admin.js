@@ -53,11 +53,11 @@ async function login(req, res) {
 
 // ---------------- RANK SYSTEM (UPDATED - NO TOKENS) ----------------
 
-// ✅ Fetch full rank list for admin dashboard
+// ✅ Fetch full rank list for admin dashboard (NO TOKEN)
 router.post("/rank/all", requireAdmin, async (req, res) => {
   try {
     const users = await User.find()
-      .select("nickname email fifaPoints snookerPoints createdAt")
+      .select("nickname email fifaPoints snookerPoints")
       .lean();
 
     const ranked = users
@@ -74,7 +74,7 @@ router.post("/rank/all", requireAdmin, async (req, res) => {
   }
 });
 
-// ✅ Add points to user
+// ✅ Add points (NO TOKEN)
 router.post("/rank/add-points/:id", requireAdmin, async (req, res) => {
   try {
     const { category, points } = req.body;
@@ -110,7 +110,7 @@ router.post("/rank/add-points/:id", requireAdmin, async (req, res) => {
   }
 });
 
-// ✅ Public rank for all users - NO AUTH NEEDED
+// ✅ Public rank for all users (rank.html) - NO AUTH NEEDED
 router.get("/public/rank", async (req, res) => {
   try {
     const users = await User.find()
@@ -133,23 +133,7 @@ router.get("/public/rank", async (req, res) => {
 
 // ---------------- WITHDRAWAL MANAGEMENT (UPDATED - NO TOKENS) ----------------
 
-// ✅ Get all withdrawals for admin
-router.post("/withdrawals", requireAdmin, async (req, res) => {
-  try {
-    console.log("📥 Fetching all withdrawals for admin...");
-    const withdrawals = await Withdrawal.find()
-      .populate("userId", "nickname email balance phoneNumber bankDetails")
-      .sort({ createdAt: -1 });
-
-    console.log(`✅ Found ${withdrawals.length} withdrawals`);
-    res.json(withdrawals);
-  } catch (err) {
-    console.error("❌ Error fetching withdrawals:", err);
-    res.status(500).json({ error: "Failed to fetch withdrawals" });
-  }
-});
-
-// ✅ Approve a withdrawal
+// ✅ Approve a withdrawal (NO TOKEN)
 router.post("/withdrawals/approve/:id", requireAdmin, async (req, res) => {
   try {
     const withdrawal = await Withdrawal.findById(req.params.id);
@@ -177,7 +161,7 @@ router.post("/withdrawals/approve/:id", requireAdmin, async (req, res) => {
   }
 });
 
-// ✅ Reject a withdrawal
+// ✅ Reject a withdrawal (NO TOKEN)
 router.post("/withdrawals/reject/:id", requireAdmin, async (req, res) => {
   try {
     const withdrawal = await Withdrawal.findById(req.params.id);
@@ -190,24 +174,6 @@ router.post("/withdrawals/reject/:id", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error("Reject withdrawal error:", err);
     res.status(500).json({ error: "Failed to reject withdrawal" });
-  }
-});
-
-// ---------------- USER MANAGEMENT ----------------
-
-// ✅ Get all users for admin
-router.post("/users", requireAdmin, async (req, res) => {
-  try {
-    console.log("📥 Fetching all users for admin...");
-    const users = await User.find()
-      .select("nickname email balance fifaPoints snookerPoints createdAt")
-      .sort({ createdAt: -1 });
-
-    console.log(`✅ Found ${users.length} users`);
-    res.json(users);
-  } catch (err) {
-    console.error("❌ Error fetching users:", err);
-    res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 

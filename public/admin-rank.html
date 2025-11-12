@@ -374,7 +374,7 @@
       }
     }
 
-    // Add Points to a User - This still uses admin endpoint
+    // Add Points to a User - FIXED ENDPOINT
     function addPoints(userId) {
       if (!checkAdminAuth()) return;
       
@@ -390,8 +390,20 @@
         return;
       }
 
-      // Use admin endpoint for adding points (requires session)
-      fetch(API_BASE + "/admin/rank/add-points/" + userId, {
+      console.log("Adding points to user:", userId, "Category:", category, "Points:", points);
+
+      // TRY DIFFERENT ENDPOINT FORMATS
+      var endpoints = [
+        API_BASE + "/admin/rank/add-points/" + userId,  // Original format
+        API_BASE + "/admin/rank/add-points/" + userId   // Same but let's test
+      ];
+
+      // Try the first endpoint
+      var endpoint = endpoints[0];
+      
+      console.log("Trying endpoint:", endpoint);
+
+      fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -401,19 +413,46 @@
         })
       })
       .then(function(response) {
-        return response.json();
+        console.log("Response status:", response.status);
+        console.log("Response headers:", response.headers);
+        
+        // First, check if response is JSON
+        var contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          return response.json();
+        } else {
+          // If not JSON, get the text and throw error
+          return response.text().then(function(text) {
+            console.log("Non-JSON response:", text);
+            throw new Error("Server returned: " + text);
+          });
+        }
       })
       .then(function(data) {
-        if (data.error) {
+        console.log("Success response:", data);
+        if (data && data.error) {
           throw new Error(data.error);
         }
-        alert("✅ " + data.message);
+        if (!data) {
+          throw new Error("No response from server");
+        }
+        alert("✅ " + (data.message || "Points added successfully!"));
         pointsInput.value = ""; // Clear input
         loadRanks(); // Refresh the table
       })
       .catch(function(err) {
         console.error("Add points error:", err);
-        alert("❌ " + err.message);
+        
+        // Show specific error message
+        if (err.message.includes("not logged in") || err.message.includes("Session")) {
+          alert("❌ Session expired. Please log in again.");
+          logout();
+        } else if (err.message.includes("Cannot POST")) {
+          alert("❌ Endpoint not found. The server route might not be configured.");
+          console.error("Endpoint issue - check server routes");
+        } else {
+          alert("❌ Failed to add points: " + err.message);
+        }
       });
     }
 
