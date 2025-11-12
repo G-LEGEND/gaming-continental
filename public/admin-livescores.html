@@ -166,10 +166,8 @@
   </div>
 
   <script>
-    // Use current domain or fallback URL
-    const API_BASE = window.location.origin === 'file://' 
-      ? 'https://gaming-continental.onrender.com' 
-      : window.location.origin;
+    // ✅ FIXED: Always use Render backend (Netlify frontend → Render backend)
+    const API_BASE = 'https://gaming-continental.onrender.com';
 
     console.log('🌐 Admin API Base URL:', API_BASE);
 
@@ -344,7 +342,7 @@
       } finally {
         setLoading(false);
       }
-    });
+    }
 
     async function deleteScore(id) {
       if (!confirm("Are you sure you want to delete this live score?")) return;

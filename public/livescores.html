@@ -49,10 +49,8 @@
       console.log(`[DEBUG] ${message}`);
     }
 
-    // Use current domain or fallback to your Render URL
-    const API_BASE = window.location.origin === 'file://' 
-      ? 'https://gaming-continental.onrender.com' 
-      : window.location.origin;
+    // ✅ FIXED: Always use Render backend (Netlify frontend → Render backend)
+    const API_BASE = 'https://gaming-continental.onrender.com';
 
     updateDebugInfo(`API_BASE: ${API_BASE}`);
     updateDebugInfo(`Full URL: ${API_BASE}/livescore`);
