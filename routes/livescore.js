@@ -3,6 +3,14 @@ const express = require("express");
 const router = express.Router();
 const LiveScore = require("../models/LiveScore");
 
+// ✅ Test endpoint for debugging
+router.get("/test", (req, res) => {
+  res.json({ 
+    message: "LiveScore routes are working! ✅",
+    timestamp: new Date().toISOString()
+  });
+});
+
 // ✅ Get all livescores (public - no auth needed)
 router.get("/", async (req, res) => {
   try {
