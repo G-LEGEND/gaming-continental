@@ -43,6 +43,87 @@ const Bet = require("./models/Bet");
 const Withdraw = require("./models/Withdrawal");
 const History = require("./models/History");
 
+// ---------- Live Score Model & Routes ----------
+const LiveScoreSchema = new mongoose.Schema({
+  tournament: { type: String, required: true },
+  link: { type: String, required: true }
+}, { timestamps: true });
+
+const LiveScore = mongoose.model("LiveScore", LiveScoreSchema);
+
+// Live Scores Routes
+app.get("/livescore", async (req, res) => {
+  try {
+    console.log("📥 Fetching all live scores...");
+    const scores = await LiveScore.find().sort({ createdAt: -1 });
+    console.log(`✅ Found ${scores.length} live scores`);
+    res.json(scores);
+  } catch (err) {
+    console.error("❌ Failed to fetch livescores:", err);
+    res.status(500).json({ error: "Failed to fetch livescores" });
+  }
+});
+
+app.post("/livescore", async (req, res) => {
+  try {
+    const { tournament, link } = req.body;
+    console.log("📥 Adding new live score:", { tournament, link });
+    
+    if (!tournament || !link) {
+      return res.status(400).json({ error: "Tournament and link required" });
+    }
+
+    // Validate URL
+    try {
+      new URL(link);
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid URL format" });
+    }
+
+    const newScore = new LiveScore({ tournament, link });
+    await newScore.save();
+    
+    console.log(`✅ New live score added: ${tournament}`);
+    res.json({ 
+      message: "Live score added successfully ✅", 
+      livescore: newScore 
+    });
+  } catch (err) {
+    console.error("❌ Failed to add livescore:", err);
+    res.status(500).json({ error: "Failed to add livescore" });
+  }
+});
+
+app.delete("/livescore/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`📥 Deleting live score: ${id}`);
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: "Invalid ID format" });
+    }
+
+    const deleted = await LiveScore.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ error: "Live score not found" });
+    }
+    
+    console.log(`✅ Live score deleted: ${id}`);
+    res.json({ message: "Live score deleted successfully ✅" });
+  } catch (err) {
+    console.error("❌ Failed to delete livescore:", err);
+    res.status(500).json({ error: "Failed to delete livescore" });
+  }
+});
+
+// Test endpoint
+app.get("/livescore/test", (req, res) => {
+  res.json({ 
+    message: "Live scores endpoint is working! ✅",
+    timestamp: new Date().toISOString()
+  });
+});
+
 // ---------- Admin Session Management ----------
 let loggedInAdmins = new Map(); // email -> timestamp
 
@@ -305,27 +386,22 @@ const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
 const tournamentRoutes = require("./routes/tournament");
 const publicTournamentRoutes = require("./routes/publicTournament");
-const livescoreRoutes = require("./routes/livescore");
 const matchRoutes = require("./routes/match");
 const adminRoutes = require("./routes/admin");
 const depositRoutes = require("./routes/deposit");
 const paymentRoutes = require("./routes/payment");
 const betRoutes = require("./routes/bet");
 const livestreamRoutes = require("./routes/livestream");
-const withdrawRoutes = require("./routes/withdraw"); // ✅ ADD THIS LINE
+const withdrawRoutes = require("./routes/withdraw");
 
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
-app.use("/livescore", livescoreRoutes);
 app.use("/api/match", matchRoutes);
-
-// ✅ Use deposit routes with session-based authentication
 app.use("/deposit", depositRoutes);
-
 app.use("/payment", paymentRoutes);
 app.use("/bets", betRoutes);
 app.use("/livestream", livestreamRoutes);
-app.use("/withdraw", withdrawRoutes); // ✅ ADD THIS LINE
+app.use("/withdraw", withdrawRoutes);
 
 // Comment out these admin-specific routes since we're using the main ones
 app.use("/admin/livestream", livestreamRoutes);
