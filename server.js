@@ -22,6 +22,8 @@ app.use(
     origin: [
       "https://h-gamingcontinental.netlify.app",
       "https://gaming-continental.onrender.com",
+      "https://gamingcontinental.xyz",
+      "http://gamingcontinental.xyz",
       "http://localhost:3000",
       "http://localhost:5000",
       "http://localhost:10000"
