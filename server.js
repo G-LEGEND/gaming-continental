@@ -88,7 +88,9 @@ async function seedAdmins() {
 app.get("/auth/me", async (req, res) => {
   try {
     const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: "User ID required" });
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+  return res.status(400).json({ error: "Valid User ID required" });
+}
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
