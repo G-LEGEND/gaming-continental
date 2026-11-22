@@ -416,7 +416,27 @@ app.get("*", (req, res) =>
   res.sendFile(path.join(__dirname, "public", "index.html"))
 );
 
-// ---------- Start Server ----------
-app.listen(PORT, () =>
+// ---------- Start Server + Socket.IO ----------
+const http = require("http");
+const server = http.createServer(app);
+
+const { Server } = require("socket.io");
+const io = new Server(server, {
+  cors: {
+    origin: [
+      "https://gamingcontinental.xyz",
+      "https://www.gamingcontinental.xyz",
+      "http://localhost:5000",
+      "http://localhost:3000"
+    ],
+    credentials: true
+  }
+});
+
+// Attach Socket.IO game server
+const { attachGameSocket } = require("./sockets/gameSocket");
+attachGameSocket(io);
+
+server.listen(PORT, () =>
   console.log(`🚀 Gaming Continental running on port ${PORT}`)
 );

@@ -90,6 +90,7 @@ router.post("/start/:roomCode", async (req, res) => {
     if (!room) return res.status(404).json({ error: "Room not found" });
     if (room.status !== "waiting") return res.status(400).json({ error: "Game already started or ended" });
 
+    // ✅ Bots only for solo_vs_bot — PvP is pure human
     if (room.mode === "solo_vs_bot") {
       const botCount = 14;
       for (let i = 0; i < botCount; i++) {
@@ -121,7 +122,34 @@ router.get("/room/:roomCode", async (req, res) => {
   }
 });
 
-// 5. END GAME — server-authoritative, atomic, dynamic kills rule
+// 5. GET GAME STATE (for PvP socket sync)
+router.get("/state/:roomCode", async (req, res) => {
+  try {
+    const room = await MiniRoom.findOne({ roomCode: req.params.roomCode });
+    if (!room) return res.status(404).json({ error: "Room not found" });
+    res.json({
+      roomCode: room.roomCode,
+      mode: room.mode,
+      status: room.status,
+      teamSize: room.teamSize,
+      stake: room.stake,
+      timeLimit: room.timeLimit,
+      mapId: room.mapId,
+      startedAt: room.startedAt,
+      endsAt: room.endsAt,
+      players: room.players.map(p => ({
+        username: p.username,
+        team: p.team,
+        kills: p.kills || 0,
+        isBot: p.isBot
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
+
+// 6. END GAME — server-authoritative, atomic, dynamic kills rule
 router.post("/end/:roomCode", async (req, res) => {
   try {
     const { roomCode } = req.params;
@@ -138,6 +166,7 @@ router.post("/end/:roomCode", async (req, res) => {
     let payouts = [];
     let won = false;
 
+    // ===== SOLO VS BOT =====
     if (room.mode === "solo_vs_bot") {
       const player = room.players.find(p => !p.isBot);
       if (!player) {
@@ -162,40 +191,94 @@ router.post("/end/:roomCode", async (req, res) => {
       } else {
         room.winningTeam = 2;
       }
-    } else if (room.mode === "pvp" && room.teamSize > 1) {
-      const { winningTeam } = req.body;
+    }
+
+    // ===== PvP 1v1 =====
+    else if (room.mode === "pvp" && room.teamSize === 1) {
+      const humans = room.players.filter(p => !p.isBot);
+      const sorted = [...humans].sort((a, b) => (b.kills || 0) - (a.kills || 0));
+      const winner = sorted[0];
+      const loser = sorted[1];
+
+      if (winner && loser && winner.kills === loser.kills) {
+        // Tie → refund both
+        if (winner.userId) await User.findByIdAndUpdate(winner.userId, { $inc: { balance: room.stake } });
+        if (loser.userId) await User.findByIdAndUpdate(loser.userId, { $inc: { balance: room.stake } });
+        room.winningTeam = 0;
+        payouts = [
+          { userId: winner.userId, amount: room.stake, position: "tie_refund" },
+          { userId: loser.userId, amount: room.stake, position: "tie_refund" }
+        ];
+      } else if (winner && winner.userId) {
+        await User.findByIdAndUpdate(winner.userId, { $inc: { balance: prizePool } });
+        room.winningTeam = winner.team;
+        payouts.push({
+          userId: winner.userId,
+          amount: prizePool,
+          position: "1st",
+          kills: winner.kills
+        });
+      }
+    }
+
+    // ===== PvP Team (2v2, 3v3, etc.) =====
+    else if (room.mode === "pvp" && room.teamSize > 1) {
+      const team1Kills = room.players.filter(p => p.team === 1).reduce((s, p) => s + (p.kills || 0), 0);
+      const team2Kills = room.players.filter(p => p.team === 2).reduce((s, p) => s + (p.kills || 0), 0);
+      const winningTeam = team1Kills >= team2Kills ? 1 : 2;
       room.winningTeam = winningTeam;
-      const winners = room.players.filter(p => p.team === winningTeam);
+      const winners = room.players.filter(p => p.team === winningTeam && !p.isBot);
       const split = prizePool / (winners.length || 1);
       for (const w of winners) {
-        if (w.isBot || !w.userId) continue;
+        if (!w.userId) continue;
         await User.findByIdAndUpdate(w.userId, { $inc: { balance: split } });
-        payouts.push({ userId: w.userId, amount: split });
+        payouts.push({ userId: w.userId, amount: split, position: "winner", kills: w.kills });
       }
-    } else if (room.mode === "pvp" && room.teamSize === 0) {
-      const { ffaFirst, ffaSecond } = req.body;
-      const firstPrize = prizePool * (60/90);
-      const secondPrize = prizePool * (30/90);
-      const first = room.players.find(p => p.username === ffaFirst);
-      const second = room.players.find(p => p.username === ffaSecond);
-      if (first && !first.isBot && first.userId) {
-        await User.findByIdAndUpdate(first.userId, { $inc: { balance: firstPrize } });
-        payouts.push({ userId: first.userId, amount: firstPrize, position: "1st" });
+    }
+
+    // ===== PvP FFA (14 players) — 60/20/10 of prize pool =====
+    else if (room.mode === "pvp" && room.teamSize === 0) {
+      const sorted = room.players
+        .filter(p => !p.isBot && p.userId)
+        .sort((a, b) => (b.kills || 0) - (a.kills || 0));
+
+      const first = sorted[0];
+      const second = sorted[1];
+      const third = sorted[2];
+
+      if (first && first.userId) {
+        const amt = prizePool * 0.60;
+        await User.findByIdAndUpdate(first.userId, { $inc: { balance: amt } });
+        payouts.push({ userId: first.userId, amount: amt, position: "1st", kills: first.kills });
       }
-      if (second && !second.isBot && second.userId) {
-        await User.findByIdAndUpdate(second.userId, { $inc: { balance: secondPrize } });
-        payouts.push({ userId: second.userId, amount: secondPrize, position: "2nd" });
+      if (second && second.userId) {
+        const amt = prizePool * 0.20;
+        await User.findByIdAndUpdate(second.userId, { $inc: { balance: amt } });
+        payouts.push({ userId: second.userId, amount: amt, position: "2nd", kills: second.kills });
+      }
+      if (third && third.userId) {
+        const amt = prizePool * 0.10;
+        await User.findByIdAndUpdate(third.userId, { $inc: { balance: amt } });
+        payouts.push({ userId: third.userId, amount: amt, position: "3rd", kills: third.kills });
       }
     }
 
     room.status = "finished";
     await room.save();
+
+    // Build leaderboard for client to display
+    const leaderboard = room.players
+      .filter(p => !p.isBot)
+      .sort((a, b) => (b.kills || 0) - (a.kills || 0))
+      .map(p => ({ username: p.username, team: p.team, kills: p.kills || 0 }));
+
     res.json({
       message: "Game settled",
       won,
       houseFee,
       prizePool,
       payouts,
+      leaderboard,
       kills: room.players.find(p => !p.isBot)?.kills,
       killsRequired: requiredKills(room.timeLimit)
     });
@@ -204,7 +287,7 @@ router.post("/end/:roomCode", async (req, res) => {
   }
 });
 
-// 6. CANCEL
+// 7. CANCEL
 router.post("/cancel/:roomCode", async (req, res) => {
   try {
     const room = await MiniRoom.findOne({ roomCode: req.params.roomCode, status: "waiting" });
@@ -224,7 +307,7 @@ router.post("/cancel/:roomCode", async (req, res) => {
   }
 });
 
-// 7. REPORT A KILL — Option 2 guard (rate-limited, active-only)
+// 8. REPORT A KILL — Option 2 guard
 router.post("/kill/:roomCode", async (req, res) => {
   try {
     const { killerUsername } = req.body;
@@ -256,7 +339,7 @@ router.post("/kill/:roomCode", async (req, res) => {
   }
 });
 
-// 8. DIE
+// 9. DIE
 router.post("/die/:roomCode", async (req, res) => {
   try {
     const { username } = req.body;
@@ -271,7 +354,7 @@ router.post("/die/:roomCode", async (req, res) => {
   }
 });
 
-// 9. RESPAWN
+// 10. RESPAWN
 router.post("/respawn/:roomCode", async (req, res) => {
   try {
     const { username } = req.body;
