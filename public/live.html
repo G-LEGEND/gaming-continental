@@ -16,10 +16,9 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
       color: #333;
-      padding-bottom: 80px;
+      padding-bottom: 90px;
     }
 
-    /* Header */
     .header {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
@@ -36,6 +35,16 @@
       font-weight: 700;
       color: #2d3748;
       margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .header h1 svg {
+      width: 24px;
+      height: 24px;
+      stroke: #dc2626;
     }
 
     .welcome-text {
@@ -43,7 +52,6 @@
       font-size: 0.9rem;
     }
 
-    /* Main Container */
     .center { 
       padding: 0 16px;
       width: 100%;
@@ -51,7 +59,6 @@
       margin: 0 auto;
     }
 
-    /* Video Player */
     .video-container {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
@@ -84,7 +91,19 @@
       border-radius: 20px;
       font-size: 0.8rem;
       font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
+    
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse { 50% { opacity: 0.4; } }
 
     .video-title {
       font-weight: 600;
@@ -109,6 +128,10 @@
       font-size: 0.9rem;
       cursor: pointer;
       transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
     .control-btn:active {
@@ -125,7 +148,6 @@
       color: white;
     }
 
-    /* Streams Container */
     .streams-container {
       display: flex;
       flex-direction: column;
@@ -133,7 +155,6 @@
       margin-bottom: 32px;
     }
 
-    /* Stream Card */
     .stream-card {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
@@ -173,8 +194,10 @@
       font-size: 1rem;
       transition: all 0.3s ease;
       box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-      display: block;
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       width: 100%;
       border: none;
       cursor: pointer;
@@ -192,22 +215,23 @@
       border-radius: 20px;
       font-size: 0.8rem;
       font-weight: 700;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       margin-bottom: 12px;
     }
 
-    /* No Streams State */
     .no-streams {
       text-align: center;
       padding: 60px 20px;
       color: #718096;
     }
 
-    .no-streams i {
-      font-size: 3rem;
+    .no-streams svg {
+      width: 48px;
+      height: 48px;
+      stroke: #cbd5e1;
       margin-bottom: 16px;
-      opacity: 0.5;
-      display: block;
     }
 
     .no-streams h3 {
@@ -216,7 +240,6 @@
       color: #2d3748;
     }
 
-    /* Loading State */
     .loading {
       text-align: center;
       padding: 60px 20px;
@@ -238,76 +261,6 @@
       100% { transform: rotate(360deg); }
     }
 
-    /* Bottom Navigation */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(255, 255, 255, 0.98);
-      backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(255, 255, 255, 0.2);
-      display: flex;
-      justify-content: space-around;
-      padding: 12px 16px;
-      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    .nav-tab {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 8px 12px;
-      border-radius: 12px;
-      transition: all 0.3s ease;
-      cursor: pointer;
-      min-width: 60px;
-    }
-
-    .nav-tab:active {
-      background: rgba(79, 70, 229, 0.1);
-      transform: scale(0.95);
-    }
-
-    .nav-tab.active {
-      background: rgba(79, 70, 229, 0.1);
-    }
-
-    .tab-icon {
-      font-size: 1.5rem;
-      margin-bottom: 4px;
-      transition: all 0.3s ease;
-    }
-
-    .nav-tab.active .tab-icon {
-      transform: scale(1.1);
-      color: #4f46e5;
-    }
-
-    .tab-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: #4a5568;
-    }
-
-    .nav-tab.active .tab-label {
-      color: #4f46e5;
-    }
-
-    /* Admin Link */
-    .admin-link {
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    .admin-link a {
-      color: #4f46e5;
-      font-weight: 600;
-      text-decoration: none;
-      font-size: 0.9rem;
-    }
-
-    /* Fullscreen styles */
     .fullscreen-mode {
       position: fixed;
       top: 0;
@@ -334,118 +287,85 @@
       border-radius: 50%;
       width: 40px;
       height: 40px;
-      font-size: 1.2rem;
       cursor: pointer;
       z-index: 1001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .exit-fullscreen svg {
+      width: 24px;
+      height: 24px;
+      stroke: white;
     }
 
-    /* Responsive adjustments */
     @media (max-width: 480px) {
-      .stream-card {
-        padding: 16px;
-      }
-      
-      .header h1 {
-        font-size: 1.4rem;
-      }
-    }
-
-    @media (min-width: 768px) {
-      .center {
-        max-width: 400px;
-      }
-      
-      .bottom-nav {
-        max-width: 400px;
-        margin-left: auto;
-        margin-right: auto;
-        border-radius: 20px 20px 0 0;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: calc(100% - 40px);
-      }
+      .stream-card { padding: 16px; }
+      .header h1 { font-size: 1.4rem; }
     }
   </style>
 </head>
 <body>
-  <!-- Header -->
   <div class="header">
-    <h1>🔴 Live Streams</h1>
+    <h1>
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+      Live Streams
+    </h1>
     <div class="welcome-text">Watch live gaming tournaments in real-time</div>
   </div>
 
-  <!-- Main Content -->
   <div class="center">
-    <!-- Video Player Section -->
     <div class="video-container" id="videoContainer" style="display: none;">
       <div class="now-playing">
-        <div class="now-playing-badge">🔴 NOW PLAYING</div>
+        <div class="now-playing-badge"><span class="live-dot"></span> NOW PLAYING</div>
       </div>
       <div id="videoPlayer" class="video-player"></div>
       <div class="video-title" id="currentVideoTitle"></div>
       <div class="video-controls">
-        <button class="control-btn next-btn" onclick="playNextStream()">▶️ Next Stream</button>
-        <button class="control-btn fullscreen-btn" onclick="enterFullscreen()">⛶ Fullscreen</button>
+        <button class="control-btn next-btn" onclick="playNextStream()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Next Stream
+        </button>
+        <button class="control-btn fullscreen-btn" onclick="enterFullscreen()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+          Fullscreen
+        </button>
       </div>
     </div>
 
-    <!-- Streams List -->
-    <div class="streams-container" id="streamsList">
-      <!-- Streams will be loaded here -->
-    </div>
+    <div class="streams-container" id="streamsList"></div>
+  </div>
 
-
-  <!-- Fullscreen Mode -->
   <div class="fullscreen-mode" id="fullscreenMode">
-    <button class="exit-fullscreen" onclick="exitFullscreen()">✕</button>
+    <button class="exit-fullscreen" onclick="exitFullscreen()">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
     <div id="fullscreenVideo" class="fullscreen-video"></div>
   </div>
 
-  <!-- Bottom Navigation -->
-  <div class="bottom-nav">
-    <div class="nav-tab" data-page="dashboard.html">
-      <div class="tab-icon">🏠</div>
-      <div class="tab-label">Home</div>
-    </div>
-    <div class="nav-tab" data-page="tournament.html">
-      <div class="tab-icon">🎮</div>
-      <div class="tab-label">Tournament</div>
-    </div>
-    <div class="nav-tab active" data-page="live.html">
-      <div class="tab-icon">🔴</div>
-      <div class="tab-label">Live</div>
-    </div>
-    <div class="nav-tab" data-page="account.html">
-      <div class="tab-icon">👤</div>
-      <div class="tab-label">Account</div>
-    </div>
-  </div>
+  <!-- Footer Container -->
+  <div id="footerContainer"></div>
 
-  <!-- YouTube IFrame API -->
   <script>
-    const API_BASE = "https://gaming-continental.onrender.com";;
+    const API_BASE = window.location.origin;
     let currentStreamIndex = 0;
     let player;
     let fullscreenPlayer;
     let streams = [];
 
-    // Load YouTube IFrame API
     const tag = document.createElement('script');
     tag.src = "https://www.youtube.com/iframe_api";
     const firstScriptTag = document.getElementsByTagName('script')[0];
     firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-    // YouTube player ready callback
     function onYouTubeIframeAPIReady() {
       loadStreams();
     }
 
-    // Load streams from MongoDB backend
     async function loadStreams() {
       const list = document.getElementById("streamsList");
       
-      // Show loading state
       list.innerHTML = `
         <div class="loading">
           <div class="loading-spinner"></div>
@@ -456,27 +376,19 @@
       try {
         const response = await fetch(`${API_BASE}/livestream`);
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch streams');
-        }
+        if (!response.ok) throw new Error('Failed to fetch streams');
         
         streams = await response.json();
         
-        // Hide video player if no streams
         if (streams.length === 0) {
           document.getElementById('videoContainer').style.display = 'none';
-          if (player) {
-            player.stopVideo();
-          }
+          if (player) player.stopVideo();
         }
         
         displayStreams(streams);
         
-        // Auto-play the first stream if available and no video is currently playing
         if (streams.length > 0 && (!player || player.getPlayerState() === -1 || player.getPlayerState() === 0 || player.getPlayerState() === 5)) {
-          setTimeout(() => {
-            playStream(0);
-          }, 1000);
+          setTimeout(() => { playStream(0); }, 1000);
         }
         
       } catch (err) {
@@ -499,11 +411,12 @@
         const streamCard = document.createElement("div");
         streamCard.className = "stream-card";
         streamCard.innerHTML = `
-          <div class="live-badge">🔴 LIVE NOW</div>
+          <div class="live-badge"><span class="live-dot"></span> LIVE NOW</div>
           <div class="stream-title">${stream.tournament}</div>
           <div class="stream-description">${stream.description}</div>
           <button class="watch-btn" onclick="playStream(${index})">
-            📺 Play This Stream
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            Play This Stream
           </button>
         `;
         list.appendChild(streamCard);
@@ -514,12 +427,11 @@
       const list = document.getElementById("streamsList");
       list.innerHTML = `
         <div class="no-streams">
-          <i>🔴</i>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
           <h3>No Live Streams</h3>
           <p>There are no active streams right now</p>
           <p style="margin-top: 16px; font-size: 0.9rem;">
-            Check back later or 
-        
+            Check back later
           </p>
         </div>
       `;
@@ -531,18 +443,14 @@
       currentStreamIndex = index;
       const stream = streams[index];
       
-      // Show video container
       document.getElementById('videoContainer').style.display = 'block';
       document.getElementById('currentVideoTitle').textContent = stream.tournament;
       
-      // Scroll to video
       document.getElementById('videoContainer').scrollIntoView({ behavior: 'smooth' });
       
-      // Extract YouTube video ID
       const videoId = extractYouTubeId(stream.link);
       
       if (videoId) {
-        // Create or update player
         if (player) {
           player.loadVideoById(videoId);
         } else {
@@ -550,16 +458,8 @@
             height: '220',
             width: '100%',
             videoId: videoId,
-            playerVars: {
-              'autoplay': 1,
-              'controls': 1,
-              'rel': 0,
-              'modestbranding': 1
-            },
-            events: {
-              'onReady': onPlayerReady,
-              'onStateChange': onPlayerStateChange
-            }
+            playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0, 'modestbranding': 1 },
+            events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange }
           });
         }
       }
@@ -571,21 +471,13 @@
       playStream(nextIndex);
     }
 
-    function onPlayerReady(event) {
-      event.target.playVideo();
-    }
-
-    function onPlayerStateChange(event) {
-      // Handle player state changes if needed
-    }
+    function onPlayerReady(event) { event.target.playVideo(); }
+    function onPlayerStateChange(event) {}
 
     function extractYouTubeId(url) {
       if (!url) return null;
-      
-      // Handle various YouTube URL formats
       const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(live\/))([^#\&\?]*).*/;
       const match = url.match(regExp);
-      
       return (match && match[7].length === 11) ? match[7] : null;
     }
 
@@ -604,12 +496,7 @@
             height: '100%',
             width: '100%',
             videoId: videoId,
-            playerVars: {
-              'autoplay': 1,
-              'controls': 1,
-              'rel': 0,
-              'modestbranding': 1
-            }
+            playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0, 'modestbranding': 1 }
           });
         }
       }
@@ -617,47 +504,27 @@
 
     function exitFullscreen() {
       document.getElementById('fullscreenMode').style.display = 'none';
-      if (fullscreenPlayer) {
-        fullscreenPlayer.stopVideo();
-      }
+      if (fullscreenPlayer) fullscreenPlayer.stopVideo();
     }
 
-    function goPage(page) {
-      window.location.href = page;
-    }
-
-    function setActiveTab() {
-      const tabs = document.querySelectorAll('.nav-tab');
-      tabs.forEach(tab => {
-        tab.classList.remove('active');
-        if (tab.getAttribute('data-page') === 'live.html') {
-          tab.classList.add('active');
-        }
-      });
-    }
-
-    function setupNavigation() {
-      const navTabs = document.querySelectorAll('.nav-tab');
-      navTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-          const page = this.getAttribute('data-page');
-          goPage(page);
-        });
-      });
-    }
-
-    // Auto-refresh streams every 30 seconds to check for new streams
     function startAutoRefresh() {
-      setInterval(() => {
-        loadStreams();
-      }, 30000);
+      setInterval(() => { loadStreams(); }, 30000);
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-      setActiveTab();
-      setupNavigation();
       startAutoRefresh();
+
+      // ✅ Load Footer
+      fetch('footer.html')
+        .then(res => res.text())
+        .then(html => {
+          document.getElementById('footerContainer').innerHTML = html;
+          if (typeof setupFooter === 'function') setupFooter();
+        });
     });
   </script>
+
+  <!-- ✅ Load footer script -->
+  <script src="footer.js"></script>
 </body>
 </html>

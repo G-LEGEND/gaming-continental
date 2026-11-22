@@ -7,19 +7,16 @@
   <link rel="stylesheet" href="style.css" />
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       font-family: "Poppins", Arial, sans-serif;
       background: #f5f6fa;
       margin: 0;
       padding: 16px;
+      padding-bottom: 90px;
       color: #222;
       -webkit-tap-highlight-color: transparent;
     }
-
     .account-container {
       width: 100%;
       max-width: 380px;
@@ -29,15 +26,13 @@
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
       padding: 20px;
     }
-
     h1 {
       text-align: center;
       font-size: 1.4rem;
       margin-bottom: 16px;
       color: #111;
     }
-
-    input {
+    input, select {
       width: 100%;
       padding: 12px;
       margin-bottom: 10px;
@@ -46,7 +41,6 @@
       font-size: 15px;
       background: #fafafa;
     }
-
     button {
       width: 100%;
       padding: 12px;
@@ -59,28 +53,10 @@
       cursor: pointer;
       transition: 0.2s ease;
     }
-
-    button:active {
-      background: #0f4da5;
-      transform: scale(0.98);
-    }
-
-    .success {
-      color: #0b6138;
-      text-align: center;
-      font-weight: 600;
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
-
-    .error {
-      color: #b91c1c;
-      text-align: center;
-      font-weight: 600;
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
-
+    button:active { background: #0f4da5; transform: scale(0.98); }
+    .success { color: #0b6138; text-align: center; font-weight: 600; margin-bottom: 10px; font-size: 14px; }
+    .error { color: #b91c1c; text-align: center; font-weight: 600; margin-bottom: 10px; font-size: 14px; }
+    
     #accountDetails {
       display: none;
       background: #f8fafc;
@@ -90,29 +66,17 @@
       margin-top: 14px;
       font-size: 15px;
     }
-
     #accountDetails h3 {
       margin-top: 0;
       font-size: 1.1rem;
       color: #1766d1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-
-    #accountDetails p {
-      margin: 6px 0;
-      line-height: 1.4;
-    }
-
-    .edit-btn {
-      background: #f59e0b;
-      margin-top: 10px;
-    }
-
-    @media (min-width: 600px) {
-      body {
-        max-width: 450px;
-        margin: 0 auto;
-      }
-    }
+    #accountDetails p { margin: 6px 0; line-height: 1.4; }
+    .edit-btn { background: #f59e0b; margin-top: 10px; }
+    @media (min-width: 600px) { body { max-width: 450px; margin: 0 auto; } }
   </style>
 </head>
 
@@ -121,19 +85,28 @@
     <h1>My Account</h1>
     <div id="accountMessage"></div>
 
-    <!-- ✅ Account creation form -->
     <form id="accountForm">
       <input type="text" id="firstName" placeholder="First Name" required />
       <input type="text" id="lastName" placeholder="Last Name" required />
       <input type="text" id="accountNumber" placeholder="Account Number" required />
-      <input type="text" id="bankName" placeholder="Bank Name" required />
+      
+      <!-- ✅ Changed to Select Dropdown for Paystack Bank List -->
+      <select id="bankName" required>
+        <option value="">Loading banks...</option>
+      </select>
+      
       <input type="tel" id="phoneNumber" placeholder="Phone Number" />
       <button type="submit" id="submitBtn">Save Bank Details</button>
     </form>
 
-    <!-- ✅ Display saved bank details -->
     <div id="accountDetails">
-      <h3>✅ Your Bank Details</h3>
+      <h3>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1766d1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        Your Bank Details
+      </h3>
       <p><strong>Account Name:</strong> <span id="savedAccountName"></span></p>
       <p><strong>Account Number:</strong> <span id="savedAccountNumber"></span></p>
       <p><strong>Bank Name:</strong> <span id="savedBankName"></span></p>
@@ -142,15 +115,13 @@
     </div>
   </div>
 
-  <div id="footerContainer" style="margin-top: 30px;"></div>
+  <div id="footerContainer"></div>
 
   <script>
-    // ✅ Wait for DOM to be fully loaded
     document.addEventListener("DOMContentLoaded", function() {
-      const API_BASE = "https://gaming-continental.onrender.com";
+      const API_BASE = window.location.origin;
       const userId = localStorage.getItem("userId");
 
-      // 🔒 Basic protection - just check if user ID exists
       if (!userId) {
         alert("Please login first!");
         window.location.href = "index.html";
@@ -161,222 +132,145 @@
       const form = document.getElementById("accountForm");
       const details = document.getElementById("accountDetails");
       const submitBtn = document.getElementById("submitBtn");
+      const bankSelect = document.getElementById("bankName");
 
-      // ✅ Ensure form is visible on initial load
       if (form) form.style.display = "block";
       if (details) details.style.display = "none";
 
-      // ✅ Show message helper
+      // ✅ Fetch official Paystack Bank List
+      async function loadBanks() {
+        try {
+          const res = await fetch(`${API_BASE}/paystack/banks`);
+          const data = await res.json();
+          
+          if (Array.isArray(data)) {
+            bankSelect.innerHTML = '<option value="">Select your bank</option>';
+            data.forEach(bank => {
+              const opt = document.createElement("option");
+              opt.value = bank.name;
+              opt.textContent = bank.name;
+              bankSelect.appendChild(opt);
+            });
+          } else {
+            bankSelect.innerHTML = '<option value="">Failed to load banks</option>';
+          }
+        } catch (err) {
+          bankSelect.innerHTML = '<option value="">Error loading banks</option>';
+        }
+      }
+
+      loadBanks();
+
       function showMessage(message, isError = false) {
         if (messageEl) {
           messageEl.textContent = message;
           messageEl.className = isError ? 'error' : 'success';
           messageEl.style.display = 'block';
-          
-          setTimeout(() => {
-            if (messageEl) messageEl.style.display = 'none';
-          }, 5000);
+          setTimeout(() => { messageEl.style.display = 'none'; }, 5000);
         }
       }
 
-      // ✅ Show edit form
       window.showEditForm = function() {
         if (details) details.style.display = "none";
         if (form) form.style.display = "block";
       }
 
-      // ✅ Fetch current user details - FIXED VERSION
       async function loadUser() {
         try {
-          if (!userId) {
-            showMessage("Please login again", true);
-            setTimeout(() => {
-              window.location.href = "index.html";
-            }, 2000);
-            return;
-          }
-
           let userData = null;
-
-          // ✅ Try localStorage first (fastest)
           const localUser = localStorage.getItem("user");
           if (localUser) {
-            try {
-              userData = JSON.parse(localUser);
-              console.log("✅ Using cached user data from localStorage");
-            } catch (e) {
-              console.log("❌ Error parsing localStorage data");
-            }
+            try { userData = JSON.parse(localUser); } catch (e) {}
           }
 
-          // ✅ If no cached data or cache is old, try to fetch from server
           if (!userData || !userData.bankDetails) {
-            console.log("🔄 Fetching fresh data from server...");
-            
-            // Try multiple endpoints
-            const endpoints = [
-              `${API_BASE}/user/${userId}`,
-              `${API_BASE}/user/profile?userId=${userId}`,
-              `${API_BASE}/auth/me`
-            ];
-
-            for (const endpoint of endpoints) {
-              try {
-                console.log(`Trying endpoint: ${endpoint}`);
-                const res = await fetch(endpoint, {
-                  headers: {
-                    "Authorization": `Bearer ${localStorage.getItem("token") || ""}`,
-                    "Content-Type": "application/json"
-                  }
-                });
-
-                if (res.ok) {
-                  userData = await res.json();
-                  console.log("✅ User data loaded from:", endpoint);
-                  
-                  // ✅ Update localStorage with fresh data
-                  localStorage.setItem("user", JSON.stringify(userData));
-                  break;
-                } else {
-                  console.log(`❌ ${endpoint} failed:`, res.status);
-                }
-              } catch (err) {
-                console.log(`Endpoint ${endpoint} error:`, err.message);
-                continue;
-              }
+            const res = await fetch(`${API_BASE}/auth/me?userId=${userId}`);
+            if (res.ok) {
+              userData = await res.json();
+              localStorage.setItem("user", JSON.stringify(userData));
             }
           }
 
           if (!userData) {
-            console.log("❌ Could not load user data from any source");
             showMessage("Could not load account data", true);
             return;
           }
 
-          // ✅ Fill form fields with existing data
           if (form) {
             if (userData.firstName) form.firstName.value = userData.firstName || "";
             if (userData.lastName) form.lastName.value = userData.lastName || "";
             if (userData.phoneNumber) form.phoneNumber.value = userData.phoneNumber || "";
 
-            // Fill bank details if they exist
             if (userData.bankDetails) {
               if (userData.bankDetails.accountNumber) form.accountNumber.value = userData.bankDetails.accountNumber || "";
               if (userData.bankDetails.bankName) form.bankName.value = userData.bankDetails.bankName || "";
             }
           }
 
-          // ✅ Show details section if bank details exist
           if (userData.bankDetails && userData.bankDetails.accountNumber && details) {
             details.style.display = "block";
             if (form) form.style.display = "none";
             
-            // Display saved details
-            document.getElementById("savedAccountName").textContent = 
-              `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || "Not provided";
+            document.getElementById("savedAccountName").textContent = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || "Not provided";
             document.getElementById("savedAccountNumber").textContent = userData.bankDetails.accountNumber;
             document.getElementById("savedBankName").textContent = userData.bankDetails.bankName;
             document.getElementById("savedPhoneNumber").textContent = userData.phoneNumber || "Not provided";
-            
-            console.log("✅ Showing saved bank details");
           } else {
-            // No bank details yet, show form
             if (details) details.style.display = "none";
             if (form) form.style.display = "block";
-            console.log("ℹ️ No bank details found, showing form");
           }
 
         } catch (err) {
-          console.error("❌ Load user failed:", err);
-          showMessage("Error loading account details: " + err.message, true);
+          showMessage("Error loading account details", true);
         }
       }
 
-      // ✅ Save / update user account info - NO TOKEN AUTHENTICATION
       if (form) {
         form.addEventListener("submit", async (e) => {
           e.preventDefault();
           
-          console.log("🔍 FORM SUBMISSION STARTED");
-          
           const firstName = form.firstName.value.trim();
           const lastName = form.lastName.value.trim();
           const accountNumber = form.accountNumber.value.trim();
-          const bankName = form.bankName.value.trim();
+          const bankName = form.bankName.value;
           const phoneNumber = form.phoneNumber.value.trim();
 
-          console.log("📝 Form data:", { firstName, lastName, accountNumber, bankName, phoneNumber });
-
-          // Basic validation
           if (!firstName || !lastName || !accountNumber || !bankName) {
-            console.log("❌ Validation failed - missing fields");
-            showMessage("Please fill in all required fields", true);
-            return;
+            return showMessage("Please fill in all required fields", true);
           }
 
           if (accountNumber.length < 10 || !/^\d+$/.test(accountNumber)) {
-            showMessage("Please enter a valid account number (at least 10 digits)", true);
-            return;
+            return showMessage("Please enter a valid account number (at least 10 digits)", true);
           }
 
-          // ✅ FLAT STRUCTURE for POST endpoint
-          const body = {
-            firstName: firstName,
-            lastName: lastName,
-            accountNumber: accountNumber,
-            bankName: bankName,
-            phoneNumber: phoneNumber
-          };
+          const body = { firstName, lastName, accountNumber, bankName, phoneNumber };
 
-          console.log("📦 Request body:", body);
-          console.log("🔑 User ID:", userId);
-          console.log("🔄 Making request to:", `${API_BASE}/user/update-account/${userId}`);
-
-          // Show loading state
           if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.textContent = "Saving...";
           }
 
           try {
-            // ✅ NO TOKEN IN HEADERS - Simple POST request
             const res = await fetch(`${API_BASE}/user/update-account/${userId}`, {
               method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify(body),
             });
 
-            console.log("📡 Response status:", res.status);
-            console.log("📡 Response ok:", res.ok);
-
-            if (!res.ok) {
-              const errorText = await res.text();
-              console.log("❌ Error response:", errorText);
-              throw new Error(errorText || "Failed to update account");
-            }
+            if (!res.ok) throw new Error("Failed to update account");
 
             const data = await res.json();
-            console.log("✅ Success response:", data);
-            showMessage("✅ Bank details saved successfully!");
+            showMessage("Bank details saved successfully!");
 
-            // ✅ IMPORTANT: Update localStorage with the fresh user data from response
             if (data.user) {
               localStorage.setItem("user", JSON.stringify(data.user));
-              console.log("✅ Updated localStorage with fresh user data");
             }
 
-            // Reload user data to update display
-            setTimeout(() => {
-              loadUser();
-            }, 1000);
+            setTimeout(() => { loadUser(); }, 1000);
 
           } catch (err) {
-            console.error("❌ Update failed:", err);
             showMessage("Error: " + err.message, true);
           } finally {
-            // Reset button state
             if (submitBtn) {
               submitBtn.disabled = false;
               submitBtn.textContent = "Save Bank Details";
@@ -385,8 +279,14 @@
         });
       }
 
-      // ✅ Load user data on page load
       loadUser();
+      
+      fetch('footer.html')
+        .then(res => res.text())
+        .then(html => {
+          document.getElementById('footerContainer').innerHTML = html;
+          if (typeof setupFooter === 'function') setupFooter();
+        });
     });
   </script>
 

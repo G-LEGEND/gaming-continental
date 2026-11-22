@@ -4,45 +4,33 @@
   <meta charset="UTF-8">
   <title>Deposit Funds</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- ✅ Load Paystack Inline JS -->
+  <script src="https://js.paystack.co/v1/inline.js"></script>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
       padding: 20px;
+      padding-bottom: 90px;
       color: #333;
       line-height: 1.5;
     }
-    
-    .container {
-      max-width: 100%;
-      margin: 0 auto;
-    }
-    
-    .header {
-      text-align: center;
-      margin-bottom: 30px;
-      color: white;
-    }
-    
+    .container { max-width: 100%; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 30px; color: white; }
     .header h1 {
       font-size: 2rem;
       font-weight: 700;
       margin-bottom: 8px;
       text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
     }
-    
-    .header p {
-      font-size: 1rem;
-      opacity: 0.9;
-    }
-    
+    .header h1 svg { width: 32px; height: 32px; stroke: white; }
+    .header p { font-size: 1rem; opacity: 0.9; }
     .card {
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
@@ -52,11 +40,7 @@
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
-    
-    .form-group {
-      margin-bottom: 20px;
-    }
-    
+    .form-group { margin-bottom: 20px; }
     .form-label {
       display: block;
       font-weight: 600;
@@ -64,11 +48,7 @@
       color: #2d3748;
       font-size: 1rem;
     }
-    
-    .input-wrapper {
-      position: relative;
-    }
-    
+    .input-wrapper { position: relative; }
     .input-wrapper::before {
       content: '₦';
       position: absolute;
@@ -80,7 +60,6 @@
       z-index: 2;
       font-size: 1.1rem;
     }
-    
     .form-input {
       width: 100%;
       padding: 16px 16px 16px 40px;
@@ -91,24 +70,36 @@
       background: white;
       transition: all 0.3s ease;
     }
-    
     .form-input:focus {
       outline: none;
       border-color: #4f46e5;
       box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
     }
-    
-    .form-input::placeholder {
-      color: #a0aec0;
-      font-weight: normal;
+    .form-input::placeholder { color: #a0aec0; font-weight: normal; }
+    .quick-amounts {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 10px;
     }
-    
+    .quick-btn {
+      padding: 10px 4px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #1e293b;
+    }
+    .quick-btn:active { background: #4f46e5; color: white; transform: scale(0.95); }
     .btn {
       width: 100%;
       padding: 18px 24px;
       border: none;
       border-radius: 12px;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.3s ease;
@@ -117,183 +108,40 @@
       justify-content: center;
       gap: 8px;
     }
-    
-    .btn-primary {
-      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    .btn-paystack {
+      background: linear-gradient(135deg, #00c3f7, #0ba4e0);
       color: white;
-      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+      box-shadow: 0 4px 15px rgba(11, 164, 224, 0.4);
     }
-    
-    .btn-primary:active {
-      transform: translateY(2px);
-      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
-    }
-    
-    .btn-success {
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: white;
-      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
-    }
-    
-    .btn-success:active {
-      transform: translateY(2px);
-      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-    }
-    
-    .btn-secondary {
-      background: #007bff;
-      color: white;
-      font-size: 0.9rem;
-      padding: 10px 16px;
+    .btn-paystack:active { transform: translateY(2px); }
+    .info-box {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 14px;
       border-radius: 8px;
-    }
-    
-    .btn-secondary:active {
-      background: #0056b3;
-      transform: translateY(1px);
-    }
-    
-    .methods-section {
-      margin-top: 24px;
-    }
-    
-    .methods-header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    
-    .methods-header h2 {
-      font-size: 1.4rem;
-      color: #2d3748;
-      font-weight: 700;
-    }
-    
-    .payment-method {
-      background: linear-gradient(135deg, #4f46e5, #7c3aed);
-      color: white;
-      padding: 20px;
-      border-radius: 16px;
-      margin-bottom: 16px;
-      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
-    }
-    
-    .method-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    
-    .method-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-    }
-    
-    .method-badge {
-      background: rgba(255, 255, 255, 0.2);
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-    
-    .method-detail {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    .method-detail:last-child {
-      border-bottom: none;
-      margin-bottom: 0;
-      padding-bottom: 0;
-    }
-    
-    .detail-label {
-      font-weight: 600;
-      opacity: 0.9;
-      min-width: 120px;
-    }
-    
-    .detail-value {
-      font-weight: 700;
-      font-size: 1rem;
-    }
-    
-    .copy-section {
-      display: flex;
-      align-items: center;
-      gap: 12px;
       margin-top: 16px;
+      font-size: 13px;
+      color: #1e40af;
+      line-height: 1.5;
     }
-    
-    .account-number {
-      flex: 1;
-      background: rgba(255, 255, 255, 0.1);
-      padding: 12px;
-      border-radius: 8px;
-      font-family: 'Courier New', monospace;
-      font-weight: 700;
-      font-size: 1.1rem;
-      letter-spacing: 1px;
-    }
-    
-    .no-methods {
-      text-align: center;
-      padding: 40px 20px;
-      color: #718096;
-    }
-    
-    .no-methods i {
-      font-size: 3rem;
-      margin-bottom: 16px;
-      opacity: 0.5;
-    }
-    
-    .hidden { 
-      display: none; 
-    }
-    
+    .hidden { display: none; }
     .loading {
       opacity: 0.7;
       pointer-events: none;
       position: relative;
     }
-    
     .loading::after {
       content: '';
       position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 20px;
-      height: 20px;
+      top: 50%; left: 50%;
+      width: 20px; height: 20px;
       margin: -10px 0 0 -10px;
-      border: 2px solid #ffffff;
+      border: 2px solid #fff;
       border-top: 2px solid transparent;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    /* Success animation */
-    @keyframes successPulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
-    
-    .success-pulse {
-      animation: successPulse 0.6s ease-in-out;
-    }
-    
-    /* Toast notification */
+    @keyframes spin { 100% { transform: rotate(360deg); } }
     .toast {
       position: fixed;
       top: 20px;
@@ -307,257 +155,183 @@
       font-weight: 600;
       transform: translateX(400px);
       transition: transform 0.3s ease;
+      max-width: 320px;
+      font-size: 14px;
     }
-    
-    .toast.show {
-      transform: translateX(0);
-    }
-    
-    .toast.error {
-      background: #dc2626;
-    }
-    
-    /* Responsive design */
-    @media (min-width: 768px) {
-      .container {
-        max-width: 400px;
-      }
-    }
-    
-    /* Touch-friendly sizes */
+    .toast.show { transform: translateX(0); }
+    .toast.error { background: #dc2626; }
+    @media (min-width: 768px) { .container { max-width: 420px; } }
     @media (max-width: 380px) {
-      .card {
-        padding: 20px;
-      }
-      
-      .btn {
-        padding: 16px 20px;
-        font-size: 1rem;
-      }
-      
-      .payment-method {
-        padding: 16px;
-      }
+      .card { padding: 20px; }
+      .btn { padding: 16px 20px; font-size: 1rem; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Header -->
     <div class="header">
-      <h1>💰 Deposit Funds</h1>
-      <p>Add money to your gaming account</p>
+      <h1>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 3h12l4 6-10 12L2 9z"></path>
+        </svg>
+        Deposit Funds
+      </h1>
+      <p>Add money instantly with Paystack</p>
     </div>
 
-    <!-- Deposit Amount Card -->
     <div class="card">
       <div class="form-group">
         <label class="form-label">Enter Amount (₦)</label>
         <div class="input-wrapper">
-          <input type="number" id="depositAmount" class="form-input" placeholder="5000" min="100" required />
+          <input type="number" id="depositAmount" class="form-input" placeholder="1000" min="100" required />
         </div>
-        <div style="text-align: center; margin-top: 8px;">
+        <div class="quick-amounts">
+          <button class="quick-btn" onclick="setAmount(500)">₦500</button>
+          <button class="quick-btn" onclick="setAmount(1000)">₦1K</button>
+          <button class="quick-btn" onclick="setAmount(2000)">₦2K</button>
+          <button class="quick-btn" onclick="setAmount(5000)">₦5K</button>
+          <button class="quick-btn" onclick="setAmount(10000)">₦10K</button>
+          <button class="quick-btn" onclick="setAmount(20000)">₦20K</button>
+          <button class="quick-btn" onclick="setAmount(50000)">₦50K</button>
+          <button class="quick-btn" onclick="setAmount(100000)">₦100K</button>
+        </div>
+        <div style="text-align: center; margin-top: 12px;">
           <small style="color: #718096;">Minimum deposit: ₦100</small>
         </div>
       </div>
-      
-      <button class="btn btn-primary" onclick="showPaymentMethods()">
-        💳 Continue to Deposit
-      </button>
-    </div>
 
-    <!-- Payment Methods Section -->
-    <div id="paymentMethods" class="hidden">
-      <div class="card methods-section">
-        <div class="methods-header">
-          <h2>🏦 Select Payment Method</h2>
-          <p style="color: #718096; margin-top: 4px;">Choose your preferred bank</p>
-        </div>
-        
-        <div id="methodsList">
-          <!-- Payment methods will be loaded here -->
-        </div>
+      <button class="btn btn-paystack" onclick="payWithPaystack(this)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
+        Pay with Paystack
+      </button>
+
+      <div class="info-box">
+        <strong>Secure Payment:</strong> Your card details are safe. Paystack handles all transactions. Your balance will be credited instantly after payment.
       </div>
     </div>
   </div>
 
-  <script>
-    const API_BASE = "https://gaming-continental.onrender.com";
-    const userId = localStorage.getItem("userId");
-    const token = localStorage.getItem("token");
+  <div id="footerContainer"></div>
 
-    // Show toast notification
+  <script>
+    const API_BASE = window.location.origin;
+    const userId = localStorage.getItem("userId");
+
+    if (!userId) {
+      alert("Please login first");
+      window.location.href = "index.html";
+    }
+
+    // ✅ Load Paystack Public Key from backend
+    let PAYSTACK_PUBLIC_KEY = "";
+    fetch(`${API_BASE}/paystack/public-key`)
+      .then(r => r.json())
+      .then(d => { 
+        PAYSTACK_PUBLIC_KEY = d.key; 
+        console.log("✅ Paystack Public Key loaded");
+      })
+      .catch(() => showToast("Paystack key missing", true));
+
     function showToast(message, isError = false) {
       const toast = document.createElement('div');
       toast.className = `toast ${isError ? 'error' : ''}`;
       toast.textContent = message;
       document.body.appendChild(toast);
-      
       setTimeout(() => toast.classList.add('show'), 100);
-      
       setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => document.body.removeChild(toast), 300);
-      }, 3000);
+      }, 4000);
     }
 
-    async function showPaymentMethods() {
-      const amount = document.getElementById("depositAmount").value.trim();
-      if (!amount || amount <= 0) {
-        showToast("Please enter a valid deposit amount", true);
-        return;
+    function setAmount(val) {
+      document.getElementById("depositAmount").value = val;
+    }
+
+    async function payWithPaystack(btnElement) {
+      const amount = Number(document.getElementById("depositAmount").value);
+      if (!amount || amount < 100) {
+        return showToast("Minimum deposit is ₦100", true);
       }
 
-      if (amount < 100) {
-        showToast("Minimum deposit is ₦100", true);
-        return;
+      if (!PAYSTACK_PUBLIC_KEY) {
+        return showToast("Payment system not ready. Try again.", true);
       }
 
-      const btn = document.querySelector('.btn-primary');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = "🔄 Loading...";
-      btn.classList.add('loading');
-
+      // Get user's email
+      let userEmail;
       try {
-        const res = await fetch(`${API_BASE}/payment/all`);
-        const data = await res.json();
-        const list = document.getElementById("methodsList");
-        const section = document.getElementById("paymentMethods");
-        list.innerHTML = "";
-
-        if (!res.ok || !Array.isArray(data) || data.length === 0) {
-          list.innerHTML = `
-            <div class="no-methods">
-              <i>🏦</i>
-              <h3>No Payment Methods</h3>
-              <p>Please try again later</p>
-            </div>
-          `;
-          section.classList.remove("hidden");
-          return;
-        }
-
-        data.forEach(method => {
-          const methodElement = document.createElement('div');
-          methodElement.className = 'payment-method';
-          methodElement.innerHTML = `
-            <div class="method-header">
-              <div class="method-title">${method.bankName}</div>
-              <div class="method-badge">Transfer</div>
-            </div>
-            
-            <div class="method-detail">
-              <span class="detail-label">Account Name:</span>
-              <span class="detail-value">${method.accountName}</span>
-            </div>
-            
-            <div class="method-detail">
-              <span class="detail-label">Account Number:</span>
-              <div class="copy-section">
-                <span class="account-number" id="acc-${method._id}">${method.accountNumber}</span>
-                <button class="btn-secondary" onclick="copyAccount('${method._id}')">
-                  📋 Copy
-                </button>
-              </div>
-            </div>
-            
-            <button class="btn btn-success" onclick="confirmPayment('${method._id}', ${amount})" style="margin-top: 16px;">
-              ✅ I Have Paid ₦${parseInt(amount).toLocaleString()}
-            </button>
-          `;
-          list.appendChild(methodElement);
-        });
-
-        section.classList.remove("hidden");
-        
-        // Scroll to payment methods
-        section.scrollIntoView({ behavior: 'smooth' });
-        
+        const res = await fetch(`${API_BASE}/auth/me?userId=${userId}`);
+        if (!res.ok) throw new Error("Could not load user");
+        const user = await res.json();
+        userEmail = user.email;
       } catch (err) {
-        console.error("Error loading payment methods:", err);
-        showToast("Failed to load payment methods", true);
-      } finally {
-        btn.innerHTML = originalText;
-        btn.classList.remove('loading');
+        return showToast("Failed to load user info", true);
       }
-    }
 
-    function copyAccount(id) {
-      const text = document.getElementById(`acc-${id}`).textContent;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast("✅ Account number copied!");
-        
-        // Add visual feedback to the copied button
-        const btn = event.target;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = "✅ Copied!";
-        btn.style.background = '#10b981';
-        
-        setTimeout(() => {
-          btn.innerHTML = originalText;
-          btn.style.background = '';
-        }, 2000);
-      }).catch(err => {
-        showToast("Failed to copy", true);
+      btnElement.classList.add("loading");
+
+      const handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: userEmail,
+        amount: amount * 100, // Paystack uses kobo
+        currency: "NGN",
+        ref: `DEP_${Date.now()}_${userId.slice(-6)}`,
+        metadata: {
+          userId: userId,
+          custom_fields: [
+            { display_name: "User", variable_name: "user_id", value: userId }
+          ]
+        },
+        callback: function(response) {
+          verifyPayment(response.reference);
+        },
+        onClose: function() {
+          btnElement.classList.remove("loading");
+          showToast("Payment cancelled", true);
+        }
       });
+
+      handler.openIframe();
     }
 
-    async function confirmPayment(methodId, amount) {
-      if (!userId || !token) {
-        showToast("Please login first", true);
-        setTimeout(() => window.location.href = "index.html", 2000);
-        return;
-      }
-
-      const btn = event.target;
-      const originalText = btn.innerHTML;
-      btn.innerHTML = "🔄 Processing...";
-      btn.classList.add('loading');
-      btn.disabled = true;
-
+    async function verifyPayment(reference) {
       try {
-        const res = await fetch(`${API_BASE}/deposit/create`, {
+        const res = await fetch(`${API_BASE}/paystack/verify`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token
-          },
-          body: JSON.stringify({ userId, methodId, amount })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reference, userId })
         });
         const data = await res.json();
 
-        if (!res.ok) throw new Error(data.error || "Deposit failed");
+        if (!res.ok) throw new Error(data.error || "Verification failed");
 
-        showToast("✅ Deposit request sent! Waiting for admin approval.");
-        btn.classList.add('success-pulse');
-        
+        showToast(`₦${data.amount.toLocaleString()} added to your balance!`);
+        document.getElementById("depositAmount").value = "";
+
         setTimeout(() => {
           window.location.href = "dashboard.html";
         }, 2000);
-        
       } catch (err) {
-        console.error("Deposit error:", err);
-        showToast(err.message || "Error sending deposit request", true);
-        
-        btn.innerHTML = originalText;
-        btn.classList.remove('loading');
-        btn.disabled = false;
+        console.error("Verify error:", err);
+        showToast(err.message || "Payment verification failed", true);
       }
     }
 
-    // Add input validation
-    document.getElementById('depositAmount').addEventListener('input', function(e) {
-      let value = e.target.value;
-      if (value < 0) e.target.value = '';
+    document.getElementById('depositAmount').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') payWithPaystack(document.querySelector('.btn-paystack'));
     });
 
-    // Enter key support
-    document.getElementById('depositAmount').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        showPaymentMethods();
-      }
+    document.addEventListener("DOMContentLoaded", function() {
+      fetch('footer.html')
+        .then(res => res.text())
+        .then(html => {
+          document.getElementById('footerContainer').innerHTML = html;
+          if (typeof setupFooter === 'function') setupFooter();
+        });
     });
   </script>
-  
+
+  <script src="footer.js"></script>
 </body>
 </html>

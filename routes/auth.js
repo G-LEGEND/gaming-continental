@@ -10,13 +10,27 @@ const JWT_SECRET = process.env.JWT_SECRET || "super_secret_key_change_this";
 function createToken(user) {
   return jwt.sign(
     {
-      id: user._id,           // ✅ Always include user ID
-      email: user.email,      // ✅ Include email for verification convenience
+      id: user._id,
+      email: user.email,
       isAdmin: user.isAdmin || false,
     },
     JWT_SECRET,
-    { expiresIn: "7d" }       // ✅ 7 days for stable sessions
+    { expiresIn: "7d" }
   );
+}
+
+// ----------------- Helper: Check if user is blocked -----------------
+function checkBlockedStatus(user) {
+  if (user.status === "banned") {
+    return { blocked: true, message: "Your account has been banned. Please contact support." };
+  }
+  if (user.status === "suspended") {
+    return { blocked: true, message: "Your account is suspended. Please contact support." };
+  }
+  if (user.status === "inactive") {
+    return { blocked: true, message: "Your account is inactive. Please contact support." };
+  }
+  return { blocked: false };
 }
 
 // ----------------- REGISTER -----------------
@@ -45,6 +59,7 @@ router.post("/register", async (req, res) => {
       balance: 0,
       points: 0,
       isAdmin: false,
+      status: "active",
     });
     await user.save();
 
@@ -59,6 +74,7 @@ router.post("/register", async (req, res) => {
         balance: user.balance,
         points: user.points,
         isAdmin: user.isAdmin,
+        status: user.status,
         firstName: user.firstName || "",
         lastName: user.lastName || "",
         accountNumber: user.accountNumber || "",
@@ -84,9 +100,21 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "User not found" });
     }
 
+    // ✅ Block BEFORE password check to avoid leaking valid passwords
+    const blocked = checkBlockedStatus(user);
+    if (blocked.blocked) {
+      return res.status(403).json({ error: blocked.message });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid credentials" });
+    }
+
+    // ✅ Double-check after password match (in case status changed mid-request)
+    const blocked2 = checkBlockedStatus(user);
+    if (blocked2.blocked) {
+      return res.status(403).json({ error: blocked2.message });
     }
 
     const token = createToken(user);
@@ -100,6 +128,7 @@ router.post("/login", async (req, res) => {
         balance: user.balance,
         points: user.points,
         isAdmin: user.isAdmin,
+        status: user.status,
         firstName: user.firstName || "",
         lastName: user.lastName || "",
         accountNumber: user.accountNumber || "",
@@ -126,6 +155,12 @@ router.get("/me", async (req, res) => {
     const user = await User.findById(decoded.id).select("-password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
+    }
+
+    // ✅ Reject banned/suspended tokens even if JWT is valid
+    const blocked = checkBlockedStatus(user);
+    if (blocked.blocked) {
+      return res.status(403).json({ error: blocked.message, status: user.status });
     }
 
     res.json(user);

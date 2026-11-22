@@ -6,215 +6,423 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
   <style>
+    * { box-sizing: border-box; }
     body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: white;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0b1220;
+      color: #e2e8f0;
       margin: 0;
+      padding: 24px;
+      min-height: 100vh;
+    }
+    .center { max-width: 1100px; margin: 0 auto; }
+
+    /* Header */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(251, 191, 36, 0.3);
+    }
+    .brand-icon svg { width: 24px; height: 24px; stroke: #0b1220; }
+    .brand h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.3px;
+    }
+    .brand p {
+      margin: 2px 0 0 0;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .session-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+    }
+    .session-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      color: #94a3b8;
+    }
+    .session-dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #22c55e;
+    }
+    .logout-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+    .logout-btn:hover { background: #b91c1c; }
+    .logout-btn svg { width: 16px; height: 16px; }
+
+    /* Stats Row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: linear-gradient(145deg, #1e293b, #172033);
+      border: 1px solid #334155;
+      border-radius: 14px;
       padding: 20px;
+      position: relative;
+      overflow: hidden;
     }
-
-    .center {
-      max-width: 1000px;
-      margin: 0 auto;
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
     }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 25px;
-      color: gold;
+    .stat-label {
+      font-size: 12px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      margin-bottom: 8px;
     }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.5px;
+    }
+    .stat-value.loading { color: #475569; font-size: 20px; }
 
-    /* Admin Navigation */
+    /* Navigation Grid */
+    .nav-section-title {
+      font-size: 13px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
     .admin-nav {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-      gap: 20px;
-      justify-items: center;
-      margin-bottom: 30px;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
     }
-
     .admin-btn {
       display: flex;
       flex-direction: column;
       align-items: center;
-      text-align: center;
-      cursor: pointer;
-      background: transparent;
-      border: none;
-    }
-
-    .admin-btn .circle {
-      width: 65px;
-      height: 65px;
-      border-radius: 50%;
-      background: gold;
-      box-shadow: 0 0 12px gold, 0 0 25px rgba(255,215,0,0.6);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 24px;
-      margin-bottom: 6px;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .admin-btn:hover .circle {
-      transform: scale(1.1);
-      box-shadow: 0 0 18px gold, 0 0 35px rgba(255,215,0,0.9);
-    }
-
-    .admin-btn span {
-      color: white;
-      font-size: 13px;
-    }
-
-    /* Summary */
-    .summary-card {
+      gap: 10px;
+      padding: 18px 12px;
       background: #1e293b;
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      font-size: 18px;
-      color: #f8fafc;
-      box-shadow: 0 0 10px rgba(255,215,0,0.3);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      cursor: pointer;
+      color: #cbd5e1;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s;
     }
+    .admin-btn:hover {
+      background: #293548;
+      border-color: #fbbf24;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(251, 191, 36, 0.15);
+    }
+    .admin-btn:hover .nav-icon {
+      background: #fbbf24;
+      color: #0b1220;
+    }
+    .admin-btn .nav-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #0b1220;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fbbf24;
+      transition: all 0.15s;
+    }
+    .admin-btn .nav-icon svg { width: 22px; height: 22px; }
 
     /* Table */
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .table-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .refresh-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .refresh-btn:hover { background: #293548; color: #f8fafc; }
+    .refresh-btn svg { width: 14px; height: 14px; }
+
     .table-container {
       overflow-x: auto;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
-      background: #1e293b;
-      border-radius: 8px;
-      overflow: hidden;
-      color: #f8fafc;
+      font-size: 13px;
     }
-
     th, td {
-      padding: 10px;
+      padding: 14px 16px;
       text-align: left;
-      border-bottom: 1px solid #334155;
+      border-bottom: 1px solid #1e293b;
     }
-
     th {
       background: #0f172a;
-      font-weight: bold;
+      color: #64748b;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.7px;
     }
-
-    tr:hover {
-      background: #334155;
-    }
-
-    .muted {
-      color: #9ca3af;
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(251, 191, 36, 0.03); }
+    td { color: #cbd5e1; }
+    .cell-balance { color: #22c55e; font-weight: 700; }
+    .cell-id { font-family: ui-monospace, monospace; color: #64748b; font-size: 12px; }
+    .cell-name { color: #f8fafc; font-weight: 600; }
+    .cell-rank {
+      display: inline-block;
+      background: rgba(251, 191, 36, 0.1);
+      color: #fbbf24;
+      padding: 3px 10px;
+      border-radius: 6px;
       font-size: 12px;
+      font-weight: 700;
     }
 
-    .logout-btn {
+    .loading-cell {
+      text-align: center;
+      padding: 60px 20px;
+      color: #64748b;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #1e293b;
+      border-top-color: #fbbf24;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box {
+      background: rgba(220, 38, 38, 0.1);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      color: #fca5a5;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .retry-btn {
+      margin-top: 12px;
       background: #dc2626;
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 8px 18px;
       border-radius: 8px;
       cursor: pointer;
-      margin-bottom: 20px;
-      font-weight: bold;
+      font-weight: 600;
+      font-size: 13px;
     }
 
-    .logout-btn:hover {
-      background: #b91c1c;
-    }
-
-    .admin-info {
-      background: #1e293b;
-      padding: 10px 15px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      text-align: center;
-      color: #9ca3af;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #9ca3af;
-    }
-
-    .error {
-      color: #ef4444;
-      text-align: center;
-      padding: 20px;
-    }
-
-    @media (max-width: 600px) {
-      th, td {
-        font-size: 12px;
-        padding: 8px;
-      }
-      h1 {
-        font-size: 20px;
-      }
+    @media (max-width: 640px) {
+      body { padding: 16px; }
+      .top-bar { flex-direction: column; gap: 16px; align-items: flex-start; }
+      .brand h1 { font-size: 18px; }
+      th, td { padding: 10px 12px; font-size: 12px; }
+      .stat-value { font-size: 22px; }
+      .admin-nav { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); }
+      .admin-btn { padding: 14px 8px; font-size: 11px; }
+      .admin-btn .nav-icon { width: 36px; height: 36px; }
     }
   </style>
 </head>
 <body>
   <div class="center">
-    <h1>⚜️ Admin Dashboard</h1>
 
-    <!-- Admin Info -->
-    <div class="admin-info" id="adminInfo">
-      Loading...
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
+        </div>
+        <div>
+          <h1>Admin Dashboard</h1>
+          <p>Gaming Continental</p>
+        </div>
+      </div>
+      <div class="session-info">
+        <div class="session-pill">
+          <span class="session-dot"></span>
+          <span id="adminInfo">Loading...</span>
+        </div>
+        <button class="logout-btn" onclick="logoutAdmin()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
+        </button>
+      </div>
     </div>
 
-    <!-- Logout Button -->
-    <button class="logout-btn" onclick="logoutAdmin()">🚪 Logout</button>
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total User Balance</div>
+        <div class="stat-value loading" id="totalBalance">Loading...</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Users</div>
+        <div class="stat-value loading" id="totalUsers">Loading...</div>
+      </div>
+    </div>
 
     <!-- Navigation -->
+    <div class="nav-section-title">Management</div>
     <div class="admin-nav">
       <button class="admin-btn" onclick="goPage('admin-dashboard.html')">
-        <div class="circle">🏠</div><span>Dashboard</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+        </div>
+        Dashboard
       </button>
-      <button class="admin-btn" onclick="goPage('admin-account.html')">
-        <div class="circle">👤</div><span>Accounts</span>
+      <button class="admin-btn" onclick="goPage('admin-users.html')">
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        Users
       </button>
       <button class="admin-btn" onclick="goPage('admin-bet.html')">
-        <div class="circle">🎲</div><span>Bets</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg>
+        </div>
+        Bets
       </button>
       <button class="admin-btn" onclick="goPage('admin-deposit.html')">
-        <div class="circle">💳</div><span>Deposits</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        </div>
+        Deposits
       </button>
       <button class="admin-btn" onclick="goPage('admin-payment-method.html')">
-        <div class="circle">🏦</div><span>Payment</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="21"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="5 10 12 3 19 10"/><rect x="6" y="14" width="3" height="4"/><rect x="15" y="14" width="3" height="4"/></svg>
+        </div>
+        Payment
       </button>
       <button class="admin-btn" onclick="goPage('admin-withdraw.html')">
-        <div class="circle">🏧</div><span>Withdrawals</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        </div>
+        Withdrawals
       </button>
       <button class="admin-btn" onclick="goPage('admin-live.html')">
-        <div class="circle">🎦</div><span>YouTube</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </div>
+        Streams
       </button>
       <button class="admin-btn" onclick="goPage('admin-tournament.html')">
-        <div class="circle">🎮</div><span>Tournaments</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+        </div>
+        Tournaments
       </button>
       <button class="admin-btn" onclick="goPage('admin-rank.html')">
-        <div class="circle">📊</div><span>Ranking</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </div>
+        Ranking
       </button>
       <button class="admin-btn" onclick="goPage('admin-livescores.html')">
-        <div class="circle">📺</div><span>Live Scores</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        Live Scores
       </button>
       <button class="admin-btn" onclick="goPage('settings.html')">
-        <div class="circle">⚙️</div><span>Settings</span>
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        Settings
       </button>
-    </div>
-
-    <!-- Summary -->
-    <div class="summary-card">
-      🌍 Total User Balance: <span id="totalBalance">Loading...</span>
     </div>
 
     <!-- User Table -->
+    <div class="table-header">
+      <div class="table-title">Recent Users</div>
+      <button class="refresh-btn" onclick="loadUsers()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh
+      </button>
+    </div>
     <div class="table-container">
       <table id="usersTable">
         <thead>
@@ -223,38 +431,33 @@
             <th>User ID</th>
             <th>Nickname</th>
             <th>Email</th>
-            <th>Balance (₦)</th>
+            <th>Balance</th>
             <th>Rank</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td colspan="6" class="loading">Loading users...</td>
+            <td colspan="6" class="loading-cell">
+              <div class="spinner"></div>
+              Loading users...
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
-<script>
-    const API_BASE = "https://gaming-continental.onrender.com";
 
-    // ✅ Simple session check - no tokens
+<script>
+    const API_BASE = window.location.origin;
+
     function checkAdminAuth() {
       const adminEmail = localStorage.getItem("adminEmail");
       const adminLoggedIn = localStorage.getItem("adminLoggedIn");
-      
-      console.log("🔍 Checking admin session:");
-      console.log("adminEmail:", adminEmail);
-      console.log("adminLoggedIn:", adminLoggedIn);
-      
       if (adminLoggedIn !== "true" || !adminEmail) {
-        console.log("❌ No admin session found, redirecting to login");
         alert("Please login as admin first");
         window.location.href = "admin.html";
         return false;
       }
-      
-      console.log("✅ Admin session valid");
       return true;
     }
 
@@ -264,7 +467,6 @@
     }
 
     function logoutAdmin() {
-      // Also call server logout endpoint
       const adminEmail = localStorage.getItem("adminEmail");
       if (adminEmail) {
         fetch(`${API_BASE}/admin/logout`, {
@@ -273,7 +475,6 @@
           body: JSON.stringify({ email: adminEmail })
         }).catch(console.error);
       }
-      
       localStorage.removeItem("adminLoggedIn");
       localStorage.removeItem("adminEmail");
       window.location.href = "admin.html";
@@ -282,30 +483,21 @@
     function updateAdminInfo() {
       const adminEmail = localStorage.getItem("adminEmail");
       const adminInfoEl = document.getElementById("adminInfo");
-      
       if (adminEmail) {
-        adminInfoEl.textContent = `Logged in as: ${adminEmail}`;
-        adminInfoEl.style.color = "#4ade80";
+        adminInfoEl.textContent = adminEmail;
       } else {
         adminInfoEl.textContent = "Not logged in";
-        adminInfoEl.style.color = "#f87171";
       }
     }
 
-    // ✅ Updated fetch with admin email
     async function fetchAdminData(url, opts = {}) {
       const adminEmail = localStorage.getItem("adminEmail");
-      
-      if (!adminEmail) {
-        throw new Error("Admin email not found");
-      }
+      if (!adminEmail) throw new Error("Admin email not found");
 
-      // Ensure we have a body for POST requests, or create one for GET
       let body = opts.body;
       if (!body && opts.method === 'POST') {
         body = JSON.stringify({ email: adminEmail });
       } else if (body) {
-        // Parse existing body and add email
         const parsedBody = typeof body === 'string' ? JSON.parse(body) : body;
         body = JSON.stringify({ ...parsedBody, email: adminEmail });
       }
@@ -313,9 +505,7 @@
       let res;
       try {
         res = await fetch(url, {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           ...opts,
           body: body || opts.body
         });
@@ -323,7 +513,6 @@
         throw new Error("Network error: " + (err.message || err));
       }
 
-      // Handle 403 - Admin not logged in (session expired)
       if (res.status === 403) {
         localStorage.removeItem("adminLoggedIn");
         localStorage.removeItem("adminEmail");
@@ -333,64 +522,43 @@
       }
 
       let json;
-      try { 
-        json = await res.json(); 
-      } catch { 
-        json = null; 
-      }
+      try { json = await res.json(); } catch { json = null; }
 
       if (!res.ok) {
         const msg = (json && (json.error || json.message)) || res.statusText || "Request failed";
         throw new Error(msg);
       }
-
       return json;
     }
 
     async function loadUsers() {
-      // Check authentication first
       if (!checkAdminAuth()) return;
 
       try {
-        console.log("📡 Loading users from API...");
-        
-        // Try different possible endpoints
-        const endpoints = [
-          '/admin/users',
-          '/user/all'
-        ];
-
+        const endpoints = ['/admin/users', '/user/all'];
         let users = [];
         let workingEndpoint = '';
 
-        // Try each endpoint until one works
         for (let endpoint of endpoints) {
           try {
-            console.log(`🔄 Trying endpoint: ${API_BASE}${endpoint}`);
-            
-            // For admin endpoints, we need to send the email
             if (endpoint.startsWith('/admin/')) {
               const data = await fetchAdminData(`${API_BASE}${endpoint}`, {
                 method: 'POST',
-                body: JSON.stringify({}) // Email will be added automatically
+                body: JSON.stringify({})
               });
               users = data;
             } else {
-              // For public endpoints, use regular fetch
               const data = await fetch(`${API_BASE}${endpoint}`);
               if (!data.ok) throw new Error('Endpoint failed');
               users = await data.json();
             }
-            
             workingEndpoint = endpoint;
-            console.log(`✅ Success with ${endpoint}`);
             break;
           } catch (err) {
-            console.log(`❌ Failed with ${endpoint}:`, err.message);
+            console.log(`Failed with ${endpoint}:`, err.message);
           }
         }
 
-        // If no endpoint worked, show error
         if (users.length === 0 && !workingEndpoint) {
           throw new Error('No working users endpoint found');
         }
@@ -399,14 +567,11 @@
         tbody.innerHTML = "";
 
         if (!Array.isArray(users) || users.length === 0) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="6" style="text-align: center; color: #9ca3af;">
-                No users found
-              </td>
-            </tr>
-          `;
+          tbody.innerHTML = `<tr><td colspan="6" class="loading-cell">No users found</td></tr>`;
           document.getElementById("totalBalance").textContent = "₦0";
+          document.getElementById("totalBalance").classList.remove("loading");
+          document.getElementById("totalUsers").textContent = "0";
+          document.getElementById("totalUsers").classList.remove("loading");
           return;
         }
 
@@ -416,34 +581,40 @@
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td>${i + 1}</td>
-            <td class="muted">${u._id ? u._id.substring(0, 8) + '...' : 'N/A'}</td>
-            <td>${u.nickname || "—"}</td>
+            <td class="cell-id">${u._id ? u._id.substring(0, 8) + '...' : 'N/A'}</td>
+            <td class="cell-name">${u.nickname || "—"}</td>
             <td>${u.email || "—"}</td>
-            <td>₦${(u.balance || 0).toLocaleString()}</td>
-            <td>${u.rank || "-"}</td>
+            <td class="cell-balance">₦${(u.balance || 0).toLocaleString()}</td>
+            <td><span class="cell-rank">${u.rank || "—"}</span></td>
           `;
           tbody.appendChild(tr);
         });
 
-        document.getElementById("totalBalance").textContent = 
-          `₦${total.toLocaleString()}`;
+        const balEl = document.getElementById("totalBalance");
+        balEl.textContent = `₦${total.toLocaleString()}`;
+        balEl.classList.remove("loading");
+
+        const usersEl = document.getElementById("totalUsers");
+        usersEl.textContent = users.length.toLocaleString();
+        usersEl.classList.remove("loading");
 
       } catch (err) {
-        console.error("❌ Failed to load users:", err);
-        
-        // Don't show error if it's due to session expiry (already handled)
+        console.error("Failed to load users:", err);
         if (err.message !== "Admin session expired") {
-          document.getElementById("totalBalance").textContent = "Error loading data";
-          
+          document.getElementById("totalBalance").textContent = "—";
+          document.getElementById("totalBalance").classList.remove("loading");
+          document.getElementById("totalUsers").textContent = "—";
+          document.getElementById("totalUsers").classList.remove("loading");
+
           const tbody = document.querySelector("#usersTable tbody");
           tbody.innerHTML = `
             <tr>
-              <td colspan="6" class="error">
-                Failed to load users: ${err.message}
-                <br><br>
-                <button onclick="loadUsers()" style="background: #38bdf8; margin-top: 10px;">
-                  🔄 Retry
-                </button>
+              <td colspan="6" class="loading-cell">
+                <div class="error-box">
+                  Failed to load users: ${err.message}
+                  <br>
+                  <button class="retry-btn" onclick="loadUsers()">Retry</button>
+                </div>
               </td>
             </tr>
           `;
@@ -452,18 +623,11 @@
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-      console.log("🚀 Admin dashboard loaded");
-      
-      // Check authentication on page load
       if (!checkAdminAuth()) return;
-      
-      // Update admin info display
       updateAdminInfo();
-      
-      // Load users
       loadUsers();
     });
-  </script>
-  
+</script>
+
 </body>
 </html>

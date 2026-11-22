@@ -5,58 +5,33 @@
   <title>Admin – Withdrawals | Gaming Continental</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
+    * { box-sizing: border-box; }
     body {
       font-family: "Poppins", Arial, sans-serif;
-      background:#0b1220;
-      color:#fff;
-      padding:22px;
+      background: #0b1220;
+      color: #fff;
+      padding: 22px;
+      margin: 0;
     }
-    .center { max-width:1100px; margin: 30px auto; }
-    h1 { text-align:center; margin-bottom:18px; color:#fff; }
-    table {
-      width:100%;
-      border-collapse: collapse;
-      background:#111827;
-      border-radius:8px;
-      overflow:hidden;
+    .center { max-width: 1200px; margin: 30px auto; }
+    h1 { text-align: center; margin-bottom: 18px; color: #fff; }
+    
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
     }
-    th, td {
-      padding:12px;
-      text-align:left;
-      border-bottom:1px solid rgba(255,255,255,0.04);
-      vertical-align:middle;
+    .admin-info {
+      background: #1e293b;
+      padding: 10px 15px;
+      border-radius: 8px;
+      color: #4ade80;
+      font-weight: 600;
+      font-size: 14px;
     }
-    th {
-      background:#0f1724;
-      color:#94a3b8;
-    }
-    tr:hover {
-      background: rgba(255,255,255,0.03);
-    }
-    .actions button {
-      padding:8px 12px;
-      margin-right:6px;
-      border:none;
-      border-radius:6px;
-      cursor:pointer;
-      font-weight:700;
-    }
-    .approve { background:#16a34a; color:#021018; }
-    .decline { background:#dc2626; color:#fff; }
-    .copy-btn {
-      background:#f59e0b;
-      color:#021018;
-      border:none;
-      padding:6px 8px;
-      border-radius:6px;
-      cursor:pointer;
-      font-size:12px;
-    }
-    .muted { color:#94a3b8; font-size:13px; }
-    .status-approved { color:#16a34a; font-weight:bold; }
-    .status-rejected { color:#dc2626; font-weight:bold; }
-    .status-pending { color:#f59e0b; font-weight:bold; }
-    .loading { opacity:0.6; pointer-events:none; }
     .logout-btn {
       background: #dc2626;
       color: white;
@@ -64,429 +39,392 @@
       padding: 10px 20px;
       border-radius: 8px;
       cursor: pointer;
-      margin-bottom: 20px;
       font-weight: bold;
-    }
-    .admin-info {
-      background: #1e293b;
-      padding: 10px 15px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      text-align: center;
-      color: #9ca3af;
+      font-size: 14px;
     }
     .refresh-btn {
       background: #38bdf8;
       color: white;
       border: none;
-      padding: 8px 15px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .refresh-btn:hover { background: #0ea5e9; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #111827;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      vertical-align: middle;
+    }
+    th {
+      background: #0f1724;
+      color: #94a3b8;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    tr:hover { background: rgba(255,255,255,0.03); }
+
+    .actions button {
+      padding: 8px 12px;
+      margin-right: 6px;
+      border: none;
       border-radius: 6px;
       cursor: pointer;
-      margin: 5px;
+      font-weight: 700;
+      font-size: 13px;
     }
-    .debug-info {
-      background: #334155;
-      padding: 10px;
+    .approve { background: #16a34a; color: white; }
+    .approve:hover { background: #15803d; }
+    .decline { background: #dc2626; color: white; }
+    .decline:hover { background: #b91c1c; }
+    
+    .copy-btn {
+      background: #f59e0b;
+      color: #021018;
+      border: none;
+      padding: 6px 10px;
       border-radius: 6px;
-      margin: 10px 0;
-      font-family: monospace;
+      cursor: pointer;
       font-size: 12px;
+      font-weight: bold;
+    }
+    .copy-btn:hover { background: #d97706; }
+
+    .status-approved { color: #16a34a; font-weight: bold; }
+    .status-rejected { color: #dc2626; font-weight: bold; }
+    .status-pending { color: #f59e0b; font-weight: bold; }
+    
+    .muted { color: #94a3b8; font-size: 12px; margin-top: 4px; }
+    
+    .account-box {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .account-box strong { color: #4ade80; }
+    .account-box .acct-number {
+      font-family: monospace;
+      font-size: 16px;
+      color: #fff;
+      letter-spacing: 1px;
+      font-weight: bold;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #94a3b8;
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 10px; }
+
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 14px 24px;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      z-index: 1000;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+      max-width: 320px;
+    }
+    .toast.show { transform: translateX(0); }
+    .toast.success { background: #16a34a; }
+    .toast.error { background: #dc2626; }
+
+    @media (max-width: 768px) {
+      table { font-size: 13px; }
+      th, td { padding: 10px 6px; }
+      .account-box { padding: 6px; }
     }
   </style>
 </head>
 <body>
-  <div class="admin-info" id="adminInfo">Loading...</div>
-  <button class="logout-btn" onclick="logoutAdmin()">🚪 Logout</button>
-  
   <div class="center">
-    <h1>🏦 Admin Withdrawals</h1>
     
-    <div style="text-align: center; margin: 15px 0;">
-      <button class="refresh-btn" onclick="loadWithdrawals()">🔄 Refresh Withdrawals</button>
-      <button class="refresh-btn" onclick="testAllEndpoints()">🧪 Test All Endpoints</button>
+    <div class="header-actions">
+      <div class="admin-info" id="adminInfo">Loading...</div>
+      <div>
+        <button class="refresh-btn" onclick="loadWithdrawals()">🔄 Refresh</button>
+        <button class="logout-btn" onclick="logoutAdmin()">Logout</button>
+      </div>
     </div>
 
-    <div class="debug-info" id="debugInfo">
-      Debug info will appear here...
-    </div>
-    
-    <table id="withdrawTable" aria-live="polite">
+    <h1>🏦 Withdrawal Requests</h1>
+
+    <table id="withdrawTable">
       <thead>
         <tr>
-          <th>#</th>
           <th>User</th>
-          <th>Amount (₦)</th>
-          <th>Account Name</th>
-          <th>Account Number</th>
-          <th>Bank</th>
-          <th>Phone</th>
+          <th>Amount</th>
+          <th>Bank Details (Copy to Bank App)</th>
           <th>Status</th>
           <th>Date</th>
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody></tbody>
+      <tbody>
+        <tr><td colspan="6" style="text-align:center; padding:40px;">Loading...</td></tr>
+      </tbody>
     </table>
+
   </div>
 
-  <script>
-    const API_BASE = "https://gaming-continental.onrender.com";
+  <div class="toast" id="toast"></div>
 
-    function updateDebugInfo(message) {
-      const debugEl = document.getElementById("debugInfo");
-      debugEl.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
-    }
+<script>
+  const API_BASE = window.location.origin;
 
-    function clearDebugInfo() {
-      const debugEl = document.getElementById("debugInfo");
-      debugEl.innerHTML = "Debug info will appear here...";
-    }
+  function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className = "toast show " + type;
+    setTimeout(() => toast.classList.remove("show"), 4000);
+  }
 
-    // ✅ Simple session check - no tokens
-    function checkAdminAuth() {
-      const adminEmail = localStorage.getItem("adminEmail");
-      const adminLoggedIn = localStorage.getItem("adminLoggedIn");
-      
-      if (adminLoggedIn !== "true" || !adminEmail) {
-        alert("Please login as admin first");
-        window.location.href = "admin.html";
-        return false;
-      }
-      return true;
-    }
-
-    function logoutAdmin() {
-      const adminEmail = localStorage.getItem("adminEmail");
-      if (adminEmail) {
-        fetch(`${API_BASE}/admin/logout`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: adminEmail })
-        }).catch(console.error);
-      }
-      
-      localStorage.removeItem("adminLoggedIn");
-      localStorage.removeItem("adminEmail");
+  // ✅ Simple session check
+  function checkAdminAuth() {
+    const adminEmail = localStorage.getItem("adminEmail");
+    const adminLoggedIn = localStorage.getItem("adminLoggedIn");
+    
+    if (adminLoggedIn !== "true" || !adminEmail) {
+      alert("Please login as admin first");
       window.location.href = "admin.html";
+      return false;
     }
+    return true;
+  }
 
-    function updateAdminInfo() {
+  function logoutAdmin() {
+    const adminEmail = localStorage.getItem("adminEmail");
+    if (adminEmail) {
+      fetch(`${API_BASE}/admin/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail })
+      }).catch(console.error);
+    }
+    localStorage.removeItem("adminLoggedIn");
+    localStorage.removeItem("adminEmail");
+    window.location.href = "admin.html";
+  }
+
+  function updateAdminInfo() {
+    const adminEmail = localStorage.getItem("adminEmail");
+    document.getElementById("adminInfo").textContent = `Logged in as: ${adminEmail || "Unknown"}`;
+  }
+
+  // ✅ Load withdrawals (uses ONLY the correct endpoint)
+  async function loadWithdrawals() {
+    if (!checkAdminAuth()) return;
+
+    const tbody = document.querySelector("#withdrawTable tbody");
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px;">Loading...</td></tr>`;
+
+    try {
       const adminEmail = localStorage.getItem("adminEmail");
-      const adminInfoEl = document.getElementById("adminInfo");
       
-      if (adminEmail) {
-        adminInfoEl.textContent = `Logged in as: ${adminEmail}`;
-        adminInfoEl.style.color = "#4ade80";
-      } else {
-        adminInfoEl.textContent = "Not logged in";
-        adminInfoEl.style.color = "#f87171";
-      }
-    }
+      const res = await fetch(`${API_BASE}/admin/withdrawals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail })
+      });
 
-    // ✅ Test ALL possible endpoints to find the right one
-    async function testAllEndpoints() {
-      if (!checkAdminAuth()) return;
-
-      clearDebugInfo();
-      updateDebugInfo("🧪 Testing ALL withdrawal endpoints...");
-      
-      const adminEmail = localStorage.getItem("adminEmail");
-      
-      // Test all possible combinations
-      const endpoints = [
-        // From your main server.js
-        { url: '/admin/withdrawals', method: 'POST', description: 'Main server endpoint' },
-        
-        // From withdrawal routes (if they exist)
-        { url: '/withdraw/all', method: 'POST', description: 'Withdrawal routes - POST all' },
-        { url: '/withdraw/all', method: 'GET', description: 'Withdrawal routes - GET all' },
-        
-        // From admin routes
-        { url: '/admin/withdrawals', method: 'GET', description: 'Admin routes - GET withdrawals' },
-        
-        // Alternative endpoints
-        { url: '/withdraw', method: 'GET', description: 'Base withdraw endpoint' },
-        { url: '/admin/withdraw', method: 'GET', description: 'Admin withdraw endpoint' },
-        
-        // Test the endpoints we know work
-        { url: '/admin/deposits', method: 'POST', description: 'KNOWN WORKING: Deposits endpoint' },
-      ];
-
-      for (let endpoint of endpoints) {
-        try {
-          updateDebugInfo(`Testing: ${endpoint.method} ${endpoint.url}`);
-          
-          const options = {
-            method: endpoint.method,
-            headers: { "Content-Type": "application/json" }
-          };
-
-          if (endpoint.method === 'POST') {
-            options.body = JSON.stringify({ email: adminEmail });
-          }
-
-          const response = await fetch(`${API_BASE}${endpoint.url}`, options);
-          
-          if (response.ok) {
-            const data = await response.json();
-            updateDebugInfo(`✅ WORKS! Found: ${Array.isArray(data) ? data.length + ' items' : 'data'}`);
-            
-            // If this is a withdrawals endpoint that works, use it
-            if (endpoint.url.includes('withdraw') && Array.isArray(data)) {
-              updateDebugInfo(`🎯 USING THIS ENDPOINT FOR WITHDRAWALS!`);
-              displayWithdrawals(data);
-              return; // Stop testing, we found a working endpoint
-            }
-          } else {
-            updateDebugInfo(`❌ FAILED: ${response.status} - ${endpoint.description}`);
-          }
-        } catch (err) {
-          updateDebugInfo(`❌ ERROR: ${err.message}`);
-        }
-      }
-      
-      updateDebugInfo("❌ No working withdrawal endpoints found!");
-    }
-
-    async function loadWithdrawals() {
-      if (!checkAdminAuth()) return;
-
-      clearDebugInfo();
-      updateDebugInfo("🔄 Loading withdrawals...");
-
-      try {
-        const adminEmail = localStorage.getItem("adminEmail");
-        
-        // Try the endpoint we know exists from your main server.js
-        updateDebugInfo("Trying /admin/withdrawals (from main server)...");
-        const res = await fetch(`${API_BASE}/admin/withdrawals`, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ email: adminEmail })
-        });
-
-        updateDebugInfo(`Response status: ${res.status}`);
-
-        if (!res.ok) {
-          if (res.status === 403) {
-            localStorage.removeItem("adminLoggedIn");
-            localStorage.removeItem("adminEmail");
-            alert("Session expired. Please login again.");
-            window.location.href = "admin.html";
-            return;
-          }
-          
-          // If this endpoint doesn't work, test all endpoints
-          updateDebugInfo("❌ Endpoint failed, testing all endpoints...");
-          await testAllEndpoints();
+      if (!res.ok) {
+        if (res.status === 403) {
+          localStorage.removeItem("adminLoggedIn");
+          localStorage.removeItem("adminEmail");
+          alert("Session expired. Please login again.");
+          window.location.href = "admin.html";
           return;
         }
-
-        const withdrawals = await res.json();
-        updateDebugInfo(`✅ Success! Found ${withdrawals.length} withdrawals`);
-        displayWithdrawals(withdrawals);
-
-      } catch (err) {
-        updateDebugInfo(`❌ Error: ${err.message}`);
-        console.error("Error loading withdrawals:", err);
-      }
-    }
-
-    // ✅ Display withdrawals in table
-    function displayWithdrawals(withdrawals) {
-      const tbody = document.querySelector("#withdrawTable tbody");
-      tbody.innerHTML = "";
-
-      if (!Array.isArray(withdrawals) || withdrawals.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;">No withdrawal requests found</td></tr>`;
-        return;
+        throw new Error(`HTTP ${res.status}`);
       }
 
-      withdrawals.forEach((w, i) => {
-        let acct = {};
-        if (typeof w.accountDetails === "string") {
-          acct = { accountNumber: w.accountDetails };
-        } else {
-          acct = w.accountDetails || {};
-        }
+      const withdrawals = await res.json();
+      displayWithdrawals(withdrawals);
 
-        const user = w.userId || {};
-        const userLabel = user.nickname || user.email || "Unknown User";
-        const accountName =
-          acct.accountName ||
-          `${acct.firstName || ""} ${acct.lastName || ""}`.trim() ||
-          "Not provided";
-        const accountNumber = acct.accountNumber || "-";
-        const bankName = acct.bankName || "-";
-        const phoneNumber = acct.phoneNumber || user.phoneNumber || "-";
+    } catch (err) {
+      console.error("Error loading withdrawals:", err);
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#ef4444;">Failed to load: ${err.message}</td></tr>`;
+    }
+  }
 
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${i + 1}</td>
-          <td>
-            <div>${userLabel}</div>
-            <div class="muted">${user.email || ""}</div>
-            <div class="muted">Balance: ₦${(user.balance || 0).toLocaleString()}</div>
-          </td>
-          <td><strong>₦${Number(w.amount).toLocaleString()}</strong></td>
-          <td>${accountName}</td>
-          <td>
-            <span id="acct-${w._id}">${accountNumber}</span>
-            ${
-              accountNumber && accountNumber !== "-"
-                ? `<button class="copy-btn" onclick="copyToClipboard('${accountNumber}')">Copy</button>`
-                : ""
-            }
-          </td>
-          <td>${bankName}</td>
-          <td>${phoneNumber}</td>
-          <td class="status-${w.status}">${w.status ? w.status.toUpperCase() : 'PENDING'}</td>
-          <td class="muted">${w.createdAt ? new Date(w.createdAt).toLocaleString() : 'Unknown'}</td>
-          <td class="actions">
-            ${
-              w.status === "pending" || !w.status
-                ? `<button class="approve" onclick="approveWithdrawal('${w._id}')">Approve</button>
-                   <button class="decline" onclick="rejectWithdrawal('${w._id}')">Decline</button>`
-                : w.status === "approved"
-                ? '<span class="status-approved">✅ APPROVED</span>'
-                : '<span class="status-rejected">❌ REJECTED</span>'
-            }
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+  // ✅ Display withdrawals
+  function displayWithdrawals(withdrawals) {
+    const tbody = document.querySelector("#withdrawTable tbody");
+    tbody.innerHTML = "";
+
+    if (!Array.isArray(withdrawals) || withdrawals.length === 0) {
+      tbody.innerHTML = `
+        <tr><td colspan="6">
+          <div class="empty-state">
+            <div class="icon">📭</div>
+            <div>No withdrawal requests found</div>
+          </div>
+        </td></tr>`;
+      return;
     }
 
-    function copyToClipboard(text) {
-      navigator.clipboard
-        .writeText(text)
-        .then(() => alert("Account number copied to clipboard!"))
-        .catch(() => {
-          const temp = document.createElement("input");
-          document.body.appendChild(temp);
-          temp.value = text;
-          temp.select();
-          document.execCommand("copy");
-          temp.remove();
-          alert("Account number copied!");
-        });
-    }
+    withdrawals.forEach((w, i) => {
+      const user = w.userId || {};
+      const acct = w.accountDetails || {};
 
-    async function approveWithdrawal(id) {
-      if (!checkAdminAuth()) return;
-      if (!confirm("Approve this withdrawal?")) return;
-      
-      const adminEmail = localStorage.getItem("adminEmail");
-      const table = document.getElementById("withdrawTable");
+      const accountName = acct.accountName || 
+                         `${acct.firstName || ""} ${acct.lastName || ""}`.trim() || 
+                         user.nickname || "Unknown";
+      const accountNumber = acct.accountNumber || "-";
+      const bankName = acct.bankName || "-";
+      const phoneNumber = acct.phoneNumber || user.phoneNumber || "-";
+      const amount = Number(w.amount || 0);
 
-      try {
-        table.classList.add("loading");
-        updateDebugInfo(`Approving withdrawal ${id}...`);
-        
-        // Try multiple approval endpoints
-        const endpoints = [
-          '/admin/withdrawals/approve/' + id,
-          '/withdraw/approve/' + id,
-          '/admin/withdraw/approve/' + id
-        ];
+      // Build the copy payload for easy pasting into banking app
+      const copyPayload = `${accountNumber} - ${bankName} - ${accountName} (₦${amount.toLocaleString()})`;
 
-        for (let endpoint of endpoints) {
-          try {
-            updateDebugInfo(`Trying: POST ${endpoint}`);
-            const res = await fetch(`${API_BASE}${endpoint}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: adminEmail })
-            });
-
-            if (res.ok) {
-              const data = await res.json();
-              updateDebugInfo("✅ Withdrawal approved successfully!");
-              alert("✅ Withdrawal approved successfully!");
-              loadWithdrawals();
-              return;
-            } else {
-              updateDebugInfo(`❌ Failed: ${res.status}`);
-            }
-          } catch (err) {
-            updateDebugInfo(`❌ Error: ${err.message}`);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>
+          <div><strong>${user.nickname || "Unknown"}</strong></div>
+          <div class="muted">${user.email || ""}</div>
+          <div class="muted">Bal: ₦${(user.balance || 0).toLocaleString()}</div>
+        </td>
+        <td>
+          <strong style="color: #f59e0b; font-size: 18px;">₦${amount.toLocaleString()}</strong>
+        </td>
+        <td>
+          <div class="account-box">
+            <div><strong>Bank:</strong> ${bankName}</div>
+            <div><strong>Acct:</strong> <span class="acct-number">${accountNumber}</span></div>
+            <div><strong>Name:</strong> ${accountName}</div>
+            <div><strong>Phone:</strong> ${phoneNumber}</div>
+          </div>
+          ${accountNumber !== "-" ? `
+            <button class="copy-btn" onclick="copyText('${accountNumber}')" style="margin-right: 4px;">📋 Copy Acct</button>
+            <button class="copy-btn" onclick="copyText('${copyPayload.replace(/'/g, "\\'")}')">📋 Copy All</button>
+          ` : ""}
+        </td>
+        <td class="status-${w.status}">${(w.status || 'pending').toUpperCase()}</td>
+        <td class="muted">${w.createdAt ? new Date(w.createdAt).toLocaleString() : '-'}</td>
+        <td class="actions">
+          ${w.status === "pending" || !w.status
+            ? `<button class="approve" onclick="approveWithdrawal('${w._id}')">✅ Approve</button>
+               <button class="decline" onclick="rejectWithdrawal('${w._id}')">❌ Decline</button>`
+            : w.status === "approved"
+            ? '<span class="status-approved">✅ APPROVED</span>'
+            : '<span class="status-rejected">❌ REJECTED</span>'
           }
-        }
-        
-        throw new Error("No approval endpoint worked");
-
-      } catch (err) {
-        updateDebugInfo(`❌ Approval failed: ${err.message}`);
-        alert("❌ " + err.message);
-      } finally {
-        table.classList.remove("loading");
-      }
-    }
-
-    async function rejectWithdrawal(id) {
-      if (!checkAdminAuth()) return;
-      const note = prompt("Reason for rejection (optional):");
-      if (note === null) return;
-      
-      const adminEmail = localStorage.getItem("adminEmail");
-      const table = document.getElementById("withdrawTable");
-
-      try {
-        table.classList.add("loading");
-        updateDebugInfo(`Rejecting withdrawal ${id}...`);
-        
-        // Try multiple rejection endpoints
-        const endpoints = [
-          '/admin/withdrawals/reject/' + id,
-          '/withdraw/reject/' + id,
-          '/admin/withdraw/reject/' + id
-        ];
-
-        for (let endpoint of endpoints) {
-          try {
-            updateDebugInfo(`Trying: POST ${endpoint}`);
-            const res = await fetch(`${API_BASE}${endpoint}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email: adminEmail, note })
-            });
-
-            if (res.ok) {
-              const data = await res.json();
-              updateDebugInfo("✅ Withdrawal rejected successfully!");
-              alert("❌ Withdrawal rejected!");
-              loadWithdrawals();
-              return;
-            } else {
-              updateDebugInfo(`❌ Failed: ${res.status}`);
-            }
-          } catch (err) {
-            updateDebugInfo(`❌ Error: ${err.message}`);
-          }
-        }
-        
-        throw new Error("No rejection endpoint worked");
-
-      } catch (err) {
-        updateDebugInfo(`❌ Rejection failed: ${err.message}`);
-        alert("❌ " + err.message);
-      } finally {
-        table.classList.remove("loading");
-      }
-    }
-
-    // Load on page start
-    document.addEventListener("DOMContentLoaded", function() {
-      updateDebugInfo("🚀 Page loaded");
-      if (!checkAdminAuth()) return;
-      updateAdminInfo();
-      loadWithdrawals();
+        </td>
+      `;
+      tbody.appendChild(tr);
     });
+  }
 
-    // Auto-refresh every 30 seconds
-    setInterval(loadWithdrawals, 30000);
-  </script>
+  // ✅ Copy text to clipboard
+  function copyText(text) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("Copied: " + text.substring(0, 40), "success");
+      }).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    const temp = document.createElement("input");
+    document.body.appendChild(temp);
+    temp.value = text;
+    temp.select();
+    document.execCommand("copy");
+    temp.remove();
+    showToast("Copied!", "success");
+  }
+
+  // ✅ Approve withdrawal
+  async function approveWithdrawal(id) {
+    if (!checkAdminAuth()) return;
+    if (!confirm("⚠️ Make sure you have ALREADY SENT the money to this user before clicking Approve.\n\nHave you sent the money?")) return;
+
+    const adminEmail = localStorage.getItem("adminEmail");
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/withdrawals/approve/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Approval failed");
+      }
+
+      showToast("✅ Withdrawal approved & user balance deducted", "success");
+      loadWithdrawals();
+
+    } catch (err) {
+      showToast("❌ " + err.message, "error");
+    }
+  }
+
+  // ✅ Reject withdrawal
+  async function rejectWithdrawal(id) {
+    if (!checkAdminAuth()) return;
+    const note = prompt("Reason for rejection (optional):");
+    if (note === null) return;
+
+    const adminEmail = localStorage.getItem("adminEmail");
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/withdrawals/reject/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail, note })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Rejection failed");
+      }
+
+      showToast("❌ Withdrawal rejected", "success");
+      loadWithdrawals();
+
+    } catch (err) {
+      showToast("❌ " + err.message, "error");
+    }
+  }
+
+  // Load on start
+  document.addEventListener("DOMContentLoaded", function() {
+    if (!checkAdminAuth()) return;
+    updateAdminInfo();
+    loadWithdrawals();
+  });
+
+  // Auto-refresh every 20 seconds
+  setInterval(loadWithdrawals, 20000);
+</script>
 </body>
 </html>

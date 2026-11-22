@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Militia - Lobby</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: radial-gradient(circle at center, #1e293b 0%, #020617 100%); color: white; min-height: 100vh; padding: 20px; padding-bottom: 90px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .header h1 { font-size: 24px; display: flex; align-items: center; gap: 10px; }
+    .header h1 svg { width: 32px; height: 32px; stroke: #facc15; }
+    .balance-box { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); color: #22c55e; padding: 8px 16px; border-radius: 20px; font-weight: 700; }
+    .tabs { display: flex; background: #1e293b; border-radius: 12px; padding: 4px; margin-bottom: 24px; }
+    .tab { flex: 1; padding: 12px; text-align: center; font-weight: 700; border-radius: 8px; cursor: pointer; transition: 0.2s; color: #94a3b8; }
+    .tab.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); }
+    .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+    .input-field { width: 100%; padding: 16px; background: rgba(0,0,0,0.3); border: 2px solid #334155; border-radius: 12px; color: white; font-size: 16px; font-weight: 600; outline: none; transition: 0.2s; }
+    .input-field:focus { border-color: #3b82f6; }
+    select.input-field { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 16px center; background-size: 20px; padding-right: 48px; }
+    .mode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .mode-opt { padding: 16px 10px; background: rgba(0,0,0,0.3); border: 2px solid #334155; border-radius: 12px; text-align: center; cursor: pointer; font-weight: 700; transition: 0.2s; }
+    .mode-opt.active { background: rgba(59, 130, 246, 0.2); border-color: #3b82f6; color: #60a5fa; }
+    .bot-odds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .bot-opt { padding: 12px 5px; background: rgba(0,0,0,0.3); border: 2px solid #334155; border-radius: 10px; text-align: center; font-size: 13px; cursor: pointer; font-weight: 600; }
+    .bot-opt.active { border-color: #facc15; color: #facc15; background: rgba(250, 204, 21, 0.1); }
+    .bot-opt small { display: block; font-size: 11px; color: #22c55e; margin-top: 4px; }
+    .btn { width: 100%; padding: 18px; border: none; border-radius: 12px; font-size: 18px; font-weight: 900; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; text-transform: uppercase; letter-spacing: 1px; transition: transform 0.1s; }
+    .btn:active { transform: scale(0.96); }
+    .btn-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 6px 0 #1e40af; }
+    .btn-green { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; box-shadow: 0 6px 0 #166534; }
+    .btn-yellow { background: linear-gradient(135deg, #facc15, #ca8a04); color: #422006; box-shadow: 0 6px 0 #854d0e; }
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #dc2626; color: white; padding: 14px 24px; border-radius: 12px; font-weight: 700; transition: 0.3s; z-index: 1000; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .hidden { display: none !important; }
+    #waitingRoom { text-align: center; }
+    .room-code { font-size: 48px; font-weight: 900; letter-spacing: 8px; color: #facc15; text-shadow: 0 0 20px rgba(250, 204, 21, 0.5); margin: 20px 0; }
+    .player-list { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 12px; margin-bottom: 20px; text-align: left; }
+    .player-item { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; }
+    .player-item:last-child { border: none; }
+    .map-badge { display: inline-block; padding: 6px 14px; background: rgba(59,130,246,0.2); border: 1px solid #3b82f6; color: #60a5fa; border-radius: 20px; font-size: 13px; font-weight: 700; margin-top: 8px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"></path><path d="M20.5 10H19V8.5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"></path><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"></path><path d="M3.5 14H5v1.5c0 .83-.67 1.5-1.5 1.5S2 16.33 2 15.5 2.67 14 3.5 14z"></path><path d="M14 14.5c0-.83.67-1.5 1.5-1.5h5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-5c-.83 0-1.5-.67-1.5-1.5z"></path><path d="M15.5 2c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S14 9.33 14 8.5v-5c0-.83.67-1.5 1.5-1.5z"></path><path d="M10 9.5C10 8.67 9.33 8 8.5 8h-5C2.67 8 2 8.67 2 9.5S2.67 11 3.5 11h5c.83 0 1.5-.67 1.5-1.5z"></path></svg>
+      Mini Militia
+    </h1>
+    <div class="balance-box">₦<span id="topBalance">0.00</span></div>
+  </div>
+
+  <div class="tabs" id="navTabs">
+    <div class="tab active" onclick="switchTab('host')">Host Game</div>
+    <div class="tab" onclick="switchTab('join')">Join Game</div>
+    <div class="tab" onclick="switchTab('bot')">Vs Computer</div>
+  </div>
+
+  <div id="section-host">
+    <div class="card">
+      <div class="form-group">
+        <label>Game Mode</label>
+        <div class="mode-grid" id="hostModes">
+          <div class="mode-opt active" data-mode="pvp" data-team="1">1v1 Duel</div>
+          <div class="mode-opt" data-mode="pvp" data-team="2">2v2 Team</div>
+          <div class="mode-opt" data-mode="pvp" data-team="3">3v3 Team</div>
+          <div class="mode-opt" data-mode="pvp" data-team="0">FFA (14 Players)</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Stake Amount (₦100 - ₦10,000)</label>
+        <input type="number" id="hostStake" class="input-field" value="500" min="100" max="10000">
+      </div>
+      <div class="form-group">
+        <label>Time Limit (Minutes)</label>
+        <input type="number" id="hostTime" class="input-field" value="3" min="1" max="10">
+      </div>
+      <div class="form-group">
+        <label>Map</label>
+        <select id="mapSelectHost" class="input-field">
+          <option value="0">🎲 Random</option>
+          <option value="1">🗺 Training Grounds</option>
+          <option value="2">🏙 Urban Jungle</option>
+          <option value="3">🏜 Desert Fortress</option>
+          <option value="4">❄️ Frozen Wastes</option>
+          <option value="5">🌋 Volcanic Maze</option>
+        </select>
+      </div>
+      <button class="btn btn-blue" onclick="createRoom()">Create Room</button>
+    </div>
+  </div>
+
+  <div id="section-join" class="hidden">
+    <div class="card">
+      <div class="form-group">
+        <label>Enter Room Code</label>
+        <input type="text" id="joinCode" class="input-field" placeholder="e.g. A8X9Z" style="text-transform: uppercase; text-align: center; font-size: 24px; letter-spacing: 4px;">
+      </div>
+      <button class="btn btn-green" onclick="joinRoom()">Join Match</button>
+    </div>
+  </div>
+
+  <div id="section-bot" class="hidden">
+    <div class="card">
+      <div class="form-group">
+        <label>Stake Amount (₦100 - ₦10,000)</label>
+        <input type="number" id="botStake" class="input-field" value="500" min="100" max="10000">
+      </div>
+      <div class="form-group">
+        <label>Survival Time (Higher time = Higher Odds)</label>
+        <div class="bot-odds" id="botTimes">
+          <div class="bot-opt" data-time="1">1 Min<small>1.2x</small></div>
+          <div class="bot-opt" data-time="2">2 Min<small>2.0x</small></div>
+          <div class="bot-opt active" data-time="3">3 Min<small>3.0x</small></div>
+          <div class="bot-opt" data-time="4">4 Min<small>5.0x</small></div>
+          <div class="bot-opt" data-time="5">5 Min<small>7.0x</small></div>
+          <div class="bot-opt" data-time="6">6 Min<small>9.0x</small></div>
+          <div class="bot-opt" data-time="7">7 Min<small>12x</small></div>
+          <div class="bot-opt" data-time="8">8 Min<small>15x</small></div>
+          <div class="bot-opt" data-time="9">9 Min<small>20x</small></div>
+          <div class="bot-opt" data-time="10">10 Min<small>25x</small></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Map</label>
+        <select id="mapSelectBot" class="input-field">
+          <option value="0">🎲 Random</option>
+          <option value="1">🗺 Training Grounds</option>
+          <option value="2">🏙 Urban Jungle</option>
+          <option value="3">🏜 Desert Fortress</option>
+          <option value="4">❄️ Frozen Wastes</option>
+          <option value="5">🌋 Volcanic Maze</option>
+        </select>
+      </div>
+      <button class="btn btn-yellow" onclick="startBotGame()">Enter The Arena</button>
+    </div>
+  </div>
+
+  <div id="waitingRoom" class="card hidden">
+    <h2 style="margin-bottom: 10px;">Waiting for players...</h2>
+    <p style="color: #94a3b8; font-size: 14px;">Share this code with your opponent:</p>
+    <div class="room-code" id="displayRoomCode">----</div>
+    <div style="text-align: center;"><span class="map-badge" id="displayMapName">🗺 Training Grounds</span></div>
+    <div class="player-list" id="displayPlayerList"></div>
+    <p id="playerCount" style="color: #facc15; font-weight: bold; margin-bottom: 15px;"></p>
+    <button class="btn btn-green hidden" id="startGameBtn" onclick="startHostedGame()">Start Game</button>
+    <button class="btn" style="background: transparent; color: #ef4444; margin-top: 10px;" onclick="cancelRoom()">Cancel Room & Refund</button>
+  </div>
+
+  <div id="toast" class="toast">Error Message</div>
+  <div id="footerContainer"></div>
+
+<script>
+  const API_BASE = window.location.origin;
+  const userId = localStorage.getItem("userId");
+  const MAP_NAMES = { 1: "🗺 Training Grounds", 2: "🏙 Urban Jungle", 3: "🏜 Desert Fortress", 4: "❄️ Frozen Wastes", 5: "🌋 Volcanic Maze" };
+  let currentRoom = null;
+  let pollInterval = null;
+
+  if (!userId) {
+    alert("Please login first");
+    window.location.href = "index.html";
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('section-host').classList.add('hidden');
+    document.getElementById('section-join').classList.add('hidden');
+    document.getElementById('section-bot').classList.add('hidden');
+    document.getElementById(`section-${tab}`).classList.remove('hidden');
+  }
+
+  let selectedHostMode = "pvp";
+  let selectedHostTeam = 1;
+  document.querySelectorAll("#hostModes .mode-opt").forEach(el => {
+    el.addEventListener("click", () => {
+      document.querySelectorAll("#hostModes .mode-opt").forEach(o => o.classList.remove("active"));
+      el.classList.add("active");
+      selectedHostMode = el.dataset.mode;
+      selectedHostTeam = parseInt(el.dataset.team);
+    });
+  });
+
+  let selectedBotTime = 3;
+  document.querySelectorAll("#botTimes .bot-opt").forEach(el => {
+    el.addEventListener("click", () => {
+      document.querySelectorAll("#botTimes .bot-opt").forEach(o => o.classList.remove("active"));
+      el.classList.add("active");
+      selectedBotTime = parseInt(el.dataset.time);
+    });
+  });
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  async function loadBalance() {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me?userId=${userId}`);
+      if (res.ok) {
+        const user = await res.json();
+        document.getElementById("topBalance").textContent = (user.balance || 0).toFixed(2);
+      }
+    } catch (err) {}
+  }
+
+  async function createRoom() {
+    const stake = Number(document.getElementById("hostStake").value);
+    const timeLimit = Number(document.getElementById("hostTime").value);
+    const mapId = Number(document.getElementById("mapSelectHost").value);
+
+    if (stake < 100 || stake > 10000) return showToast("Stake must be ₦100 - ₦10,000");
+    if (timeLimit < 1 || timeLimit > 10) return showToast("Time must be 1 - 10 minutes");
+
+    try {
+      const res = await fetch(`${API_BASE}/mini/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId, mode: selectedHostMode, teamSize: selectedHostTeam, stake, timeLimit, mapId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      currentRoom = data.room;
+      document.querySelectorAll('.tabs, .card, #section-bot, #section-join, #section-host').forEach(el => el.classList.add('hidden'));
+      document.getElementById("waitingRoom").classList.remove("hidden");
+      document.getElementById("displayRoomCode").textContent = currentRoom.roomCode;
+      document.getElementById("displayMapName").textContent = MAP_NAMES[currentRoom.mapId] || MAP_NAMES[1];
+      updatePlayerList(currentRoom.players);
+      loadBalance();
+      pollInterval = setInterval(pollRoom, 2000);
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function pollRoom() {
+    if (!currentRoom) return;
+    try {
+      const res = await fetch(`${API_BASE}/mini/room/${currentRoom.roomCode}`);
+      const data = await res.json();
+      if (res.ok) {
+        currentRoom = data.room;
+        updatePlayerList(currentRoom.players);
+        let maxPlayers = currentRoom.teamSize === 0 ? 14 : currentRoom.teamSize * 2;
+        if (currentRoom.players.length >= maxPlayers) {
+          document.getElementById("startGameBtn").classList.remove("hidden");
+          clearInterval(pollInterval);
+        }
+      }
+    } catch (err) {}
+  }
+
+  function updatePlayerList(players) {
+    const list = document.getElementById("displayPlayerList");
+    list.innerHTML = "";
+    let maxPlayers = 2;
+    if (currentRoom.teamSize === 0) maxPlayers = 14;
+    else maxPlayers = currentRoom.teamSize * 2;
+    document.getElementById("playerCount").textContent = `${players.length} / ${maxPlayers} Players Joined`;
+    players.forEach(p => {
+      list.innerHTML += `<div class="player-item"><span>${p.username}</span> <span style="color:#22c55e;">Ready</span></div>`;
+    });
+  }
+
+  async function startHostedGame() {
+    if (!currentRoom) return;
+    try {
+      const res = await fetch(`${API_BASE}/mini/start/${currentRoom.roomCode}`, { method: "POST" });
+      if (res.ok) {
+        window.location.href = `/mini-militia.html?code=${currentRoom.roomCode}`;
+      }
+    } catch (err) {
+      showToast("Failed to start game");
+    }
+  }
+
+  async function joinRoom() {
+    const code = document.getElementById("joinCode").value.toUpperCase();
+    if (!code) return showToast("Please enter a room code");
+
+    try {
+      const res = await fetch(`${API_BASE}/mini/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, roomCode: code })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      showToast("Joined successfully! Waiting for host to start...");
+      loadBalance();
+      document.querySelectorAll('.tabs, .card, #section-bot, #section-join, #section-host').forEach(el => el.classList.add('hidden'));
+      document.getElementById("waitingRoom").classList.remove("hidden");
+      currentRoom = data.room;
+      document.getElementById("displayRoomCode").textContent = currentRoom.roomCode;
+      document.getElementById("displayMapName").textContent = MAP_NAMES[currentRoom.mapId] || MAP_NAMES[1];
+      updatePlayerList(currentRoom.players);
+      pollInterval = setInterval(async () => {
+        const r = await fetch(`${API_BASE}/mini/room/${code}`);
+        const d = await r.json();
+        if (d.room && d.room.status === "active") {
+          clearInterval(pollInterval);
+          window.location.href = `/mini-militia.html?code=${code}`;
+        }
+      }, 2000);
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function startBotGame() {
+    const stake = Number(document.getElementById("botStake").value);
+    const mapId = Number(document.getElementById("mapSelectBot").value);
+    if (stake < 100 || stake > 10000) return showToast("Stake must be ₦100 - ₦10,000");
+
+    try {
+      const res = await fetch(`${API_BASE}/mini/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, mode: "solo_vs_bot", teamSize: 0, stake, timeLimit: selectedBotTime, mapId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      const startRes = await fetch(`${API_BASE}/mini/start/${data.room.roomCode}`, { method: "POST" });
+      if (startRes.ok) {
+        window.location.href = `/mini-militia.html?code=${data.room.roomCode}`;
+      }
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function cancelRoom() {
+    if (!currentRoom) { location.reload(); return; }
+    if (!confirm("Are you sure you want to cancel? All players (including you) will be refunded.")) return;
+    try {
+      const res = await fetch(`${API_BASE}/mini/cancel/${currentRoom.roomCode}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast("Room cancelled & refunded");
+      setTimeout(() => location.reload(), 1500);
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  window.addEventListener("beforeunload", (e) => {
+    if (currentRoom && currentRoom.players.length < 2) {
+      navigator.sendBeacon(`${API_BASE}/mini/cancel/${currentRoom.roomCode}`);
+    }
+  });
+
+  document.addEventListener("DOMContentLoaded", () => {
+    loadBalance();
+    fetch('footer.html').then(r=>r.text()).then(html=>{
+      document.getElementById('footerContainer').innerHTML = html;
+      if (typeof setupFooter === 'function') setupFooter();
+    });
+  });
+</script>
+<script src="footer.js"></script>
+</body>
+</html>

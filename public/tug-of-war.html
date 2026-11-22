@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tug of War - PvP Arena</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: radial-gradient(circle at center, #1e293b 0%, #020617 100%);
+      color: white;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      z-index: 10;
+    }
+    .player-tag {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .p1-tag { color: #38bdf8; text-shadow: 0 0 10px rgba(56, 189, 248, 0.5); }
+    .p2-tag { color: #f43f5e; text-shadow: 0 0 10px rgba(244, 63, 94, 0.5); }
+    
+    .score-box {
+      background: rgba(255,255,255,0.05);
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 20px;
+      font-weight: 900;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* The Arena */
+    .arena {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      padding: 10px 0;
+      overflow: hidden;
+    }
+
+    /* Background Grid Effect */
+    .arena::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* VERTICAL Rope Container */
+    .rope-container {
+      flex: 1;
+      width: 12px;
+      background: #334155;
+      border-radius: 10px;
+      position: relative;
+      margin: 20px 0;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 15px rgba(255,255,255,0.1);
+      z-index: 1;
+    }
+    
+    .center-line {
+      position: absolute;
+      top: 50%;
+      left: -30px;
+      right: -30px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-50%);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+    
+    /* The Knot & Players */
+    .knot-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      transition: top 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy transition */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 5;
+    }
+
+    .knot {
+      width: 24px;
+      height: 24px;
+      background: #facc15;
+      border-radius: 50%;
+      box-shadow: 0 0 20px #facc15, inset 0 0 5px white;
+      position: relative;
+      z-index: 6;
+      border: 2px solid #fff;
+    }
+
+    /* Cartoon Player 1 (Top - Blue Team) */
+    .player-char-top {
+      position: absolute;
+      bottom: 25px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      filter: drop-shadow(0 -10px 15px rgba(56, 189, 248, 0.3));
+    }
+    
+    /* Cartoon Player 2 (Bottom - Red Team) */
+    .player-char-bottom {
+      position: absolute;
+      top: 25px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      filter: drop-shadow(0 10px 15px rgba(244, 63, 94, 0.3));
+    }
+
+    /* CSS Cartoon Body Upgrades */
+    .head {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      position: relative;
+      margin-bottom: -8px;
+      background: #fcd34d; /* Skin tone */
+      border: 2px solid rgba(0,0,0,0.2);
+      z-index: 2;
+    }
+    /* Headband */
+    .head::after {
+      content: ''; position: absolute; top: 5px; left: -2px; right: -2px; height: 6px;
+    }
+    .p1-head::after { background: #38bdf8; }
+    .p2-head::after { background: #f43f5e; }
+
+    .body {
+      width: 44px; height: 55px;
+      border-radius: 12px;
+      position: relative;
+      z-index: 1;
+      border: 2px solid rgba(0,0,0,0.2);
+    }
+    /* Jersey details */
+    .p1-body { background: linear-gradient(180deg, #38bdf8, #0284c7); }
+    .p2-body { background: linear-gradient(180deg, #f43f5e, #be123c); }
+
+    .arm {
+      position: absolute;
+      width: 12px; height: 40px;
+      border-radius: 6px;
+      top: 15px;
+      border: 2px solid rgba(0,0,0,0.2);
+    }
+    .p1-arm { background: #fcd34d; } /* Skin */
+    .p2-arm { background: #fcd34d; }
+
+    .p1-arm-left { left: -8px; transform: rotate(25deg); }
+    .p1-arm-right { right: -8px; transform: rotate(-25deg); }
+    .p2-arm-left { left: -8px; transform: rotate(-25deg); }
+    .p2-arm-right { right: -8px; transform: rotate(25deg); }
+
+    .leg {
+      position: absolute;
+      width: 14px; height: 35px;
+      bottom: -28px;
+      border-radius: 6px;
+      border: 2px solid rgba(0,0,0,0.2);
+    }
+    .p1-leg { background: #1e3a8a; }
+    .p2-leg { background: #450a0a; }
+
+    .p1-leg-left { left: 4px; transform: rotate(10deg); }
+    .p1-leg-right { right: 4px; transform: rotate(-10deg); }
+
+    /* Player 2 legs are pointing up */
+    .p2-leg {
+      position: absolute;
+      width: 14px; height: 35px;
+      top: -28px;
+      border-radius: 6px;
+    }
+    .p2-leg-left { left: 4px; transform: rotate(-10deg); }
+    .p2-leg-right { right: 4px; transform: rotate(10deg); }
+
+    /* The Color Flash (Center) */
+    .color-display-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 20;
+      pointer-events: none;
+    }
+    .color-display {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.85);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 26px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      transition: all 0.1s;
+      backdrop-filter: blur(8px);
+      border: 4px solid rgba(255,255,255,0.1);
+      box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    }
+    .color-display.red { 
+      background: #dc2626; 
+      box-shadow: 0 0 50px #dc2626, inset 0 0 20px #991b1b; 
+      border-color: #fca5a5; 
+      transform: scale(1.1);
+    }
+    .color-display.green { 
+      background: #16a34a; 
+      box-shadow: 0 0 50px #16a34a, inset 0 0 20px #166534; 
+      border-color: #86efac; 
+      transform: scale(1.1);
+    }
+    .color-display.start { 
+      background: #4f46e5; 
+      box-shadow: 0 0 30px #4f46e5; 
+      font-size: 18px;
+    }
+
+    /* Controls Container */
+    .controls-wrapper {
+      width: 100%;
+      padding: 0 20px;
+      z-index: 30;
+    }
+
+    .btn-row {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      width: 100%;
+    }
+
+    .btn {
+      flex: 1;
+      max-width: 160px;
+      height: 80px;
+      border: none;
+      border-radius: 20px;
+      font-size: 24px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 900;
+      color: white;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      -webkit-tap-highlight-color: transparent;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .btn:active { 
+      transform: scale(0.92); 
+      box-shadow: 0 2px 0 rgba(0,0,0,0.5) !important; 
+    }
+    
+    .btn-red { 
+      background: linear-gradient(180deg, #ef4444, #b91c1c); 
+      box-shadow: 0 8px 0 #7f1d1d, 0 10px 15px rgba(239, 68, 68, 0.4); 
+      border: 2px solid #fca5a5;
+    }
+    .btn-green { 
+      background: linear-gradient(180deg, #22c55e, #15803d); 
+      box-shadow: 0 8px 0 #14532d, 0 10px 15px rgba(34, 197, 94, 0.4); 
+      border: 2px solid #86efac;
+    }
+
+    /* Overlays */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.9);
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .hidden { display: none !important; }
+    
+    .overlay h1 { font-size: 40px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+    .overlay p { color: #94a3b8; text-align: center; max-width: 300px; font-size: 16px; margin-bottom: 30px; line-height: 1.5; }
+    
+    .btn-start {
+      padding: 18px 50px;
+      font-size: 22px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 900;
+      background: linear-gradient(180deg, #facc15, #ca8a04);
+      color: #422006;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      box-shadow: 0 8px 0 #854d0e, 0 10px 20px rgba(250, 204, 21, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-start:active { 
+      transform: translateY(6px); 
+      box-shadow: 0 2px 0 #854d0e, 0 5px 10px rgba(250, 204, 21, 0.4); 
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="player-tag p1-tag">
+      P1 <div class="score-box" id="p1Wins">0</div>
+    </div>
+    <div class="player-tag p2-tag">
+      <div class="score-box" id="p2Wins">0</div> P2
+    </div>
+  </div>
+
+  <div class="arena">
+    
+    <!-- Player 1 Controls (Top) -->
+    <div class="controls-wrapper" style="margin-top: 10px;">
+      <div class="btn-row">
+        <button class="btn btn-red" onclick="handleTap('P1', 'RED')">RED</button>
+        <button class="btn btn-green" onclick="handleTap('P1', 'GREEN')">GREEN</button>
+      </div>
+    </div>
+
+    <!-- The Vertical Rope Area -->
+    <div class="rope-container">
+      <div class="center-line"></div>
+      
+      <!-- The knot and the players attached to it -->
+      <div class="knot-container" id="knot" style="top: 50%;">
+        
+        <!-- Cartoon Player 1 (Top) -->
+        <div class="player-char-top">
+          <div class="head p1-head"></div>
+          <div class="body p1-body">
+            <div class="leg p1-leg p1-leg-left"></div>
+            <div class="leg p1-leg p1-leg-right"></div>
+            <div class="arm p1-arm p1-arm-left"></div>
+            <div class="arm p1-arm p1-arm-right"></div>
+          </div>
+        </div>
+
+        <div class="knot"></div>
+
+        <!-- Cartoon Player 2 (Bottom) -->
+        <div class="player-char-bottom">
+          <div class="body p2-body">
+            <div class="leg p2-leg p2-leg-left"></div>
+            <div class="leg p2-leg p2-leg-right"></div>
+            <div class="arm p2-arm p2-arm-left"></div>
+            <div class="arm p2-arm p2-arm-right"></div>
+          </div>
+          <div class="head p2-head" style="margin-top: -8px;"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Player 2 Controls (Bottom) -->
+    <div class="controls-wrapper" style="margin-bottom: 10px;">
+      <div class="btn-row">
+        <button class="btn btn-red" onclick="handleTap('P2', 'RED')">RED</button>
+        <button class="btn btn-green" onclick="handleTap('P2', 'GREEN')">GREEN</button>
+      </div>
+    </div>
+
+    <!-- Floating Center Color Display -->
+    <div class="color-display-container">
+      <div class="color-display start" id="colorDisplay">READY</div>
+    </div>
+
+  </div>
+
+  <!-- Start Overlay -->
+  <div class="overlay" id="startOverlay">
+    <h1 style="color:#facc15; text-shadow: 0 0 20px rgba(250,204,21,0.5);">Tug of War</h1>
+    <p>Match the color shown in the center ring. The fastest player pulls the rope. Tap the wrong color or tap too early, and you lose ground!</p>
+    <button class="btn-start" onclick="startGame()">Start Match</button>
+  </div>
+
+  <!-- Win Overlay -->
+  <div class="overlay hidden" id="winOverlay">
+    <h1 id="winnerText" style="color:#22c55e;">P2 WINS!</h1>
+    <button class="btn-start" onclick="resetMatch()">Play Again</button>
+  </div>
+
+<script>
+  let knotPosition = 50;
+  let activeColor = "";
+  let isRoundActive = false;
+  let p1Score = 0;
+  let p2Score = 0;
+  let colorTimeout;
+
+  const colors = ['RED', 'GREEN'];
+
+  const colorDisplay = document.getElementById('colorDisplay');
+  const knot = document.getElementById('knot');
+  const startOverlay = document.getElementById('startOverlay');
+  const winOverlay = document.getElementById('winOverlay');
+
+  function startGame() {
+    p1Score = 0;
+    p2Score = 0;
+    updateScoreboard();
+    knotPosition = 50;
+    knot.style.top = "50%";
+    startOverlay.classList.add('hidden');
+    winOverlay.classList.add('hidden');
+    nextRound();
+  }
+
+  function nextRound() {
+    if (!isRoundActive) {
+      setTimeout(() => {
+        activeColor = "";
+        colorDisplay.className = "color-display start";
+        colorDisplay.textContent = "WAIT...";
+        isRoundActive = true;
+
+        const randomDelay = Math.floor(Math.random() * 2000) + 1000;
+        
+        colorTimeout = setTimeout(() => {
+          activeColor = colors[Math.floor(Math.random() * colors.length)];
+          colorDisplay.className = `color-display ${activeColor.toLowerCase()}`;
+          colorDisplay.textContent = activeColor;
+        }, randomDelay);
+
+      }, 1000);
+    }
+  }
+
+  function handleTap(player, tappedColor) {
+    if (!isRoundActive || !activeColor) {
+      if (isRoundActive && !activeColor) {
+        clearTimeout(colorTimeout);
+        endRound(player === 'P1' ? 'P2' : 'P1', "TOO EARLY!");
+      }
+      return;
+    }
+
+    if (tappedColor === activeColor) {
+      endRound(player, "CORRECT!");
+    } else {
+      endRound(player === 'P1' ? 'P2' : 'P1', "WRONG!");
+    }
+  }
+
+  function endRound(winner, reason) {
+    isRoundActive = false;
+    activeColor = "";
+    
+    if (winner === 'P1') {
+      p1Score++;
+      knotPosition -= 12; 
+    } else {
+      p2Score++;
+      knotPosition += 12; 
+    }
+    
+    if (knotPosition < 0) knotPosition = 0;
+    if (knotPosition > 100) knotPosition = 100;
+
+    knot.style.top = `${knotPosition}%`;
+    updateScoreboard();
+
+    colorDisplay.className = "color-display start";
+    colorDisplay.textContent = reason;
+
+    if (knotPosition <= 10) {
+      showWin('P1');
+    } else if (knotPosition >= 90) {
+      showWin('P2');
+    } else {
+      nextRound();
+    }
+  }
+
+  function updateScoreboard() {
+    document.getElementById('p1Wins').textContent = p1Score;
+    document.getElementById('p2Wins').textContent = p2Score;
+  }
+
+  function showWin(player) {
+    winOverlay.classList.remove('hidden');
+    const text = document.getElementById('winnerText');
+    
+    if (player === 'P1') {
+      text.textContent = "PLAYER 1 WINS";
+      text.style.color = "#38bdf8";
+      text.style.textShadow = "0 0 30px rgba(56, 189, 248, 0.8)";
+    } else {
+      text.textContent = "PLAYER 2 WINS";
+      text.style.color = "#f43f5e";
+      text.style.textShadow = "0 0 30px rgba(244, 63, 94, 0.8)";
+    }
+  }
+
+  function resetMatch() {
+    startGame();
+  }
+</script>
+</body>
+</html>

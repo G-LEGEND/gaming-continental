@@ -18,6 +18,7 @@
       min-height: 100vh;
       color: #333;
       padding: 0;
+      padding-bottom: 90px;
     }
     
     .container {
@@ -37,6 +38,16 @@
       font-size: 1.8rem;
       margin-bottom: 8px;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    
+    .header h1 svg {
+      width: 32px;
+      height: 32px;
+      stroke: white;
     }
     
     .header p {
@@ -176,10 +187,12 @@
       color: white;
     }
     
-    .no-data i {
-      font-size: 3rem;
-      margin-bottom: 16px;
+    .no-data svg {
+      width: 60px;
+      height: 60px;
+      stroke: white;
       opacity: 0.7;
+      margin-bottom: 16px;
     }
     
     .no-data h3 {
@@ -224,6 +237,10 @@
       cursor: pointer;
       margin-top: 16px;
       transition: background 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
     
     .refresh-btn:active {
@@ -237,6 +254,14 @@
       color: white;
     }
     
+    .login-prompt svg {
+      width: 60px;
+      height: 60px;
+      stroke: white;
+      opacity: 0.9;
+      margin-bottom: 16px;
+    }
+    
     .login-btn {
       display: inline-block;
       padding: 14px 28px;
@@ -248,7 +273,6 @@
       margin-top: 16px;
     }
     
-    /* Swipe refresh indicator */
     .refresh-indicator {
       position: fixed;
       top: 0;
@@ -268,16 +292,17 @@
   </style>
 </head>
 <body>
-  <!-- Swipe Refresh Indicator -->
   <div class="refresh-indicator" id="refreshIndicator"></div>
 
   <div class="container">
     <div class="header">
-      <h1>📊 Transaction History</h1>
+      <h1>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        Transaction History
+      </h1>
       <p>Your complete gaming transaction record</p>
     </div>
 
-    <!-- Stats Section -->
     <div class="stats-grid" id="statsSection" style="display: none;">
       <div class="stat-card">
         <h3 id="totalDeposits">₦0</h3>
@@ -297,7 +322,6 @@
       </div>
     </div>
 
-    <!-- Filters -->
     <div class="filters" id="filtersSection" style="display: none;">
       <div class="filter-group">
         <label for="typeFilter">Transaction Type</label>
@@ -324,7 +348,6 @@
       </div>
     </div>
 
-    <!-- History List -->
     <div id="historyList">
       <div class="loading" id="loadingSection">
         <div class="loading-spinner"></div>
@@ -332,27 +355,27 @@
       </div>
     </div>
 
-    <!-- Login Prompt -->
     <div class="login-prompt" id="loginPrompt" style="display: none;">
-      <i>🔐</i>
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
       <h3>Login Required</h3>
       <p>Please log in to view your transaction history</p>
       <a href="index.html" class="login-btn">Login Now</a>
     </div>
 
-    <!-- Refresh Button -->
     <button class="refresh-btn" id="refreshBtn" style="display: none;" onclick="loadUserHistory()">
-      🔄 Refresh History
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+      Refresh History
     </button>
   </div>
 
+  <!-- Footer Container -->
+  <div id="footerContainer"></div>
+
   <script>
-    // Configuration
-    const API_BASE = 'https://gaming-continental.onrender.com';
+    const API_BASE = window.location.origin;
     let currentUser = null;
     let allHistory = [];
 
-    // DOM Elements
     const statsSection = document.getElementById('statsSection');
     const filtersSection = document.getElementById('filtersSection');
     const historyList = document.getElementById('historyList');
@@ -361,39 +384,39 @@
     const refreshBtn = document.getElementById('refreshBtn');
     const refreshIndicator = document.getElementById('refreshIndicator');
 
-    // Initialize
     document.addEventListener('DOMContentLoaded', function() {
       checkAuth();
       setupSwipeRefresh();
+
+      // Load Footer
+      fetch('footer.html')
+        .then(res => res.text())
+        .then(html => {
+          document.getElementById('footerContainer').innerHTML = html;
+          if (typeof setupFooter === 'function') setupFooter();
+        });
     });
 
-    // Check authentication using only user ID
     function checkAuth() {
       const userId = localStorage.getItem('userId');
       
-      console.log('Auth check - UserID:', userId);
-      
       if (userId) {
         currentUser = { id: userId };
-        console.log('✅ User is logged in. ID:', userId);
         showUserInterface();
         loadUserHistory();
       } else {
-        console.log('❌ User is not logged in');
         showLoginPrompt();
       }
     }
 
-    // Show user interface when logged in
     function showUserInterface() {
       loadingSection.style.display = 'block';
       loginPrompt.style.display = 'none';
       statsSection.style.display = 'grid';
       filtersSection.style.display = 'block';
-      refreshBtn.style.display = 'block';
+      refreshBtn.style.display = 'flex'; /* Changed to flex for svg alignment */
     }
 
-    // Show login prompt when not logged in
     function showLoginPrompt() {
       loadingSection.style.display = 'none';
       loginPrompt.style.display = 'block';
@@ -402,7 +425,6 @@
       refreshBtn.style.display = 'none';
     }
 
-    // Setup swipe refresh for mobile
     function setupSwipeRefresh() {
       let startY = 0;
       let currentY = 0;
@@ -414,7 +436,6 @@
       document.addEventListener('touchmove', e => {
         currentY = e.touches[0].clientY;
         
-        // Only trigger refresh when at the top of the page
         if (window.scrollY === 0 && currentY > startY) {
           const pullDistance = currentY - startY;
           const pullRatio = Math.min(pullDistance / 100, 1);
@@ -426,7 +447,6 @@
         const pullDistance = currentY - startY;
         
         if (pullDistance > 100 && window.scrollY === 0) {
-          // Trigger refresh
           refreshIndicator.classList.add('active');
           loadUserHistory();
           
@@ -435,14 +455,12 @@
           }, 1000);
         }
         
-        // Reset pull indicator
         refreshIndicator.style.transform = 'scaleX(0)';
         startY = 0;
         currentY = 0;
       });
     }
 
-    // Load user history
     async function loadUserHistory() {
       if (!currentUser) return;
       
@@ -450,22 +468,15 @@
       
       try {
         const userId = currentUser.id;
-        console.log('🔍 Loading history for user:', userId);
-        
         const apiUrl = `${API_BASE}/user/transactions?userId=${userId}`;
-        console.log('🔍 API URL:', apiUrl);
         
         const response = await fetch(apiUrl);
-        
-        console.log('🔍 Response status:', response.status);
-        console.log('🔍 Response ok:', response.ok);
         
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         const transactions = await response.json();
-        console.log('🔍 Loaded transactions:', transactions);
         
         allHistory = transactions.map(tx => ({
           ...tx,
@@ -476,25 +487,21 @@
         filterHistory();
         
       } catch (error) {
-        console.error('❌ Error loading history:', error);
-        console.error('❌ Error details:', error.message);
+        console.error('Error loading history:', error);
         showError('Failed to load transaction history: ' + error.message);
       } finally {
         showLoading(false);
       }
     }
 
-    // Filter history based on selections
     function filterHistory() {
       const typeFilter = document.getElementById('typeFilter').value;
       const statusFilter = document.getElementById('statusFilter').value;
 
       let filtered = allHistory;
 
-      // Filter by type
       if (typeFilter !== 'all') {
         filtered = filtered.filter(tx => {
-          // Map our new types to the filter options
           if (typeFilter === 'tournament') {
             return tx.type.includes('tournament');
           }
@@ -502,10 +509,8 @@
         });
       }
 
-      // Filter by status
       if (statusFilter !== 'all') {
         filtered = filtered.filter(tx => {
-          // Map status names
           if (statusFilter === 'win') return tx.status === 'won';
           if (statusFilter === 'lose') return tx.status === 'lost';
           return tx.status === statusFilter;
@@ -515,12 +520,11 @@
       displayHistory(filtered);
     }
 
-    // Display history in mobile-friendly list
     function displayHistory(history) {
       if (history.length === 0) {
         historyList.innerHTML = `
           <div class="no-data">
-            <i>📝</i>
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             <h3>No transactions found</h3>
             <p>Your transaction history will appear here</p>
           </div>
@@ -548,12 +552,10 @@
         </div>
       `;
 
-      // Add event listeners for filters
       document.getElementById('typeFilter').addEventListener('change', filterHistory);
       document.getElementById('statusFilter').addEventListener('change', filterHistory);
     }
 
-    // Update statistics
     function updateStatistics(history) {
       const totalDeposits = history
         .filter(tx => tx.type === 'deposit' && (tx.status === 'approved' || tx.status === 'completed'))
@@ -583,7 +585,6 @@
       document.getElementById('totalProfit').textContent = `₦${totalProfit.toLocaleString()}`;
     }
 
-    // ✅ FIXED: Utility functions with correct amount signage
     function formatDate(date) {
       return new Date(date).toLocaleDateString('en-US', {
         month: 'short',
@@ -600,31 +601,15 @@
       return `${sign}₦${Math.abs(amount).toLocaleString()}`;
     }
 
-    // ✅ FIXED: Determine amount sign based on transaction type
     function getAmountSign(tx) {
-      // Negative amounts for these types
-      if (tx.type === 'withdraw' || tx.type === 'tournament_registration') {
-        return '-';
-      }
-      // Positive amounts for these types  
-      if (tx.type === 'deposit' || tx.type === 'tournament_win' || tx.type === 'bonus') {
-        return '+';
-      }
-      // Default positive
+      if (tx.type === 'withdraw' || tx.type === 'tournament_registration') return '-';
+      if (tx.type === 'deposit' || tx.type === 'tournament_win' || tx.type === 'bonus') return '+';
       return '+';
     }
 
-    // ✅ FIXED: Determine amount color based on transaction type
     function getAmountClass(tx) {
-      // Red for negative transactions
-      if (tx.type === 'withdraw' || tx.type === 'tournament_registration') {
-        return 'amount-negative';
-      }
-      // Green for positive transactions
-      if (tx.type === 'deposit' || tx.type === 'tournament_win' || tx.type === 'bonus') {
-        return 'amount-positive';
-      }
-      // Default green
+      if (tx.type === 'withdraw' || tx.type === 'tournament_registration') return 'amount-negative';
+      if (tx.type === 'deposit' || tx.type === 'tournament_win' || tx.type === 'bonus') return 'amount-positive';
       return 'amount-positive';
     }
 
@@ -697,7 +682,8 @@
       div.textContent = str;
       return div.innerHTML;
     }
-function showLoading(show) {
+
+    function showLoading(show) {
       if (show) {
         historyList.innerHTML = `
           <div class="loading">
@@ -711,7 +697,7 @@ function showLoading(show) {
     function showError(message) {
       historyList.innerHTML = `
         <div class="no-data">
-          <i>❌</i>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
           <h3>Error Loading History</h3>
           <p>${message}</p>
           <button class="refresh-btn" onclick="loadUserHistory()" style="margin-top: 16px;">
@@ -721,6 +707,7 @@ function showLoading(show) {
       `;
     }
   </script>
+
+  <script src="footer.js"></script>
 </body>
 </html>
-    

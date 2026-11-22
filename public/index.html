@@ -19,39 +19,12 @@
       line-height: 1.5;
     }
 
-    /* Header Navigation */
-    .nav {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-      padding: 16px;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .nav a {
-      color: #4f46e5;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 0.9rem;
-      padding: 8px 12px;
-      border-radius: 8px;
-      transition: all 0.3s ease;
-    }
-
-    .nav a:hover {
-      background: rgba(79, 70, 229, 0.1);
-      transform: translateY(-1px);
-    }
-
     /* Main Container */
     .center {
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 90vh;
+      min-height: 100vh;
       padding: 20px;
     }
 
@@ -190,12 +163,6 @@
       border: 2px solid #fecaca;
     }
 
-    .message.info {
-      background: #dbeafe;
-      color: #1e40af;
-      border: 2px solid #93c5fd;
-    }
-
     /* Loading animation */
     .loading {
       position: relative;
@@ -227,10 +194,39 @@
       margin-bottom: 32px;
     }
 
-    .brand-icon {
-      font-size: 3rem;
-      margin-bottom: 12px;
-      display: block;
+    /* ✅ PURE CSS GAMEPAD ICON */
+    .gamepad-icon {
+      width: 80px;
+      height: 50px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-radius: 25px;
+      margin: 0 auto 12px;
+      position: relative;
+      box-shadow: 0 6px 15px rgba(79, 70, 229, 0.3);
+    }
+    /* D-Pad (Left Side) */
+    .gamepad-icon::before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 6px;
+      background: white;
+      border-radius: 2px;
+      top: 22px;
+      left: 14px;
+      box-shadow: 5px -5px 0 -2px white, 5px 5px 0 -2px white;
+    }
+    /* Action Buttons (Right Side) */
+    .gamepad-icon::after {
+      content: '';
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: white;
+      border-radius: 50%;
+      top: 22px;
+      right: 14px;
+      box-shadow: -6px -6px 0 0 white, -6px 6px 0 0 white, -12px 0 0 0 white;
     }
 
     .brand-text {
@@ -247,16 +243,6 @@
 
     /* Responsive adjustments */
     @media (max-width: 480px) {
-      .nav {
-        gap: 12px;
-        padding: 12px;
-      }
-      
-      .nav a {
-        font-size: 0.8rem;
-        padding: 6px 10px;
-      }
-      
       .card {
         padding: 24px 20px;
         margin: 0 16px;
@@ -275,57 +261,15 @@
         font-size: 1rem;
       }
     }
-
-    @media (max-width: 320px) {
-      .nav {
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-      }
-      
-      .brand-icon {
-        font-size: 2.5rem;
-      }
-      
-      .brand-text {
-        font-size: 1.3rem;
-      }
-    }
-
-    /* Password toggle (optional enhancement) */
-    .password-wrapper {
-      position: relative;
-    }
-
-    .toggle-password {
-      position: absolute;
-      right: 16px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: #718096;
-      cursor: pointer;
-      font-size: 1.2rem;
-    }
   </style>
 </head>
 <body>
-  <!-- ✅ Simple mobile nav -->
-  <header class="nav">
-    <a href="/index.html">Home</a>
-    <a href="/tournament.html">Tournament</a>
-    <a href="/livescores.html">Livescores</a>
-    <a href="/deposit.html">Deposit</a>
-    <a href="/withdraw.html">Withdraw</a>
-  </header>
-
-  <!-- ✅ Mobile-centered container -->
+  <!-- Mobile-centered container -->
   <main class="center">
     <div class="card">
       <!-- Brand Section -->
       <div class="brand">
-        <div class="brand-icon">🎮</div>
+        <div class="gamepad-icon"></div>
         <div class="brand-text">Gaming Continental</div>
         <div class="brand-tagline">Play. Compete. Win.</div>
       </div>
@@ -359,16 +303,7 @@
   </main>
 
   <script>
-    const API_BASE = "https://gaming-continental.onrender.com";
-
-    // Debug function to check what's stored
-    function debugStorage() {
-      console.log("🔍 Storage Debug:");
-      console.log("Token:", localStorage.getItem("token"));
-      console.log("User ID:", localStorage.getItem("userId"));
-      console.log("User Email:", localStorage.getItem("userEmail"));
-      console.log("Nickname:", localStorage.getItem("nickname"));
-    }
+    const API_BASE = window.location.origin;
 
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -378,18 +313,14 @@
       const msg = document.getElementById("loginMessage");
       const submitBtn = document.getElementById("submitBtn");
 
-      // Clear previous messages
       msg.textContent = "";
       msg.className = "message";
       
-      // Show loading state
       submitBtn.textContent = "Signing In...";
       submitBtn.disabled = true;
       submitBtn.classList.add('loading');
 
       try {
-        console.log("🔐 Attempting login for:", email);
-        
         const res = await fetch(`${API_BASE}/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -397,72 +328,46 @@
         });
 
         const data = await res.json();
-        console.log("🔐 Login response:", data);
 
         if (!res.ok) throw new Error(data.error || "Login failed");
 
-        // ✅ Save login info to localStorage with verification
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.user._id);
         localStorage.setItem("userEmail", data.user.email);
         localStorage.setItem("nickname", data.user.nickname || "");
 
-        // Verify storage
-        console.log("✅ Login successful, storage set:");
-        debugStorage();
-
-        // Show success message
-        msg.textContent = "✅ Login successful! Redirecting...";
+        msg.textContent = "Login successful! Redirecting...";
         msg.className = "message success";
 
-        // ✅ Wait before redirecting with verification
         setTimeout(() => {
           const token = localStorage.getItem("token");
           const userId = localStorage.getItem("userId");
 
-          console.log("🔄 Redirect verification - Token:", token, "User ID:", userId);
-
           if (token && userId) {
-            console.log("✅ Redirecting to dashboard");
             window.location.href = "/dashboard.html";
           } else {
-            console.log("❌ Storage verification failed");
-            msg.textContent = "❌ Error saving session. Please login again.";
+            msg.textContent = "Error saving session. Please login again.";
             msg.className = "message error";
           }
         }, 1200);
       } catch (err) {
-        console.error("❌ Login error:", err);
-        msg.textContent = "❌ " + (err.message || "Something went wrong. Try again.");
+        msg.textContent = err.message || "Something went wrong. Try again.";
         msg.className = "message error";
       } finally {
-        // Reset button state
         submitBtn.textContent = "Sign In";
         submitBtn.disabled = false;
         submitBtn.classList.remove('loading');
       }
     });
 
-    // Add input validation
     document.getElementById('email').addEventListener('input', function(e) {
       this.value = this.value.toLowerCase();
     });
 
-    // Enter key support
     document.getElementById('password').addEventListener('keypress', function(e) {
       if (e.key === 'Enter') {
         document.getElementById('loginForm').dispatchEvent(new Event('submit'));
       }
-    });
-
-    // Debug: Check storage on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log("🚀 Login page loaded");
-      debugStorage();
-      
-      // Auto-clear storage for testing (optional)
-      // localStorage.clear();
-      // console.log("🧹 Storage cleared for testing");
     });
   </script>
 </body>

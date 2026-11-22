@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin - Manage Users</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+      margin: 0;
+      min-height: 100vh;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    h1 { color: #38bdf8; margin: 0; font-size: 22px; }
+    .search-box {
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: white;
+      width: 250px;
+      font-size: 14px;
+      outline: none;
+    }
+    .search-box:focus { border-color: #38bdf8; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border-bottom: 1px solid #334155;
+      padding: 12px;
+      text-align: left;
+      font-size: 14px;
+    }
+    th { background: #1e293b; color: #94a3b8; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+    tr:hover { background: rgba(255,255,255,0.03); cursor: pointer; }
+    
+    .status-active { color: #22c55e; font-weight: bold; }
+    .status-banned { color: #dc2626; font-weight: bold; }
+    .status-suspended { color: #f59e0b; font-weight: bold; }
+    
+    .btn-view {
+      background: #38bdf8;
+      color: #0f172a;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-view:hover { background: #0ea5e9; }
+
+    /* MODAL / SIDE PANEL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(3px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .modal {
+      background: #1e293b;
+      border-radius: 16px;
+      width: 95%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+      transform: translateY(20px);
+      transition: transform 0.3s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 16px;
+    }
+    .modal-header h2 { margin: 0; font-size: 20px; color: #f8fafc; }
+    .modal-header p { margin: 4px 0 0 0; color: #94a3b8; font-size: 13px; }
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    .close-btn:hover { color: white; }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 14px;
+    }
+    .info-row strong { color: #94a3b8; }
+    .info-row span { font-weight: 600; }
+
+    .modal-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #334155;
+    }
+    .modal-section h3 {
+      font-size: 14px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .balance-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .input-field {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: white;
+      font-size: 14px;
+      outline: none;
+    }
+    .input-field:focus { border-color: #38bdf8; }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-group button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+      color: white;
+    }
+    .btn-add { background: #16a34a; }
+    .btn-add:hover { background: #15803d; }
+    .btn-remove { background: #dc2626; }
+    .btn-remove:hover { background: #b91c1c; }
+
+    .btn-block { background: #f59e0b; color: #000; }
+    .btn-block:hover { background: #d97706; }
+    .btn-unblock { background: #22c55e; }
+    .btn-delete { background: transparent; border: 1px solid #dc2626; color: #dc2626; }
+    .btn-delete:hover { background: #dc2626; color: white; }
+
+    .full-width-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 14px 24px;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      z-index: 200;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+    }
+    .toast.show { transform: translateX(0); }
+    .toast.success { background: #16a34a; }
+    .toast.error { background: #dc2626; }
+
+    .empty { text-align: center; padding: 40px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>👥 Manage Users</h1>
+    <input type="text" class="search-box" id="searchBox" placeholder="Search by name or email..." onkeyup="filterUsers()" />
+  </div>
+
+  <table id="userTable">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Email</th>
+        <th>Balance</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="5" class="empty">Loading users...</td></tr>
+    </tbody>
+  </table>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="userModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalUserName">User</h2>
+          <p id="modalUserEmail">email@example.com</p>
+        </div>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+
+      <div class="info-row">
+        <strong>User ID</strong>
+        <span id="modalUserId" style="font-family: monospace; font-size: 12px;">-</span>
+      </div>
+      <div class="info-row">
+        <strong>Current Balance</strong>
+        <span id="modalUserBalance" style="color: #22c55e;">₦0.00</span>
+      </div>
+      <div class="info-row">
+        <strong>Registered</strong>
+        <span id="modalUserDate">-</span>
+      </div>
+      <div class="info-row">
+        <strong>Status</strong>
+        <span id="modalUserStatus">Active</span>
+      </div>
+
+      <div class="modal-section">
+        <h3>Adjust Balance</h3>
+        <input type="number" id="balanceAmount" class="input-field" placeholder="Amount (₦)" />
+        <input type="text" id="balanceReason" class="input-field" placeholder="Reason (optional)" style="margin-top: 8px;" />
+        <div class="btn-group">
+          <button class="btn-add" onclick="adjustBalance('add')">➕ Add</button>
+          <button class="btn-remove" onclick="adjustBalance('remove')">➖ Remove</button>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <h3>Account Status</h3>
+        <div class="btn-group" style="margin-bottom: 10px;">
+          <button class="btn-add" onclick="setUserStatus('active')" style="background:#16a34a;">✅ Active</button>
+          <button class="btn-block" onclick="setUserStatus('suspended')" style="background:#f59e0b; color:#000;">⚠️ Suspend</button>
+          <button class="btn-remove" onclick="setUserStatus('banned')" style="background:#dc2626;">🚫 Ban</button>
+        </div>
+        <button class="full-width-btn btn-delete" onclick="deleteUser()">🗑️ Delete Account</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const API_BASE = window.location.origin;
+  let allUsers = [];
+  let activeUser = null;
+
+  function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className = "toast show " + type;
+    setTimeout(() => toast.classList.remove("show"), 4000);
+  }
+
+  function checkAdminAuth() {
+    const email = localStorage.getItem("adminEmail");
+    if (localStorage.getItem("adminLoggedIn") !== "true" || !email) {
+      alert("Please login as admin first");
+      window.location.href = "admin.html";
+      return false;
+    }
+    return true;
+  }
+
+  async function loadUsers() {
+    if (!checkAdminAuth()) return;
+    const adminEmail = localStorage.getItem("adminEmail");
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/all`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail })
+      });
+
+      if (!res.ok) throw new Error("Failed to load users");
+      allUsers = await res.json();
+      renderUsers(allUsers);
+    } catch (err) {
+      document.querySelector("#userTable tbody").innerHTML = `<tr><td colspan="5" class="empty">Error: ${err.message}</td></tr>`;
+    }
+  }
+
+  function renderUsers(users) {
+    const tbody = document.querySelector("#userTable tbody");
+    tbody.innerHTML = "";
+
+    if (users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty">No users found</td></tr>`;
+      return;
+    }
+
+    users.forEach(u => {
+      let statusClass = "status-active";
+      let statusText = "✅ Active";
+
+      if (u.status === "banned") {
+        statusClass = "status-banned";
+        statusText = "🚫 Banned";
+      } else if (u.status === "suspended") {
+        statusClass = "status-suspended";
+        statusText = "⚠️ Suspended";
+      }
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${u.nickname || 'Unknown'}</strong></td>
+        <td>${u.email}</td>
+        <td style="color: #22c55e; font-weight: 600;">₦${(u.balance || 0).toLocaleString()}</td>
+        <td class="${statusClass}">${statusText}</td>
+        <td><button class="btn-view" onclick='openUserModal("${u._id}")'>View</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function filterUsers() {
+    const query = document.getElementById("searchBox").value.toLowerCase();
+    const filtered = allUsers.filter(u => 
+      (u.nickname || "").toLowerCase().includes(query) ||
+      (u.email || "").toLowerCase().includes(query)
+    );
+    renderUsers(filtered);
+  }
+
+  function openUserModal(id) {
+    const user = allUsers.find(u => u._id === id);
+    if (!user) return;
+    activeUser = user;
+
+    document.getElementById("modalUserName").textContent = user.nickname || "Unknown";
+    document.getElementById("modalUserEmail").textContent = user.email;
+    document.getElementById("modalUserId").textContent = user._id;
+    document.getElementById("modalUserBalance").textContent = "₦" + (user.balance || 0).toLocaleString();
+    document.getElementById("modalUserDate").textContent = new Date(user.createdAt).toLocaleDateString();
+
+    // Set modal status based on user.status
+    let statusHtml = '<span style="color:#22c55e;">✅ Active</span>';
+    if (user.status === "banned") statusHtml = '<span style="color:#dc2626;">🚫 Banned</span>';
+    else if (user.status === "suspended") statusHtml = '<span style="color:#f59e0b;">⚠️ Suspended</span>';
+    document.getElementById("modalUserStatus").innerHTML = statusHtml;
+
+    document.getElementById("balanceAmount").value = "";
+    document.getElementById("balanceReason").value = "";
+
+    document.getElementById("userModal").classList.add("open");
+  }
+
+  function closeModal() {
+    document.getElementById("userModal").classList.remove("open");
+    activeUser = null;
+  }
+
+  async function adjustBalance(action) {
+    if (!activeUser) return;
+    const amount = Number(document.getElementById("balanceAmount").value);
+    const reason = document.getElementById("balanceReason").value;
+    
+    if (!amount || amount <= 0) return showToast("Enter a valid amount", "error");
+    if (action === "remove" && activeUser.balance < amount) return showToast("User balance is too low", "error");
+
+    const adminEmail = localStorage.getItem("adminEmail");
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${activeUser._id}/balance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail, amount, action, reason })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update balance");
+
+      showToast(`✅ ${action === 'add' ? 'Added' : 'Removed'} ₦${amount.toLocaleString()}`, "success");
+      await loadUsers();
+      const updatedUser = allUsers.find(u => u._id === activeUser._id);
+      if (updatedUser) openUserModal(updatedUser._id);
+    } catch (err) {
+      showToast("❌ " + err.message, "error");
+    }
+  }
+
+  async function setUserStatus(newStatus) {
+    if (!activeUser) return;
+    if (activeUser.status === newStatus) return showToast(`User is already ${newStatus}`, "error");
+
+    const labels = { active: "Restore to Active", suspended: "Suspend", banned: "Ban" };
+    if (!confirm(`Are you sure you want to ${labels[newStatus] || newStatus} this user?`)) return;
+
+    const adminEmail = localStorage.getItem("adminEmail");
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${activeUser._id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail, status: newStatus })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to update status");
+      }
+
+      showToast(`✅ User is now ${newStatus}`, "success");
+      await loadUsers();
+      openUserModal(activeUser._id);
+    } catch (err) {
+      showToast("❌ " + err.message, "error");
+    }
+  }
+
+  async function deleteUser() {
+    if (!activeUser) return;
+    if (!confirm("⚠️ Are you sure? This will PERMANENTLY delete the user and all their data. This action cannot be undone.")) return;
+    
+    const adminEmail = localStorage.getItem("adminEmail");
+
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/${activeUser._id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail })
+      });
+
+      if (!res.ok) throw new Error("Failed to delete user");
+
+      showToast("🗑️ User account deleted", "success");
+      closeModal();
+      await loadUsers();
+    } catch (err) {
+      showToast("❌ " + err.message, "error");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    if (!checkAdminAuth()) return;
+    loadUsers();
+  });
+
+  setInterval(loadUsers, 30000);
+</script>
+</body>
+</html>

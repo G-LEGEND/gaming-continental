@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ghost Racer — Gaming Continental</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { 
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+    background: radial-gradient(circle at 50% 0%, #1a1f3a, #05070f 70%); 
+    color: #fff; 
+    min-height: 100vh; 
+    padding: 16px 16px 90px 16px; 
+  }
+  
+  .wrap { width: 100%; max-width: 680px; margin: 0 auto; }
+  
+  .header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .back-btn {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .balance-display {
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.4);
+    color: #22c55e;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(120,180,255,0.25); border-radius: 20px; padding: 26px; box-shadow: 0 0 40px rgba(80,140,255,0.15); }
+  
+  h1 { font-size: 23px; margin-bottom: 6px; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; }
+  .sub { color: #8fa5c7; font-size: 13px; margin-bottom: 18px; }
+  .label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #8fa5c7; margin: 14px 0 8px; }
+  
+  .options { display: flex; gap: 8px; flex-wrap: wrap; }
+  .opt { flex: 1; min-width: 90px; padding: 11px 8px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(120,180,255,0.2); cursor: pointer; text-align: center; transition: 0.15s; font-size: 13px; }
+  .opt:hover { border-color: #4a8fff; }
+  .opt.active { background: linear-gradient(135deg, #2463eb, #4a8fff); border-color: #4a8fff; box-shadow: 0 0 20px rgba(74,143,255,0.5); }
+  .opt small { display: block; color: #8fa5c7; font-size: 10px; margin-top: 3px; }
+  .opt.active small { color: #dbe6ff; }
+  
+  .odds-box { margin-top: 18px; padding: 16px; background: rgba(74,143,255,0.08); border: 1px dashed rgba(74,143,255,0.4); border-radius: 12px; text-align: center; }
+  .odds-box .big { font-size: 32px; font-weight: 800; color: #4a8fff; }
+  .odds-box .meta { font-size: 11px; color: #8fa5c7; margin-top: 4px; letter-spacing: 0.5px; }
+  
+  .btn { width: 100%; margin-top: 18px; padding: 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; letter-spacing: 1px; transition: 0.15s; }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(34,197,94,0.35); }
+  .btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+  
+  .countdown { text-align: center; padding: 40px 0; }
+  .countdown .num { font-size: 120px; font-weight: 900; color: #4a8fff; text-shadow: 0 0 40px #4a8fff; }
+  .countdown .go { font-size: 80px; font-weight: 900; color: #22c55e; text-shadow: 0 0 40px #22c55e; }
+  
+  .race-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .timer { font-size: 26px; font-weight: 800; color: #ffd54a; font-variant-numeric: tabular-nums; }
+  .timer.warn { color: #ef4444; animation: pulse 0.6s infinite; }
+  @keyframes pulse { 50% { opacity: 0.5; } }
+  .progress-text { font-size: 13px; color: #8fa5c7; }
+  
+  .track { position: relative; height: 110px; background: linear-gradient(180deg, #1a2233, #0d1420); border-radius: 14px; margin-bottom: 18px; overflow: hidden; border: 1px solid rgba(120,180,255,0.2); }
+  .track::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: repeating-linear-gradient(90deg, #445577 0 12px, transparent 12px 24px); }
+  .finish { position: absolute; right: 0; top: 0; bottom: 0; width: 24px; background: repeating-conic-gradient(#fff 0 25%, #000 0 50%) 0 0/12px 12px; opacity: 0.85; z-index: 3; }
+  .lane-label { position: absolute; left: 8px; font-size: 10px; letter-spacing: 1px; color: #6a7a99; text-transform: uppercase; z-index: 2; font-weight: bold; }
+  .lane-label.you { top: 12px; color: #4a8fff; }
+  .lane-label.ghost { bottom: 12px; color: #b07aff; }
+  
+  .car { position: absolute; transform: translate(-50%, -50%); transition: left 0.15s ease-out; z-index: 2; }
+  .car.you { top: 35%; filter: drop-shadow(0 0 10px #4a8fff); }
+  .car.ghost { top: 68%; filter: drop-shadow(0 0 10px #b07aff); opacity: 0.9; }
+  
+  .word-box { text-align: center; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 14px; margin-bottom: 12px; border: 1px solid rgba(120,180,255,0.2); }
+  .word-label { font-size: 11px; text-transform: uppercase; color: #8fa5c7; letter-spacing: 1px; margin-bottom: 6px; }
+  .current-word { font-size: 38px; font-weight: 800; letter-spacing: 5px; color: #fff; text-shadow: 0 0 20px rgba(74,143,255,0.6); }
+  
+  .input { width: 100%; padding: 15px; background: rgba(0,0,0,0.4); border: 2px solid rgba(120,180,255,0.3); border-radius: 12px; color: #fff; font-size: 19px; text-align: center; letter-spacing: 3px; outline: none; transition: 0.15s; }
+  .input:focus { border-color: #4a8fff; box-shadow: 0 0 20px rgba(74,143,255,0.3); }
+  .input.good { border-color: #22c55e; box-shadow: 0 0 20px rgba(34,197,94,0.5); }
+  .input.bad { border-color: #ef4444; box-shadow: 0 0 20px rgba(239,68,68,0.5); }
+  
+  .flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+  .flash.green { background: radial-gradient(circle, rgba(34,197,94,0.15), transparent 70%); opacity: 1; }
+  .flash.red { background: radial-gradient(circle, rgba(239,68,68,0.2), transparent 70%); opacity: 1; }
+  
+  .end { text-align: center; padding: 20px 0; }
+  .end .icon { margin-bottom: 10px; display: flex; justify-content: center; }
+  .end h2 { font-size: 30px; margin-bottom: 8px; }
+  .end.win h2 { color: #22c55e; text-shadow: 0 0 30px rgba(34,197,94,0.6); }
+  .end.lose h2 { color: #ef4444; text-shadow: 0 0 30px rgba(239,68,68,0.6); }
+  .end .stat { color: #8fa5c7; font-size: 14px; margin: 4px 0; }
+  .end .payout { font-size: 24px; font-weight: 800; color: #ffd54a; margin-top: 14px; }
+  
+  .hidden { display: none !important; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal-content { background: #1e293b; border: 1px solid #4a8fff; border-radius: 16px; padding: 24px; max-width: 400px; width: 100%; text-align: left; box-shadow: 0 10px 40px rgba(74,143,255,0.3); }
+  .modal-content h3 { margin-bottom: 16px; color: #4a8fff; font-size: 20px; }
+  .modal-content p { color: #cbd5e1; font-size: 14px; line-height: 1.6; margin-bottom: 12px; }
+  .modal-content ul { color: #cbd5e1; font-size: 14px; line-height: 1.6; margin-left: 20px; margin-bottom: 20px; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-btns button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+  .btn-cancel { background: #475569; color: white; }
+  .btn-confirm { background: #22c55e; color: white; }
+
+  .custom-car { width: 60px; height: 30px; background: linear-gradient(180deg, #4a8fff, #2463eb); border-radius: 8px 12px 4px 4px; position: relative; border: 2px solid #7eb4ff; }
+  .custom-car::before { content: ''; position: absolute; width: 20px; height: 14px; background: #111827; border-radius: 6px 6px 0 0; top: -8px; left: 50%; transform: translateX(-50%); border: 1px solid #4a8fff; }
+  .custom-car::after { content: ''; position: absolute; width: 6px; height: 4px; background: #fef08a; border-radius: 2px; right: -2px; top: 50%; transform: translateY(-50%); box-shadow: 0 0 8px #fef08a; }
+  .wheel { position: absolute; width: 14px; height: 14px; background: #1f2937; border-radius: 50%; bottom: -6px; border: 2px solid #4b5563; }
+  .wheel.front { right: 6px; } .wheel.back { left: 6px; }
+
+  .custom-ghost { width: 40px; height: 44px; background: #b07aff; border-radius: 20px 20px 4px 4px; position: relative; box-shadow: 0 0 15px rgba(176,122,255,0.6); }
+  .custom-ghost::before { content: ''; position: absolute; width: 10px; height: 8px; background: #fff; border-radius: 50%; top: 10px; left: 8px; box-shadow: 14px 0 0 #fff; }
+  .custom-ghost::after { content: ''; position: absolute; width: 10px; height: 6px; background: #b07aff; border-radius: 50%; bottom: -4px; left: 5px; box-shadow: 12px 0 0 #b07aff, 24px 0 0 #b07aff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  
+  <div class="header-bar">
+    <a href="casino.html" class="back-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back to Casino
+    </a>
+    <div class="balance-display">
+      Balance: ₦<span id="topBalance">0.00</span>
+    </div>
+  </div>
+
+  <div id="setup" class="card">
+    <h1>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 10h.01"></path><path d="M15 10h.01"></path><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"></path></svg>
+      Ghost Racer
+    </h1>
+    <div class="sub">Server-Verified Typing Game</div>
+
+    <div class="label">Stake Amount (₦)</div>
+    <input type="number" id="stakeAmount" class="input" placeholder="Enter amount (e.g. 100)" style="letter-spacing:1px; font-size: 16px;" value="100" min="50">
+
+    <div class="label">Race Time</div>
+    <div class="options" id="timeOpts">
+      <div class="opt active" data-time="55" data-odd="1.80">55 Sec<small>1.80x</small></div>
+      <div class="opt" data-time="70" data-odd="1.50">1m 10s<small>1.50x</small></div>
+      <div class="opt" data-time="80" data-odd="1.10">1m 20s<small>1.10x</small></div>
+    </div>
+
+    <div class="label">Word Length</div>
+    <div class="options" id="lenOpts">
+      <div class="opt active" data-len="3" data-bonus="0.00">3 Letters<small>+0.00x</small></div>
+      <div class="opt" data-len="5" data-bonus="0.15">5 Letters<small>+0.15x</small></div>
+      <div class="opt" data-len="6" data-bonus="0.25">6 Letters<small>+0.25x</small></div>
+    </div>
+
+    <div class="label">Difficulty</div>
+    <div class="options" id="diffOpts">
+      <div class="opt active" data-diff="easy" data-speedup="1.15" data-bonus="0.00">Easy<small>+0.00x</small></div>
+      <div class="opt" data-diff="medium" data-speedup="1.00" data-bonus="0.10">Medium<small>+0.10x</small></div>
+      <div class="opt" data-diff="hard" data-speedup="0.85" data-bonus="0.20">Hard<small>+0.20x</small></div>
+    </div>
+
+    <div class="odds-box">
+      <div style="font-size:12px;color:#8fa5c7;letter-spacing:1px;">YOUR ODDS</div>
+      <div class="big" id="oddsDisplay">1.80x</div>
+      <div class="meta" id="oddsMeta">Words: 20</div>
+    </div>
+
+    <button class="btn" id="startBtn">START RACE</button>
+  </div>
+
+  <div id="countdown" class="card hidden">
+    <div class="countdown">
+      <div class="num" id="countNum">3</div>
+    </div>
+  </div>
+
+  <div id="race" class="card hidden">
+    <div class="race-top">
+      <div class="timer" id="timer">00:55</div>
+      <div class="progress-text"><span id="wordProgress">0 / 20</span> words</div>
+    </div>
+    
+    <div class="track">
+      <div class="finish"></div>
+      <div class="lane-label you">YOU</div>
+      <div class="lane-label ghost">GHOST</div>
+      <div class="car you" id="carYou" style="left: 4%;">
+        <div class="custom-car"><div class="wheel front"></div><div class="wheel back"></div></div>
+      </div>
+      <div class="car ghost" id="carGhost" style="left: 4%;">
+        <div class="custom-ghost"></div>
+      </div>
+    </div>
+    
+    <div class="word-box">
+      <div class="word-label">Type this word</div>
+      <div class="current-word" id="currentWord">---</div>
+    </div>
+    <input class="input" id="input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="type here..." />
+  </div>
+
+  <div id="end" class="card hidden">
+    <div class="end" id="endContent"></div>
+  </div>
+</div>
+
+<div id="warningModal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <h3>Important Notice</h3>
+    <p>Before you start the race, please read the rules:</p>
+    <ul>
+      <li>You must be <strong>18 years or older</strong> to play.</li>
+      <li>Ensure your internet connection is <strong>stable and fast</strong>. If the connection drops, the game will end.</li>
+      <li>You must type the words correctly. A wrong word moves you backward.</li>
+      <li>Your stake will be deducted immediately. If you win, your payout is credited instantly.</li>
+    </ul>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmStart()">I am 18+ & Network is Good</button>
+    </div>
+  </div>
+</div>
+
+<div id="footerContainer" style="max-width: 680px; margin: 0 auto; padding: 0 16px;"></div>
+<div class="flash" id="flash"></div>
+
+<script>
+const API_BASE = window.location.origin + "/game";
+const userId = localStorage.getItem("userId");
+if (!userId) { alert("Please login first"); window.location.href = "index.html"; }
+
+const CONFIG = { carStartPct: 4, carEndPct: 94, wordsPerRace: 20 };
+
+const state = {
+  gameId: null,
+  baseOdd: 1.80,
+  diffBonus: 0,
+  lenBonus: 0,
+  timeLimit: 55,
+  wordLen: 3,
+  speedup: 1.0,
+  ghostArriveTime: 33,
+  words: [],
+  wordIndex: 0,
+  carStep: 0,
+  ghostStep: 0,
+  totalSteps: CONFIG.wordsPerRace,
+  timeLeft: 55,
+  timerInterval: null,
+  ghostInterval: null,
+  ghostSlowdownInterval: null,
+  running: false,
+  finalOdds: 1.80,
+  ghostPace: 1.65,
+  stake: 100
+};
+
+const $ = (id) => document.getElementById(id);
+const setupEl = $("setup"), countdownEl = $("countdown"), raceEl = $("race"), endEl = $("end");
+const flashEl = $("flash"), inputEl = $("input"), carYou = $("carYou"), carGhost = $("carGhost");
+const currentWordEl = $("currentWord"), timerEl = $("timer"), wordProgressEl = $("wordProgress");
+const oddsDisplayEl = $("oddsDisplay"), oddsMetaEl = $("oddsMeta");
+
+async function loadBalance() {
+  try {
+    const res = await fetch(`${window.location.origin}/auth/me?userId=${userId}`);
+    if (res.ok) {
+      const user = await res.json();
+      document.getElementById("topBalance").textContent = (user.balance || 0).toFixed(2);
+    }
+  } catch (err) {}
+}
+
+function updateOdds() {
+  state.finalOdds = state.baseOdd + state.diffBonus + state.lenBonus;
+  state.ghostPace = (state.ghostArriveTime / state.totalSteps) * state.speedup;
+  
+  oddsDisplayEl.textContent = state.finalOdds.toFixed(2) + "x";
+  oddsMetaEl.textContent = `Words: ${state.totalSteps}`;
+}
+
+document.querySelectorAll("#timeOpts .opt").forEach(el => el.addEventListener("click", () => {
+  document.querySelectorAll("#timeOpts .opt").forEach(o => o.classList.remove("active"));
+  el.classList.add("active");
+  state.timeLimit = parseInt(el.dataset.time);
+  state.baseOdd = parseFloat(el.dataset.odd);
+  state.ghostArriveTime = Math.round(state.timeLimit * 0.6);
+  updateOdds();
+}));
+
+document.querySelectorAll("#lenOpts .opt").forEach(el => el.addEventListener("click", () => {
+  document.querySelectorAll("#lenOpts .opt").forEach(o => o.classList.remove("active"));
+  el.classList.add("active");
+  state.wordLen = parseInt(el.dataset.len);
+  state.lenBonus = parseFloat(el.dataset.bonus);
+  updateOdds();
+}));
+
+document.querySelectorAll("#diffOpts .opt").forEach(el => el.addEventListener("click", () => {
+  document.querySelectorAll("#diffOpts .opt").forEach(o => o.classList.remove("active"));
+  el.classList.add("active");
+  state.speedup = parseFloat(el.dataset.speedup);
+  state.diffBonus = parseFloat(el.dataset.bonus);
+  updateOdds();
+}));
+
+$("startBtn").addEventListener("click", () => {
+  const stakeInput = document.getElementById("stakeAmount").value;
+  const stake = Number(stakeInput);
+  if (!stake || stake < 50) return alert("Minimum stake is ₦50");
+  
+  state.stake = stake;
+  document.getElementById("warningModal").classList.remove("hidden");
+});
+
+function closeModal() {
+  document.getElementById("warningModal").classList.add("hidden");
+}
+
+async function confirmStart() {
+  closeModal();
+  $("startBtn").innerText = "Connecting...";
+  $("startBtn").disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, stake: state.stake, odds: state.finalOdds, wordLength: state.wordLen })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    state.gameId = data.gameId;
+    state.words = [data.firstWord];
+    
+    document.getElementById("topBalance").textContent = (data.balance || 0).toFixed(2);
+
+    setupEl.classList.add("hidden");
+    endEl.classList.add("hidden");
+    countdownEl.classList.remove("hidden");
+    
+    let n = 3;
+    const numEl = $("countNum");
+    numEl.textContent = n; numEl.className = "num";
+    const cd = setInterval(() => {
+      n--;
+      if (n > 0) numEl.textContent = n;
+      else if (n === 0) { numEl.textContent = "GO!"; numEl.className = "go"; }
+      else { clearInterval(cd); countdownEl.classList.add("hidden"); startRace(); }
+    }, 600);
+
+  } catch (err) {
+    alert(err.message);
+    $("startBtn").innerText = "START RACE";
+    $("startBtn").disabled = false;
+  }
+}
+
+function startRace() {
+  raceEl.classList.remove("hidden");
+  state.running = true;
+  state.timeLeft = state.timeLimit;
+  state.wordIndex = 0;
+  state.carStep = 0;
+  state.ghostStep = 0;
+
+  carYou.style.left = CONFIG.carStartPct + "%";
+  carGhost.style.left = CONFIG.carStartPct + "%";
+  timerEl.textContent = formatTime(state.timeLeft);
+  timerEl.classList.remove("warn");
+  currentWordEl.textContent = state.words[0];
+  wordProgressEl.textContent = `0 / ${state.totalSteps}`;
+  inputEl.value = ""; inputEl.className = "input"; inputEl.focus();
+
+  state.timerInterval = setInterval(() => {
+    state.timeLeft--;
+    timerEl.textContent = formatTime(state.timeLeft);
+    if (state.timeLeft <= 5) timerEl.classList.add("warn");
+    if (state.timeLeft <= 0) endGame("timeout");
+  }, 1000);
+
+  // ✅ Normal Ghost movement
+  state.ghostInterval = setInterval(() => {
+    if (!state.running) return;
+    state.ghostStep++;
+    updateGhostPosition();
+    if (state.ghostStep >= state.totalSteps) endGame("ghost");
+  }, state.ghostPace * 1000);
+
+  // ✅ RARE GHOST SLIP — Decided ONCE per race
+// 10% chance the ghost slips exactly ONE time per race.
+// If it slips, it does so at a random moment and drops back 3, 4, or 5 steps.
+const willSlip = Math.random() < 0.10; // Only 10% of races will see a slip
+
+if (willSlip) {
+  const slipDelay = 2000 + Math.random() * 15000; // Between 2s and 17s into the race
+  const penalties = [3, 4, 5];
+  const penalty = penalties[Math.floor(Math.random() * penalties.length)];
+  
+  setTimeout(() => {
+    if (!state.running) return;
+    state.ghostStep = Math.max(0, state.ghostStep - penalty);
+    updateGhostPosition();
+    console.log(`Ghost slipped ${penalty} steps!`); // For debugging — remove later
+  }, slipDelay);
+}
+}
+
+inputEl.addEventListener("input", async () => {
+  if (!state.running) return;
+  const typed = inputEl.value.trim().toLowerCase();
+  const target = state.words[state.wordIndex];
+  if (!target) return;
+
+  if (typed.length === target.length) {
+    if (typed === target) {
+      flash("green");
+      state.wordIndex++;
+      state.carStep = Math.min(state.carStep + 1, state.totalSteps);
+      updateYouPosition();
+      inputEl.className = "input good";
+      inputEl.value = "";
+      wordProgressEl.textContent = `${state.wordIndex} / ${state.totalSteps}`;
+
+      if (state.wordIndex >= state.totalSteps) {
+        endGame("win");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/next-word`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ gameId: state.gameId })
+        });
+        const data = await res.json();
+        if (data.nextWord) {
+          state.words.push(data.nextWord);
+          currentWordEl.textContent = data.nextWord;
+        }
+      } catch(e) { console.error(e); }
+
+      setTimeout(() => inputEl.className = "input", 150);
+    } else {
+      flash("red");
+      state.carStep = Math.max(state.carStep - 1, 0);
+      updateYouPosition();
+      inputEl.className = "input bad";
+      inputEl.value = "";
+      setTimeout(() => inputEl.className = "input", 250);
+    }
+  }
+});
+
+function updateYouPosition() {
+  const pct = CONFIG.carStartPct + (state.carStep / state.totalSteps) * (CONFIG.carEndPct - CONFIG.carStartPct);
+  carYou.style.left = pct + "%";
+}
+
+function updateGhostPosition() {
+  const pct = CONFIG.carStartPct + (state.ghostStep / state.totalSteps) * (CONFIG.carEndPct - CONFIG.carStartPct);
+  carGhost.style.left = pct + "%";
+}
+
+function flash(color) {
+  flashEl.className = "flash " + color;
+  setTimeout(() => { flashEl.className = "flash"; }, 200);
+}
+
+async function endGame(result) {
+  state.running = false;
+  clearInterval(state.timerInterval);
+  clearInterval(state.ghostInterval);
+  clearInterval(state.ghostSlowdownInterval); // ✅ Clear the new interval
+  raceEl.classList.add("hidden");
+  endEl.classList.remove("hidden");
+
+  const won = result === "win";
+  let payoutText = won ? "Processing..." : "0.00";
+
+  let iconSvg, title;
+  if (result === "win") { 
+    iconSvg = `<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>`;
+    title = "YOU WIN!"; 
+  }
+  else if (result === "ghost") { 
+    iconSvg = `<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#b07aff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 10h.01"></path><path d="M15 10h.01"></path><path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z"></path></svg>`;
+    title = "GHOST WON!"; 
+  }
+  else { 
+    iconSvg = `<svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+    title = "TIME'S UP!"; 
+  }
+
+  $("endContent").className = "end " + (won ? "win" : "lose");
+  $("endContent").innerHTML = `
+    <div class="icon">${iconSvg}</div>
+    <h2>${title}</h2>
+    <div class="stat">Words typed: ${state.wordIndex} / ${state.totalSteps}</div>
+    <div class="stat">Odds: ${state.finalOdds.toFixed(2)}x</div>
+    <div class="payout" id="payoutText">${payoutText}</div>
+    
+    <button class="btn" onclick="resetGame()" style="margin-top: 15px;">RACE AGAIN</button>
+    <button class="btn" onclick="location.href='casino.html'" style="background: #475569; margin-top: 10px;">BACK TO LOBBY</button>
+  `;
+
+  try {
+    const res = await fetch(`${API_BASE}/end`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gameId: state.gameId, won })
+    });
+    const data = await res.json();
+    
+    if (data.newBalance !== undefined) {
+      document.getElementById("topBalance").textContent = data.newBalance.toFixed(2);
+    }
+
+    if (won) {
+      document.getElementById("payoutText").innerText = `Payout: ₦${(state.stake * state.finalOdds).toFixed(2)}`;
+      document.getElementById("payoutText").style.color = "#22c55e";
+    } else {
+      document.getElementById("payoutText").innerText = `Stake lost: ₦${state.stake.toFixed(2)}`;
+      document.getElementById("payoutText").style.color = "#ef4444";
+    }
+  } catch(e) {
+    document.getElementById("payoutText").innerText = "Error syncing balance. Refresh dashboard.";
+  }
+}
+
+function resetGame() {
+  endEl.classList.add("hidden");
+  setupEl.classList.remove("hidden");
+  
+  state.gameId = null;
+  state.words = [];
+  state.wordIndex = 0;
+  state.carStep = 0;
+  state.ghostStep = 0;
+  
+  $("startBtn").innerText = "START RACE";
+  $("startBtn").disabled = false;
+  
+  loadBalance();
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+}
+
+updateOdds();
+loadBalance();
+
+document.addEventListener("DOMContentLoaded", function() {
+  fetch('footer.html')
+    .then(res => res.text())
+    .then(html => {
+      document.getElementById('footerContainer').innerHTML = html;
+      if (typeof setupFooter === 'function') setupFooter();
+    });
+});
+</script>
+
+<script src="footer.js"></script>
+</body>
+</html>
