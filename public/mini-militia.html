@@ -88,6 +88,7 @@
     <a href="mini-lobby.html" class="btn-back">Back to Lobby</a>
 </div>
 <script src="/js/maps.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
     const API_BASE = window.location.origin;
     const urlParams = new URLSearchParams(window.location.search);
@@ -99,6 +100,17 @@
     let serverEndsAt = null;
     let serverKills = 0;
     let killsRequired = 10;
+
+    // ============ MULTIPLAYER STATE ============
+    let socket = null;
+    let mySocketId = null;
+    let isPvP = false;
+    let remotePlayers = new Map();     // socketId -> player data
+    let lastPositionSend = 0;
+    let respawnCountdown = 0;
+    let respawnKillerName = "";
+    let respawnKillerKills = 0;
+
 
     if (!roomCode || !userId) {
         alert("Invalid Room or Not Logged In");
@@ -123,6 +135,139 @@
     console.log(`Map loaded: ${map.name} (${window.walls.length} walls, ${window.bushes.length} bushes)`);
     if (window._mapApplyHook) window._mapApplyHook();
 };
+
+    // ============================================================
+    // MULTIPLAYER: Connect to socket server for PvP games
+    // ============================================================
+    function connectMultiplayer() {
+        if (!roomCode || !username) return;
+        if (!currentRoomData) return;
+        if (currentRoomData.mode === "solo_vs_bot") {
+            console.log("🎮 Solo mode — no socket connection");
+            return;
+        }
+
+        isPvP = true;
+        console.log("🔌 Connecting to multiplayer...");
+
+        socket = io(window.location.origin, { transports: ["websocket", "polling"] });
+
+        socket.on("connect", () => {
+            mySocketId = socket.id;
+            console.log("✅ Socket connected:", mySocketId);
+            const me = currentRoomData.players.find(p => p.username === username);
+            socket.emit("join-room", {
+                roomCode,
+                userId,
+                username,
+                team: me ? me.team : 1
+            }, (ack) => {
+                if (ack && ack.ok) console.log("✅ Joined room via socket");
+                else console.error("❌ Socket join failed:", ack && ack.error);
+            });
+        });
+
+        socket.on("room-state", (state) => {
+            state.players.forEach(p => {
+                if (p.socketId === mySocketId) return;
+                remotePlayers.set(p.socketId, p);
+            });
+            console.log("📥 Room state:", remotePlayers.size, "remote players");
+        });
+
+        socket.on("player-joined", (data) => {
+            remotePlayers.set(data.socketId, {
+                socketId: data.socketId,
+                username: data.username,
+                team: data.team,
+                x: 1200, y: 900, angle: 0,
+                health: 100, kills: 0, alive: true
+            });
+            console.log("➕ Joined:", data.username);
+        });
+
+        socket.on("player-moved", (data) => {
+            const p = remotePlayers.get(data.socketId);
+            if (p) {
+                p.x = data.x;
+                p.y = data.y;
+                p.angle = data.angle;
+                p.health = data.health;
+                p.alive = data.alive;
+            }
+        });
+
+        socket.on("player-left", (data) => {
+            remotePlayers.delete(data.socketId);
+            console.log("➖ Left:", data.username);
+        });
+
+        socket.on("player-died", (data) => {
+            const victim = remotePlayers.get(data.victimSocketId);
+            if (victim) { victim.alive = false; victim.health = 0; }
+            const killer = remotePlayers.get(data.killerSocketId);
+            if (killer) killer.kills = data.killerKills;
+            // If I'm the killer, update my local kill count too
+            if (data.killerUsername === username) {
+                serverKills = data.killerKills;
+                updateKillsHint();
+            }
+        });
+
+        socket.on("player-respawned", (data) => {
+            if (data.socketId === mySocketId) {
+                // I respawned
+                player.health = 100;
+                player.x = data.x;
+                player.y = data.y;
+                gameOver = false;
+                respawnCountdown = 0;
+                hideRespawnOverlay();
+            } else {
+                const p = remotePlayers.get(data.socketId);
+                if (p) {
+                    p.x = data.x; p.y = data.y;
+                    p.health = 100; p.alive = true;
+                    p.kills = data.kills;
+                }
+            }
+        });
+
+        socket.on("game-ended", (data) => {
+            console.log("🏁 Game ended via socket:", data.reason);
+            if (!gameEnded) endTheMatch("TIME UP!", true);
+        });
+
+        socket.on("disconnect", () => {
+            console.log("🔌 Socket disconnected");
+        });
+    }
+
+    // ============================================================
+    // RESPAWN OVERLAY
+    // ============================================================
+    function showRespawnOverlay() {
+        const el = document.getElementById("respawnScreen");
+        if (!el) return;
+        el.classList.remove("hidden");
+        document.getElementById("respawnKiller").textContent = "Killed by: " + respawnKillerName;
+        document.getElementById("respawnKillerKills").textContent = respawnKillerKills;
+
+        const tickRespawn = setInterval(() => {
+            respawnCountdown--;
+            const timerEl = document.getElementById("respawnTimer");
+            if (timerEl) timerEl.textContent = Math.max(0, respawnCountdown);
+            if (respawnCountdown <= 0) {
+                clearInterval(tickRespawn);
+                if (socket && socket.connected) socket.emit("respawn");
+            }
+        }, 1000);
+    }
+
+    function hideRespawnOverlay() {
+        const el = document.getElementById("respawnScreen");
+        if (el) el.classList.add("hidden");
+    }
 
     async function loadRoom() {
         try {
@@ -152,6 +297,9 @@
             };
             tick();
         } catch (e) { console.log("Failed to load room data", e); }
+
+        // ✅ Connect to multiplayer socket after room data loads
+        connectMultiplayer();
     }
     loadRoom();
 
@@ -474,7 +622,7 @@
                 }
             }
 
-            if (enemySpawnTimer <= 0 && enemies.length < 15) { spawnEnemy(); enemySpawnTimer = 100; } else { enemySpawnTimer--; }
+            if (!isPvP && enemySpawnTimer <= 0 && enemies.length < 15) { spawnEnemy(); enemySpawnTimer = 100; } else { enemySpawnTimer--; }
 
             for (let i = enemies.length - 1; i >= 0; i--) {
                 const e = enemies[i]; const dx = player.x - e.x, dy = player.y - e.y; const dist = Math.hypot(dx, dy);
@@ -500,6 +648,20 @@
                     e.shootTimer = bs.cooldown + Math.random() * bs.cooldown * 0.5;
                 }
                 if (dist < e.radius + player.radius) { damagePlayer(20); const pa = Math.atan2(e.y - player.y, e.x - player.x); e.x += Math.cos(pa) * 15; e.y += Math.sin(pa) * 15; }
+            }
+
+            // ============ MULTIPLAYER: send own position 15x/sec ============
+            if (isPvP && socket && socket.connected) {
+                const now = Date.now();
+                if (now - lastPositionSend > 66) {
+                    socket.emit("position", {
+                        x: player.x, y: player.y,
+                        angle: player.aimAngle,
+                        health: player.health,
+                        alive: player.health > 0
+                    });
+                    lastPositionSend = now;
+                }
             }
         }
 
@@ -716,6 +878,32 @@
                 ctx.textAlign = 'center';
                 ctx.fillText((e.botWeapon || 'pistol').toUpperCase(), e.x, e.y - 38);
             });
+
+            // ============ MULTIPLAYER: draw remote human players ============
+            if (isPvP) {
+                for (const [sid, rp] of remotePlayers) {
+                    if (!rp.alive) continue;
+                    drawStickman(ctx, rp.x, rp.y, rp.angle || 0, false, 'pistol');
+
+                    // Name tag
+                    ctx.save();
+                    ctx.font = 'bold 13px sans-serif';
+                    ctx.textAlign = 'center';
+                    const nameW = ctx.measureText(rp.username).width;
+                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                    ctx.fillRect(rp.x - nameW/2 - 6, rp.y - 55, nameW + 12, 20);
+                    ctx.fillStyle = rp.team === 1 ? '#3a9bdc' : '#e74c3c';
+                    ctx.fillText(rp.username, rp.x, rp.y - 40);
+
+                    // Kill badge
+                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                    ctx.fillRect(rp.x + 18, rp.y - 56, 34, 18);
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.font = 'bold 12px monospace';
+                    ctx.fillText('K:' + (rp.kills || 0), rp.x + 35, rp.y - 43);
+                    ctx.restore();
+                }
+            }
             if (!gameOver) { drawStickman(ctx, player.x, player.y, player.aimAngle, true, player.inventory[player.currentSlot] || 'pistol'); if (player.invincible) { ctx.beginPath(); ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI*2); ctx.strokeStyle = 'rgba(241, 196, 15, 0.6)'; ctx.lineWidth = 4; ctx.stroke(); } }
             ctx.restore();
             if (player.inventory[player.currentSlot] === 'sniper' && window.gameInstance.zoomLevel > 1 && !gameOver) { ctx.strokeStyle = 'rgba(255, 50, 50, 0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(canvas.width/2 - 30, canvas.height/2); ctx.lineTo(canvas.width/2 + 30, canvas.height/2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height/2 - 30); ctx.lineTo(canvas.width/2, canvas.height/2 + 30); ctx.stroke(); ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 40, 0, Math.PI*2); ctx.stroke(); }
