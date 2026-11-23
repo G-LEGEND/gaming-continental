@@ -278,7 +278,7 @@
     try {
       const res = await fetch(`${API_BASE}/mini/start/${currentRoom.roomCode}`, { method: "POST" });
       if (res.ok) {
-        window.location.href = `/mini-militia.html?code=${currentRoom.roomCode}`;
+        window.location.href = `/mini-pvp.html?code=${currentRoom.roomCode}`;
       }
     } catch (err) {
       showToast("Failed to start game");
@@ -311,7 +311,7 @@
         const d = await r.json();
         if (d.room && d.room.status === "active") {
           clearInterval(pollInterval);
-          window.location.href = `/mini-militia.html?code=${code}`;
+          window.location.href = `/mini-pvp.html?code=${code}`;
         }
       }, 2000);
     } catch (err) {
@@ -335,7 +335,7 @@
 
       const startRes = await fetch(`${API_BASE}/mini/start/${data.room.roomCode}`, { method: "POST" });
       if (startRes.ok) {
-        window.location.href = `/mini-militia.html?code=${data.room.roomCode}`;
+        window.location.href = `/mini-solo.html?code=${data.room.roomCode}`;
       }
     } catch (err) {
       showToast(err.message);

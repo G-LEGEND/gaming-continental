@@ -185,11 +185,68 @@ function attachGameSocket(io) {
       const p = room.players.get(socket.id);
       if (!p || !p.alive) return;
 
-      broadcastToRoom(io, currentRoomCode, "player-shot", {
+      broadcastToRoom(io, currentRoomCode, "bullet-from-remote", {
         socketId: socket.id,
         username: p.username,
         bullet: data.bullet
       }, socket.id);
+    });
+
+    // ---------- SHOOT-HIT (attacker claims a hit) ----------
+    // Attacker says: "my bullet hit targetSocketId"
+    // Server validates distance, then applies kill.
+    socket.on("shoot-hit", ({ targetSocketId, bullet }) => {
+      if (!currentRoomCode) return;
+      const room = rooms.get(currentRoomCode);
+      if (!room) return;
+
+      const killer = room.players.get(socket.id);
+      const victim = room.players.get(targetSocketId);
+      if (!killer || !victim) return;
+      if (!killer.alive) return;
+      if (!victim.alive) return;  // already dead
+
+      // Basic distance check — reject if too far (anti-cheat)
+      const dist = Math.hypot((killer.x || 0) - (victim.x || 0), (killer.y || 0) - (victim.y || 0));
+      const MAX_HIT_RANGE = 2000;  // generous — bullets travel far
+      if (dist > MAX_HIT_RANGE) {
+        console.log(`[socket] Rejected hit: ${killer.username}→${victim.username} at dist ${dist.toFixed(0)}`);
+        return;
+      }
+
+      // Apply kill
+      killer.kills = (killer.kills || 0) + 1;
+      victim.alive = false;
+      victim.health = 0;
+
+      console.log(`[socket] KILL: ${killer.username} killed ${victim.username} (${killer.kills} kills)`);
+
+      // Notify victim — 3s respawn countdown + killer's kills
+      io.to(targetSocketId).emit("player-hit", {
+        killerSocketId: socket.id,
+        killerUsername: killer.username,
+        killerKills: killer.kills,
+        respawnInMs: 3000
+      });
+
+      // Notify everyone else — update scoreboard
+      broadcastToRoom(io, currentRoomCode, "player-died", {
+        victimSocketId: targetSocketId,
+        victimUsername: victim.username,
+        killerSocketId: socket.id,
+        killerUsername: killer.username,
+        killerKills: killer.kills
+      });
+
+      // Update DB kills (async)
+      MiniRoom.findOne({ roomCode: currentRoomCode }).then((doc) => {
+        if (!doc) return;
+        const dbKiller = doc.players.find(pl => pl.username === killer.username);
+        if (dbKiller) dbKiller.kills = killer.kills;
+        const dbVictim = doc.players.find(pl => pl.username === victim.username);
+        if (dbVictim) dbVictim.isAlive = false;
+        doc.save().catch(() => {});
+      }).catch(() => {});
     });
 
     // ---------- HIT REPORT (victim confirms) ----------
