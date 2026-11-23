@@ -265,6 +265,14 @@
             updateScoreboard([...remotePlayers.values()].concat([{ username, kills: serverKills, team: 1 }]));
         });
 
+        socket.on("took-damage", (data) => {
+            if (!isAlive) return;
+            player.health = data.newHealth;
+            healthFill.style.width = (player.health / player.maxHealth * 100) + '%';
+            shakeTime = 10; // small screen shake
+            sound.play("hurt", 0.4);
+        });
+
         socket.on("player-hit", (data) => {
             // I was killed by another player
             console.log(`💀 Killed by ${data.killerUsername} (${data.killerKills} kills)`);
@@ -300,7 +308,8 @@
                 radius: 5, friendly: false,
                 life: 100, dmg: data.bullet.dmg || 10,
                 color: '#ff9900',
-                fromSocketId: data.socketId
+                fromSocketId: data.socketId,
+                bulletId: data.bulletId
             });
         });
 
@@ -329,6 +338,8 @@
             if (respawnCountdown <= 0) {
                 clearInterval(tickRespawn);
                 if (socket && socket.connected) socket.emit("respawn");
+                // Immediately hide overlay to prevent hang while waiting for server
+                hideRespawnOverlay();
             }
         }, 1000);
     }
@@ -520,13 +531,19 @@
             if (player.ammo <= 0) { sound.play("empty"); return; }
             player.shootTimer = w.cooldown; player.ammo--; shakeTime = w.shake;
             sound.play(player.inventory[player.currentSlot] || "pistol", 0.6);
+            
             for (let i = 0; i < w.count; i++) {
                 const sa = player.aimAngle + (Math.random() - 0.5) * w.spread;
-                const sx = player.x + Math.cos(sa) * (player.radius + 6); const sy = player.y + Math.sin(sa) * (player.radius + 6);
-                bullets.push({ x: sx, y: sy, vx: Math.cos(sa) * w.speed, vy: Math.sin(sa) * w.speed, radius: w.size, friendly: true, life: w.range / w.speed, dmg: w.dmg, color: w.color });
-                // Notify other players
+                const sx = player.x + Math.cos(sa) * (player.radius + 6); 
+                const sy = player.y + Math.sin(sa) * (player.radius + 6);
+                const bId = Date.now() + Math.random().toString(36).substr(2, 5);
+                
+                bullets.push({ id: bId, x: sx, y: sy, vx: Math.cos(sa) * w.speed, vy: Math.sin(sa) * w.speed, radius: w.size, friendly: true, life: w.range / w.speed, dmg: w.dmg, color: w.color });
+                
+                // Notify other players (send bulletId so we can remove it if it hits them)
                 if (socket && socket.connected) {
                     socket.emit("shoot", {
+                        bulletId: bId,
                         bullet: { x: sx, y: sy, vx: Math.cos(sa) * w.speed, vy: Math.sin(sa) * w.speed, dmg: w.dmg, weapon: player.inventory[player.currentSlot] || 'pistol' }
                     });
                 }
@@ -572,7 +589,8 @@
                             if (Math.hypot(b.x - rp.x, b.y - rp.y) < b.radius + 18) {
                                 socket.emit("shoot-hit", {
                                     targetSocketId: sid,
-                                    bullet: { x: b.x, y: b.y, dmg: b.dmg }
+                                    bulletId: b.id,
+                                    bullet: { x: b.x, y: b.y, dmg: b.dmg } // dmg will be handled by server
                                 });
                                 bullets.splice(i, 1);
                                 hitAny = true;
@@ -584,14 +602,7 @@
                 } else {
                     // Remote bullet — check if it hits ME
                     if (isAlive && Math.hypot(b.x - player.x, b.y - player.y) < b.radius + player.radius) {
-                        damagePlayerLocal(b.dmg || 10);
-                        // Report the hit to server
-                        if (socket && socket.connected && b.fromSocketId) {
-                            socket.emit("hit-reported", {
-                                killerSocketId: b.fromSocketId,
-                                bullet: { x: b.x, y: b.y }
-                            });
-                        }
+                        // Just remove the bullet. Server will send "took-damage" to us.
                         bullets.splice(i, 1);
                     }
                 }

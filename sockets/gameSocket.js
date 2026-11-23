@@ -188,6 +188,7 @@ function attachGameSocket(io) {
       broadcastToRoom(io, currentRoomCode, "bullet-from-remote", {
         socketId: socket.id,
         username: p.username,
+        bulletId: data.bulletId, // Pass the unique bullet ID
         bullet: data.bullet
       }, socket.id);
     });
