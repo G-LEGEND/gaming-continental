@@ -43,7 +43,6 @@
     .overlay-screen h1 { font-size: 40px; margin-bottom: 10px; color: #e74c3c; }
     .overlay-screen p { font-size: 18px; color: #bdc3c7; margin-bottom: 20px; }
     .btn-back { padding: 15px 30px; background: #3498db; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 18px; margin-top: 20px;}
-    /* Scoreboard */
     .scoreboard { position: absolute; top: 90px; left: 15px; background: rgba(0,0,0,0.6); border-radius: 10px; padding: 8px 12px; z-index: 10; pointer-events: none; font-size: 13px; color: #fff; min-width: 180px; border: 1px solid rgba(255,255,255,0.1); }
     .scoreboard-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
     .scoreboard-me { color: #f1c40f; font-weight: 900; }
@@ -87,7 +86,6 @@
     </div>
 </div>
 
-<!-- Respawn overlay -->
 <div id="respawnScreen" class="overlay-screen hidden" style="background: rgba(0,0,0,0.9);">
     <h1 style="color:#f1c40f;font-size:48px;">YOU DIED</h1>
     <p id="respawnKiller" style="font-size:20px;color:#fff;margin:20px 0;">Killed by: —</p>
@@ -96,7 +94,6 @@
     <p style="font-size:24px;color:#fff;margin-top:20px;">Respawn in <span id="respawnTimer" style="color:#f1c40f;font-weight:900;">3</span>...</p>
 </div>
 
-<!-- End-of-game overlay -->
 <div id="gameOverScreen" class="overlay-screen hidden">
     <h1 id="gameOverTitle">GAME OVER</h1>
     <p id="gameOverText">Time up!</p>
@@ -120,7 +117,6 @@
     let serverEndsAt = null;
     let serverKills = 0;
 
-    // Multiplayer state
     let socket = null;
     let mySocketId = null;
     let remotePlayers = new Map();
@@ -135,7 +131,6 @@
         window.location.href = "mini-lobby.html";
     }
 
-    // Map loader
     window.walls = [];
     window.bushes = [];
     window._mapApplyHook = null;
@@ -197,13 +192,8 @@
     }
     loadRoom();
 
-    // ============================================================
-    // MULTIPLAYER CONNECTION
-    // ============================================================
     function connectMultiplayer() {
         if (!roomCode || !username || !currentRoomData) return;
-        console.log("🔌 Connecting to multiplayer...");
-
         socket = io(window.location.origin, { transports: ["websocket", "polling"] });
 
         socket.on("connect", () => {
@@ -221,10 +211,19 @@
 
         socket.on("room-state", (state) => {
             state.players.forEach(p => {
-                if (p.socketId === mySocketId) return;
-                remotePlayers.set(p.socketId, p);
+                if (p.socketId === mySocketId) {
+                    // ✅ THIS IS ME — sync my position with the server's spawn point
+                    if (window.gameInstance && window.gameInstance.player) {
+                        window.gameInstance.player.x = p.x;
+                        window.gameInstance.player.y = p.y;
+                        window.gameInstance.camera.x = p.x;
+                        window.gameInstance.camera.y = p.y;
+                        console.log("🎯 My spawn synced:", p.x, p.y);
+                    }
+                } else {
+                    remotePlayers.set(p.socketId, p);
+                }
             });
-            console.log("📥 Room state:", remotePlayers.size, "remote players");
             updateScoreboard([...remotePlayers.values()].concat([{ username, kills: serverKills, team: 1 }]));
         });
 
@@ -238,7 +237,6 @@
                 kills: data.kills || 0,
                 alive: data.alive !== false
             });
-            console.log("➕ Joined:", data.username, "at", data.x, data.y);
             updateScoreboard([...remotePlayers.values()].concat([{ username, kills: serverKills, team: 1 }]));
         });
 
@@ -252,7 +250,6 @@
 
         socket.on("player-left", (data) => {
             remotePlayers.delete(data.socketId);
-            console.log("➖ Left:", data.username);
         });
 
         socket.on("player-died", (data) => {
@@ -269,58 +266,66 @@
 
         socket.on("took-damage", (data) => {
             if (!isAlive) return;
-            player.health = data.newHealth;
-            healthFill.style.width = (player.health / player.maxHealth * 100) + '%';
-            shakeTime = 10; // small screen shake
-            sound.play("hurt", 0.4);
+            window.gameInstance.player.health = data.newHealth;
+            document.getElementById("healthFill").style.width = (data.newHealth / 100 * 100) + '%';
+            window.gameInstance.shakeTime = 10;
+            window.gameInstance.sound.play("hurt", 0.4);
         });
 
         socket.on("player-hit", (data) => {
-            // I was killed by another player
-            console.log(`💀 Killed by ${data.killerUsername} (${data.killerKills} kills)`);
             respawnCountdown = Math.ceil(data.respawnInMs / 1000);
             respawnKillerName = data.killerUsername;
             respawnKillerKills = data.killerKills;
             isAlive = false;
+            window.gameInstance.isAlive = false;
             showRespawnOverlay();
         });
 
         socket.on("player-respawned", (data) => {
             console.log("🔄 player-respawned:", data);
-
             if (data.socketId === mySocketId) {
-                // ✅ Force move player and camera
-                player.x = data.x;
-                player.y = data.y;
-                player.vx = 0; player.vy = 0;
-                player.health = 100; player.armor = 0;
+                // Reset player
+                window.gameInstance.player.x = data.x;
+                window.gameInstance.player.y = data.y;
+                window.gameInstance.player.health = 100;
+                window.gameInstance.player.armor = 0;
+                window.gameInstance.player.invincible = false;
+                window.gameInstance.player.invincibleTimer = 0;
+                window.gameInstance.camera.x = data.x;
+                window.gameInstance.camera.y = data.y;
+
                 isAlive = true;
-                if (window.gameInstance && window.gameInstance.camera) {
-                    window.gameInstance.camera.x = data.x;
-                    window.gameInstance.camera.y = data.y;
-                }
-                // ✅ Unlock joysticks
-                moveAnalogActive = false; moveVector = {x:0,y:0};
-                shootAnalogActive = false; shootVector = {x:0,y:0};
-                
+                window.gameInstance.isAlive = true;
+                respawnCountdown = 0;
+
+                document.getElementById("healthFill").style.width = "100%";
+                document.getElementById("armorFill").style.width = "0%";
+
+                // Reset joysticks
+                window.gameInstance.moveAnalogActive = false;
+                window.gameInstance.moveVector = { x: 0, y: 0 };
+                window.gameInstance.shootAnalogActive = false;
+                window.gameInstance.shootVector = { x: 0, y: 0 };
+
+                const jKnob = document.getElementById("joystickKnob");
+                const sKnob = document.getElementById("shootKnob");
+                if (jKnob) jKnob.style.transform = "translate(-50%, -50%)";
+                if (sKnob) sKnob.style.transform = "translate(-50%, -50%)";
+
                 hideRespawnOverlay();
-                console.log("✅ Respawn complete at", data.x, data.y);
+                console.log("✅ Respawn complete:", data.x, data.y);
             } else {
-                // Other player respawned — update their sprite
                 const p = remotePlayers.get(data.socketId);
                 if (p) {
-                    p.x = data.x;
-                    p.y = data.y;
-                    p.health = 100;
-                    p.alive = true;
+                    p.x = data.x; p.y = data.y;
+                    p.health = 100; p.alive = true;
                     p.kills = data.kills;
                 }
             }
         });
 
         socket.on("bullet-from-remote", (data) => {
-            // Another player shot — spawn their bullet locally
-            bullets.push({
+            window.gameInstance.bullets.push({
                 x: data.bullet.x, y: data.bullet.y,
                 vx: data.bullet.vx, vy: data.bullet.vy,
                 radius: 5, friendly: false,
@@ -329,30 +334,20 @@
                 fromSocketId: data.socketId,
                 bulletId: data.bulletId
             });
-            // ✅ Play the correct gun sound for the remote shot
+            // Play remote sound
             const remoteWeapon = data.bullet.weapon || "pistol";
-            console.log("🔫 Remote shot fired with weapon:", remoteWeapon);
-            if (window.gameInstance) {
-                const validWeapons = ["pistol", "smg", "shotgun", "sniper", "rifle", "machine"];
-                const key = validWeapons.includes(remoteWeapon) ? remoteWeapon : "pistol";
-                // Force play locally in case gameInstance fails
-                const soundObj = new Audio(`/sounds/shoot_${key}.mp3`);
+            try {
+                const soundObj = new Audio(`/sounds/shoot_${remoteWeapon}.mp3`);
                 soundObj.volume = 0.4;
-                soundObj.play().catch(e => console.log("Audio blocked:", e));
-            }
+                soundObj.play().catch(() => {});
+            } catch(e) {}
         });
 
-        socket.on("game-ended", (data) => {
-            console.log("🏁 Game ended via socket:", data.reason);
+        socket.on("game-ended", () => {
             if (!gameEnded) endTheMatch("TIME UP!");
         });
-
-        socket.on("disconnect", () => console.log("🔌 Disconnected"));
     }
 
-    // ============================================================
-    // RESPAWN OVERLAY
-    // ============================================================
     function showRespawnOverlay() {
         const el = document.getElementById("respawnScreen");
         if (!el) return;
@@ -368,11 +363,6 @@
                 clearInterval(tickRespawn);
                 if (socket && socket.connected) socket.emit("respawn");
                 hideRespawnOverlay();
-                // ✅ Extra safety: force-unlock joysticks
-                moveAnalogActive = false;
-                moveVector = { x: 0, y: 0 };
-                shootAnalogActive = false;
-                shootVector = { x: 0, y: 0 };
             }
         }, 1000);
     }
@@ -382,9 +372,6 @@
         if (el) el.classList.add("hidden");
     }
 
-    // ============================================================
-    // END OF MATCH
-    // ============================================================
     async function endTheMatch(reason) {
         if (gameEnded) return;
         gameEnded = true;
@@ -416,14 +403,10 @@
                 payoutEl.style.color = "#ef4444";
             }
         } catch(e) {
-            console.log(e);
             document.getElementById("gameOverPayout").innerText = "Error settling.";
         }
     }
 
-    // ============================================================
-    // UI helpers
-    // ============================================================
     window.setZoom = function(level, el) {
         if (window.gameInstance) window.gameInstance.zoomLevel = level;
         document.querySelectorAll('.zoom-btn').forEach(btn => btn.classList.remove('active'));
@@ -455,7 +438,7 @@
 
         const sound = new C.SoundManager();
         sound.unlockOnFirstTouch();
-        sound.preloadAll();  // ✅ Preload ALL gun sounds immediately
+        sound.preloadAll && sound.preloadAll();
 
         const weapons = C.WEAPONS;
         let walls = window.walls || [];
@@ -483,26 +466,21 @@
         let shootAnalogActive = false, shootVector = { x: 0, y: 0 };
 
         window.gameInstance = {
-            zoomLevel: 1, player,
-            camera: camera,
+            zoomLevel: 1, player, camera,
+            bullets: bullets,
+            isAlive: true,
+            shakeTime: 0,
+            sound: sound,
+            moveAnalogActive: false,
+            moveVector: { x: 0, y: 0 },
+            shootAnalogActive: false,
+            shootVector: { x: 0, y: 0 },
             reloadWeapon: () => { if (!player.isReloading) { const w = getCurrentWeapon(); if (player.ammo < w.maxAmmo) { player.isReloading = true; player.reloadTimer = 90; } } },
-            dropBomb: () => { if (isAlive) bombs.push({ x: player.x, y: player.y, timer: 90, radius: 250 }); },
-            playRemoteSound: (weaponName) => {
-                const validWeapons = ["pistol", "smg", "shotgun", "sniper", "rifle", "machine"];
-                const key = validWeapons.includes(weaponName) ? weaponName : "pistol";
-                sound.play(key, 0.4);  // 0.4 volume = slightly quieter than own shots
-            }
+            dropBomb: () => { if (isAlive) bombs.push({ x: player.x, y: player.y, timer: 90, radius: 250 }); }
         };
 
         const svgs = {
-            smg: `<svg viewBox="0 0 280 140" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="58" width="150" height="20" rx="6" fill="#2e3440" stroke="#5e81ac" stroke-width="1.8" /><rect x="185" y="64" width="65" height="8" rx="4" fill="#3b4252" stroke="#5e81ac" stroke-width="1.8" /><line x1="195" y1="66" x2="195" y2="70" stroke="#5e81ac" stroke-width="2" stroke-linecap="round" /><line x1="208" y1="66" x2="208" y2="70" stroke="#5e81ac" stroke-width="2" stroke-linecap="round" /><line x1="221" y1="66" x2="221" y2="70" stroke="#5e81ac" stroke-width="2" stroke-linecap="round" /><line x1="234" y1="66" x2="234" y2="70" stroke="#5e81ac" stroke-width="2" stroke-linecap="round" /><rect x="215" y="53" width="6" height="12" rx="1" fill="#4c566a" stroke="#5e81ac" stroke-width="1.5" /><rect x="160" y="50" width="10" height="8" rx="2" fill="#4c566a" stroke="#5e81ac" stroke-width="1.5" /><rect x="75" y="78" width="22" height="38" rx="8" fill="#3b4252" stroke="#5e81ac" stroke-width="1.8" /><line x1="80" y1="86" x2="92" y2="86" stroke="#5e81ac" stroke-width="1.5" stroke-linecap="round" /><line x1="80" y1="94" x2="92" y2="94" stroke="#5e81ac" stroke-width="1.5" stroke-linecap="round" /><line x1="80" y1="102" x2="92" y2="102" stroke="#5e81ac" stroke-width="1.5" stroke-linecap="round" /><path d="M110 78 L110 94 L130 94 L130 78" fill="none" stroke="#5e81ac" stroke-width="2" /><line x1="120" y1="78" x2="120" y2="86" stroke="#5e81ac" stroke-width="2" /><rect x="145" y="78" width="24" height="48" rx="5" fill="#3b4252" stroke="#5e81ac" stroke-width="1.8" /><line x1="150" y1="88" x2="164" y2="88" stroke="#5e81ac" stroke-width="1.5" /><line x1="150" y1="98" x2="164" y2="98" stroke="#5e81ac" stroke-width="1.5" /><line x1="150" y1="108" x2="164" y2="108" stroke="#5e81ac" stroke-width="1.5" /><rect x="5" y="64" width="42" height="8" rx="4" fill="#3b4252" stroke="#5e81ac" stroke-width="1.8" /><rect x="12" y="60" width="8" height="16" rx="3" fill="#2e3440" stroke="#5e81ac" stroke-width="1.5" /><rect x="125" y="56" width="18" height="6" rx="3" fill="#4c566a" stroke="#5e81ac" stroke-width="1.5" /><circle cx="134" cy="59" r="3" fill="#5e81ac" /><circle cx="249" cy="68" r="5" fill="#2e3440" stroke="#5e81ac" stroke-width="2" /></svg>`,
-            rifle: `<svg viewBox="0 0 300 160" xmlns="http://www.w3.org/2000/svg"><rect x="50" y="68" width="130" height="26" rx="6" fill="#2e3440" stroke="#bf616a" stroke-width="1.8" /><rect x="180" y="76" width="70" height="9" rx="4" fill="#3b4252" stroke="#bf616a" stroke-width="1.8" /><rect x="220" y="62" width="12" height="20" rx="2" fill="#4c566a" stroke="#bf616a" stroke-width="1.8" /><rect x="224" y="50" width="6" height="14" rx="1" fill="#3b4252" stroke="#bf616a" stroke-width="1.5" /><rect x="180" y="68" width="55" height="7" rx="3" fill="#434c5e" stroke="#bf616a" stroke-width="1.5" /><line x1="190" y1="92" x2="248" y2="92" stroke="#5e81ac" stroke-width="2" stroke-linecap="round" /><path d="M120 94 L120 134 Q120 142 128 142 L150 142 Q158 142 158 134 L158 94 Z" fill="#3b4252" stroke="#bf616a" stroke-width="1.8" /><line x1="128" y1="108" x2="148" y2="108" stroke="#bf616a" stroke-width="1.5" /><line x1="128" y1="118" x2="148" y2="118" stroke="#bf616a" stroke-width="1.5" /><line x1="128" y1="128" x2="148" y2="128" stroke="#bf616a" stroke-width="1.5" /><rect x="78" y="94" width="24" height="44" rx="8" fill="#3b4252" stroke="#bf616a" stroke-width="1.8" /><line x1="84" y1="104" x2="96" y2="104" stroke="#bf616a" stroke-width="1.5" /><line x1="84" y1="114" x2="96" y2="114" stroke="#bf616a" stroke-width="1.5" /><line x1="84" y1="124" x2="96" y2="124" stroke="#bf616a" stroke-width="1.5" /><path d="M112 94 L112 110 L134 110 L134 94" fill="none" stroke="#bf616a" stroke-width="2" /><line x1="122" y1="94" x2="122" y2="102" stroke="#bf616a" stroke-width="2" /><path d="M8 72 L48 72 L48 96 L8 96 Z" fill="#4a3a2a" stroke="#bf616a" stroke-width="1.8" /><line x1="16" y1="78" x2="16" y2="90" stroke="#bf616a" stroke-width="1.5" /><line x1="28" y1="78" x2="28" y2="90" stroke="#bf616a" stroke-width="1.5" /><line x1="40" y1="78" x2="40" y2="90" stroke="#bf616a" stroke-width="1.5" /><rect x="132" y="57" width="52" height="13" rx="6" fill="#4a3a2a" stroke="#bf616a" stroke-width="1.5" /><rect x="132" y="73" width="52" height="16" rx="6" fill="#4a3a2a" stroke="#bf616a" stroke-width="1.5" /><rect x="248" y="74" width="14" height="13" rx="4" fill="#3b4252" stroke="#bf616a" stroke-width="1.8" /><line x1="254" y1="78" x2="254" y2="84" stroke="#bf616a" stroke-width="2" /><line x1="260" y1="78" x2="260" y2="84" stroke="#bf616a" stroke-width="2" /></svg>`,
-            machine: `<svg viewBox="0 0 320 160" xmlns="http://www.w3.org/2000/svg"><rect x="60" y="60" width="150" height="32" rx="8" fill="#2e3440" stroke="#a3be8c" stroke-width="1.8" /><rect x="100" y="44" width="80" height="16" rx="5" fill="#3b4252" stroke="#a3be8c" stroke-width="1.8" /><rect x="130" y="38" width="22" height="6" rx="3" fill="#4c566a" stroke="#a3be8c" stroke-width="1.5" /><rect x="210" y="68" width="80" height="16" rx="6" fill="#3b4252" stroke="#a3be8c" stroke-width="1.8" /><circle cx="228" cy="76" r="4" fill="#1b1e24" stroke="#a3be8c" stroke-width="1.5" /><circle cx="244" cy="76" r="4" fill="#1b1e24" stroke="#a3be8c" stroke-width="1.5" /><circle cx="260" cy="76" r="4" fill="#1b1e24" stroke="#a3be8c" stroke-width="1.5" /><circle cx="276" cy="76" r="4" fill="#1b1e24" stroke="#a3be8c" stroke-width="1.5" /><rect x="288" y="70" width="14" height="12" rx="4" fill="#4c566a" stroke="#a3be8c" stroke-width="1.8" /><line x1="240" y1="92" x2="220" y2="115" stroke="#a3be8c" stroke-width="3" stroke-linecap="round" /><line x1="240" y1="92" x2="260" y2="115" stroke="#a3be8c" stroke-width="3" stroke-linecap="round" /><circle cx="240" cy="92" r="3" fill="#a3be8c" /><rect x="92" y="92" width="24" height="42" rx="8" fill="#3b4252" stroke="#a3be8c" stroke-width="1.8" /><line x1="98" y1="102" x2="110" y2="102" stroke="#a3be8c" stroke-width="1.5" /><line x1="98" y1="112" x2="110" y2="112" stroke="#a3be8c" stroke-width="1.5" /><line x1="98" y1="122" x2="110" y2="122" stroke="#a3be8c" stroke-width="1.5" /><path d="M128 92 L128 110 L150 110 L150 92" fill="none" stroke="#a3be8c" stroke-width="2" /><line x1="139" y1="92" x2="139" y2="100" stroke="#a3be8c" stroke-width="2" /><rect x="10" y="64" width="50" height="12" rx="5" fill="#3b4252" stroke="#a3be8c" stroke-width="1.8" /><rect x="18" y="76" width="8" height="28" rx="4" fill="#3b4252" stroke="#a3be8c" stroke-width="1.5" /><rect x="38" y="76" width="8" height="28" rx="4" fill="#3b4252" stroke="#a3be8c" stroke-width="1.5" /><line x1="22" y1="82" x2="42" y2="82" stroke="#a3be8c" stroke-width="2" /><line x1="22" y1="94" x2="42" y2="94" stroke="#a3be8c" stroke-width="2" /><rect x="155" y="50" width="50" height="8" rx="4" fill="#4c566a" stroke="#a3be8c" stroke-width="1.5" /><circle cx="165" cy="54" r="4" fill="#2e3440" stroke="#a3be8c" stroke-width="1.2" /><circle cx="178" cy="54" r="4" fill="#2e3440" stroke="#a3be8c" stroke-width="1.2" /><circle cx="191" cy="54" r="4" fill="#2e3440" stroke="#a3be8c" stroke-width="1.2" /><rect x="90" y="36" width="50" height="8" rx="4" fill="#4c566a" stroke="#a3be8c" stroke-width="1.5" /></svg>`,
-            sniper: `<svg viewBox="0 0 340 150" xmlns="http://www.w3.org/2000/svg"><rect x="70" y="65" width="140" height="20" rx="4" fill="#2e3440" stroke="#d08770" stroke-width="1.8" /><rect x="210" y="69" width="95" height="8" rx="3" fill="#3b4252" stroke="#d08770" stroke-width="1.8" /><rect x="295" y="66" width="12" height="14" rx="3" fill="#4c566a" stroke="#d08770" stroke-width="1.8" /><line x1="300" y1="70" x2="300" y2="76" stroke="#d08770" stroke-width="2" /><rect x="100" y="46" width="90" height="14" rx="7" fill="#1e222a" stroke="#d08770" stroke-width="1.8" /><circle cx="115" cy="53" r="5" fill="#2e3440" stroke="#d08770" stroke-width="1.5" /><circle cx="175" cy="53" r="5" fill="#2e3440" stroke="#d08770" stroke-width="1.5" /><line x1="140" y1="46" x2="140" y2="60" stroke="#d08770" stroke-width="2" /><line x1="160" y1="46" x2="160" y2="60" stroke="#d08770" stroke-width="2" /><rect x="118" y="42" width="6" height="18" rx="2" fill="#4c566a" stroke="#d08770" stroke-width="1.2" /><rect x="168" y="42" width="6" height="18" rx="2" fill="#4c566a" stroke="#d08770" stroke-width="1.2" /><rect x="150" y="82" width="18" height="6" rx="3" fill="#4c566a" stroke="#d08770" stroke-width="1.5" /><circle cx="159" cy="85" r="4" fill="#d08770" /><rect x="135" y="85" width="30" height="28" rx="4" fill="#3b4252" stroke="#d08770" stroke-width="1.8" /><line x1="142" y1="94" x2="158" y2="94" stroke="#d08770" stroke-width="1.5" /><line x1="142" y1="104" x2="158" y2="104" stroke="#d08770" stroke-width="1.5" /><rect x="92" y="85" width="22" height="38" rx="8" fill="#3b4252" stroke="#d08770" stroke-width="1.8" /><line x1="98" y1="93" x2="108" y2="93" stroke="#d08770" stroke-width="1.5" /><line x1="98" y1="103" x2="108" y2="103" stroke="#d08770" stroke-width="1.5" /><path d="M125 85 L125 100 L145 100 L145 85" fill="none" stroke="#d08770" stroke-width="2" /><line x1="135" y1="85" x2="135" y2="92" stroke="#d08770" stroke-width="2" /><rect x="15" y="70" width="55" height="14" rx="6" fill="#3b4252" stroke="#d08770" stroke-width="1.8" /><rect x="30" y="84" width="12" height="24" rx="4" fill="#3b4252" stroke="#d08770" stroke-width="1.5" /><rect x="48" y="84" width="12" height="24" rx="4" fill="#3b4252" stroke="#d08770" stroke-width="1.5" /><rect x="60" y="58" width="30" height="10" rx="4" fill="#4c566a" stroke="#d08770" stroke-width="1.5" /></svg>`,
-            shotgun: `<svg viewBox="0 0 320 140" xmlns="http://www.w3.org/2000/svg"><rect x="55" y="58" width="120" height="22" rx="5" fill="#2e3440" stroke="#b48ead" stroke-width="1.8" /><rect x="175" y="64" width="100" height="10" rx="4" fill="#3b4252" stroke="#b48ead" stroke-width="1.8" /><line x1="190" y1="66" x2="260" y2="66" stroke="#b48ead" stroke-width="2" stroke-dasharray="3 3" /><rect x="175" y="74" width="90" height="8" rx="4" fill="#434c5e" stroke="#b48ead" stroke-width="1.5" /><rect x="195" y="80" width="55" height="10" rx="5" fill="#4c566a" stroke="#b48ead" stroke-width="1.8" /><line x1="205" y1="84" x2="205" y2="86" stroke="#b48ead" stroke-width="2" /><line x1="215" y1="84" x2="215" y2="86" stroke="#b48ead" stroke-width="2" /><line x1="225" y1="84" x2="225" y2="86" stroke="#b48ead" stroke-width="2" /><line x1="235" y1="84" x2="235" y2="86" stroke="#b48ead" stroke-width="2" /><rect x="260" y="54" width="8" height="14" rx="2" fill="#4c566a" stroke="#b48ead" stroke-width="1.5" /><rect x="8" y="62" width="52" height="14" rx="6" fill="#4a3a2a" stroke="#b48ead" stroke-width="1.8" /><rect x="75" y="80" width="22" height="42" rx="8" fill="#3b4252" stroke="#b48ead" stroke-width="1.8" /><line x1="81" y1="90" x2="92" y2="90" stroke="#b48ead" stroke-width="1.5" /><line x1="81" y1="100" x2="92" y2="100" stroke="#b48ead" stroke-width="1.5" /><line x1="81" y1="110" x2="92" y2="110" stroke="#b48ead" stroke-width="1.5" /><path d="M105 80 L105 98 L125 98 L125 80" fill="none" stroke="#b48ead" stroke-width="2" /><line x1="115" y1="80" x2="115" y2="88" stroke="#b48ead" stroke-width="2" /><rect x="125" y="62" width="30" height="8" rx="4" fill="#4c566a" stroke="#b48ead" stroke-width="1.2" /><circle cx="135" cy="66" r="2.5" fill="#b48ead" /><circle cx="143" cy="66" r="2.5" fill="#b48ead" /><circle cx="151" cy="66" r="2.5" fill="#b48ead" /></svg>`,
-            pistol: `<svg viewBox="0 0 220 140" xmlns="http://www.w3.org/2000/svg"><rect x="30" y="48" width="130" height="22" rx="5" fill="#2e3440" stroke="#ebcb8b" stroke-width="1.8" /><rect x="160" y="52" width="22" height="14" rx="4" fill="#3b4252" stroke="#ebcb8b" stroke-width="1.8" /><circle cx="175" cy="59" r="5" fill="#1e222a" stroke="#ebcb8b" stroke-width="1.8" /><rect x="30" y="70" width="110" height="16" rx="4" fill="#3b4252" stroke="#ebcb8b" stroke-width="1.8" /><rect x="50" y="86" width="40" height="48" rx="10" fill="#2e3440" stroke="#ebcb8b" stroke-width="1.8" /><line x1="58" y1="96" x2="82" y2="96" stroke="#ebcb8b" stroke-width="1.5" /><line x1="58" y1="106" x2="82" y2="106" stroke="#ebcb8b" stroke-width="1.5" /><line x1="58" y1="116" x2="82" y2="116" stroke="#ebcb8b" stroke-width="1.5" /><path d="M100 86 L100 108 L128 108 L128 86" fill="none" stroke="#ebcb8b" stroke-width="2.5" /><line x1="114" y1="86" x2="114" y2="96" stroke="#ebcb8b" stroke-width="2" /><rect x="58" y="130" width="24" height="6" rx="3" fill="#4c566a" stroke="#ebcb8b" stroke-width="1.2" /><rect x="50" y="42" width="8" height="8" rx="2" fill="#4c566a" stroke="#ebcb8b" stroke-width="1.2" /><rect x="140" y="42" width="8" height="8" rx="2" fill="#4c566a" stroke="#ebcb8b" stroke-width="1.2" /><line x1="40" y1="66" x2="140" y2="66" stroke="#ebcb8b" stroke-width="2" stroke-dasharray="4 4" /></svg>`,
-            medkit: `<svg viewBox="0 0 220 170" xmlns="http://www.w3.org/2000/svg"><rect x="30" y="50" width="160" height="100" rx="18" fill="#2e3440" stroke="#88c0d0" stroke-width="2.2" /><path d="M30 70 L190 70 L190 50 Q190 32 170 32 L50 32 Q30 32 30 50 Z" fill="#3b4252" stroke="#88c0d0" stroke-width="2.2" /><path d="M80 32 L80 18 Q80 8 90 8 L130 8 Q140 8 140 18 L140 32" fill="none" stroke="#88c0d0" stroke-width="3" stroke-linecap="round" /><rect x="95" y="80" width="30" height="50" rx="6" fill="#bf616a" stroke="#88c0d0" stroke-width="1.8" /><rect x="80" y="95" width="60" height="20" rx="6" fill="#bf616a" stroke="#88c0d0" stroke-width="1.8" /><rect x="108" y="82" width="10" height="46" rx="3" fill="#eceff4" /><rect x="85" y="98" width="46" height="10" rx="3" fill="#eceff4" /><rect x="45" y="110" width="20" height="30" rx="4" fill="#4c566a" stroke="#88c0d0" stroke-width="1.5" /><rect x="155" y="110" width="20" height="30" rx="4" fill="#4c566a" stroke="#88c0d0" stroke-width="1.5" /><circle cx="55" cy="125" r="4" fill="#2e3440" stroke="#88c0d0" stroke-width="1.5" /><circle cx="165" cy="125" r="4" fill="#2e3440" stroke="#88c0d0" stroke-width="1.5" /><line x1="60" y1="130" x2="160" y2="130" stroke="#88c0d0" stroke-width="2" stroke-dasharray="6 4" opacity="0.7" /></svg>`,
-            vest: `<svg viewBox="0 0 220 180" xmlns="http://www.w3.org/2000/svg"><path d="M60 30 L100 18 L120 18 L160 30 L160 110 L145 150 L75 150 L60 110 Z" fill="#2e3440" stroke="#8fbcbb" stroke-width="2.2" /><path d="M95 30 L110 30 L125 55 L95 55 Z" fill="#1b1e24" stroke="#8fbcbb" stroke-width="1.8" /><path d="M60 45 L60 100 L75 115 L75 60 Z" fill="#1b1e24" stroke="#8fbcbb" stroke-width="1.5" /><path d="M160 45 L160 100 L145 115 L145 60 Z" fill="#1b1e24" stroke="#8fbcbb" stroke-width="1.5" /><rect x="82" y="65" width="56" height="65" rx="10" fill="#3b4252" stroke="#8fbcbb" stroke-width="2" /><line x1="95" y1="80" x2="125" y2="80" stroke="#8fbcbb" stroke-width="1.5" /><line x1="95" y1="95" x2="125" y2="95" stroke="#8fbcbb" stroke-width="1.5" /><line x1="95" y1="110" x2="125" y2="110" stroke="#8fbcbb" stroke-width="1.5" /><rect x="60" y="85" width="18" height="10" rx="4" fill="#4c566a" stroke="#8fbcbb" stroke-width="1.5" /><rect x="142" y="85" width="18" height="10" rx="4" fill="#4c566a" stroke="#8fbcbb" stroke-width="1.5" /><rect x="85" y="38" width="10" height="22" rx="4" fill="#4c566a" stroke="#8fbcbb" stroke-width="1.5" /><rect x="125" y="38" width="10" height="22" rx="4" fill="#4c566a" stroke="#8fbcbb" stroke-width="1.5" /><line x1="82" y1="122" x2="138" y2="122" stroke="#8fbcbb" stroke-width="1.5" stroke-dasharray="3 3" /><line x1="82" y1="132" x2="138" y2="132" stroke="#8fbcbb" stroke-width="1.5" stroke-dasharray="3 3" /><rect x="100" y="138" width="20" height="10" rx="4" fill="#8fbcbb" opacity="0.6" /><path d="M110 70 L120 76 L120 90 L110 96 L100 90 L100 76 Z" fill="#88c0d0" opacity="0.4" stroke="#8fbcbb" stroke-width="1.2" /></svg>`
+            pistol: `<svg viewBox="0 0 220 140"><rect x="30" y="48" width="130" height="22" rx="5" fill="#2e3440" stroke="#ebcb8b" stroke-width="1.8"/></svg>`,
         };
 
         function resize() { canvas.width = wrapper.clientWidth; canvas.height = wrapper.clientHeight; updateCameraZoom(); }
@@ -512,36 +490,16 @@
             camera.zoom = C.computeCameraZoom(canvas.width, canvas.height, player.inventory[player.currentSlot], window.gameInstance.zoomLevel);
         }
 
-        // ✅ Deterministic seeded random — both players see the same crates
-        function seededRandom(seed) {
-            let state = seed;
-            return function() {
-                state = (state * 1664525 + 1013904223) % 4294967296;
-                return state / 4294967296;
-            };
-        }
-        let crateSeed = 0;
-        function resetCrateSeed() {
-            // Use roomCode as seed so both players generate the same crates
-            let h = 0;
-            for (let i = 0; i < roomCode.length; i++) {
-                h = ((h << 5) - h) + roomCode.charCodeAt(i);
-                h |= 0;
-            }
-            crateSeed = Math.abs(h);
-        }
-
         function spawnCrate() {
-            const rng = seededRandom(crateSeed++);
             let x, y, valid = false, attempts = 0;
             while(!valid && attempts < 50) {
-                x = rng() * (MAP_W - 200) + 100; y = rng() * (MAP_H - 200) + 100;
+                x = Math.random() * (MAP_W - 200) + 100; y = Math.random() * (MAP_H - 200) + 100;
                 valid = true;
                 for(let w of walls) { if(x > w.x - 30 && x < w.x + w.w + 30 && y > w.y - 30 && y < w.y + w.h + 30) { valid = false; break; } }
                 attempts++;
             }
             if(valid) {
-                const r = rng(); let type = 'smg';
+                const r = Math.random(); let type = 'smg';
                 if(r > 0.85) type = 'vest'; else if(r > 0.7) type = 'medkit'; else if(r > 0.55) type = 'sniper'; else if(r > 0.4) type = 'shotgun'; else if(r > 0.25) type = 'rifle';
                 crates.push({ x, y, type });
             }
@@ -553,13 +511,13 @@
                 const slot = document.createElement('div');
                 slot.className = 'weapon-slot' + (index === player.currentSlot ? ' active' : '');
                 if (w && weapons[w]) {
-                    slot.innerHTML = svgs[w] || '';
+                    slot.innerHTML = svgs[w] || '🔫';
                     slot.onclick = () => {
                         player.currentSlot = index; player.ammo = weapons[w].maxAmmo; player.isReloading = false;
                         updateWeaponUI(); updateCameraZoom();
                         if (weapons[w].name === 'SNIPER') zoomUi.style.display = 'flex'; else zoomUi.style.display = 'none';
                     };
-                } else { slot.innerHTML = `<div style="font-size: 20px; opacity:0.3">🚫</div>EMPTY`; }
+                } else { slot.innerHTML = `EMPTY`; }
                 weaponInventory.appendChild(slot);
             });
         }
@@ -570,19 +528,10 @@
             player.health = player.maxHealth; player.armor = 0; player.x = MAP_W/2; player.y = MAP_H/2;
             player.inventory = ['pistol', null, null]; player.currentSlot = 0; player.ammo = weapons['pistol'].maxAmmo; player.isReloading = false;
             window.gameInstance.zoomLevel = 1; zoomUi.style.display = 'none'; shakeTime = 0;
-            bullets = []; bombs = []; crates = [];
-            resetCrateSeed();
+            bullets = []; window.gameInstance.bullets = bullets; bombs = []; crates = [];
             for(let i=0; i<10; i++) spawnCrate();
             healthFill.style.width = '100%'; armorFill.style.width = '0%'; scoreDisplay.innerText = '💀 0';
             updateWeaponUI(); updateCameraZoom();
-        }
-
-        function damagePlayerLocal(amount) {
-            if (player.invincible || !isAlive) return;
-            sound.play("hurt", 0.4);
-            if (player.armor > 0) { const absorbed = Math.min(player.armor, amount); player.armor -= absorbed; amount -= absorbed; armorFill.style.width = (player.armor / player.maxArmor * 100) + '%'; }
-            if (amount > 0) { player.health = Math.max(0, player.health - amount); healthFill.style.width = (player.health / player.maxHealth * 100) + '%'; }
-            player.invincible = true; player.invincibleTimer = 20; shakeTime = 10;
         }
 
         function shootBullet() {
@@ -601,7 +550,6 @@
                 
                 bullets.push({ id: bId, x: sx, y: sy, vx: Math.cos(sa) * w.speed, vy: Math.sin(sa) * w.speed, radius: w.size, friendly: true, life: w.range / w.speed, dmg: w.dmg, color: w.color });
                 
-                // Notify other players (send bulletId so we can remove it if it hits them)
                 if (socket && socket.connected) {
                     socket.emit("shoot", {
                         bulletId: bId,
@@ -613,7 +561,7 @@
 
         function update() {
             if (gameEnded) return;
-            if (!isAlive) return;   // dead players can't move or shoot
+            if (!isAlive) return;
 
             if (shakeTime > 0) shakeTime--;
             if (player.ammo <= 0 && !player.isReloading) window.gameInstance.reloadWeapon();
@@ -635,14 +583,12 @@
             if (player.shootTimer > 0) player.shootTimer--;
             if (shootAnalogActive && (Math.abs(shootVector.x) > 0.25 || Math.abs(shootVector.y) > 0.25)) shootBullet();
 
-            // Bullets
             for (let i = bullets.length - 1; i >= 0; i--) {
                 const b = bullets[i]; b.x += b.vx; b.y += b.vy; b.life--;
                 let hitWall = false; for (let w of walls) { if (C.rectCollide(b.x, b.y, b.radius, w)) { hitWall = true; break; } }
                 if (hitWall || b.life <= 0) { bullets.splice(i, 1); continue; }
 
                 if (b.friendly) {
-                    // My bullet — check hit on remote players
                     if (socket && socket.connected) {
                         let hitAny = false;
                         for (const [sid, rp] of remotePlayers) {
@@ -651,7 +597,7 @@
                                 socket.emit("shoot-hit", {
                                     targetSocketId: sid,
                                     bulletId: b.id,
-                                    bullet: { x: b.x, y: b.y, dmg: b.dmg } // dmg will be handled by server
+                                    bullet: { x: b.x, y: b.y, dmg: b.dmg }
                                 });
                                 bullets.splice(i, 1);
                                 hitAny = true;
@@ -661,35 +607,12 @@
                         if (hitAny) continue;
                     }
                 } else {
-                    // Remote bullet — check if it hits ME
                     if (isAlive && Math.hypot(b.x - player.x, b.y - player.y) < b.radius + player.radius) {
                         bullets.splice(i, 1);
-                        // The SHOOTER will detect the hit via their own check and tell the server
                     }
                 }
             }
 
-            // Bombs
-            for (let i = bombs.length - 1; i >= 0; i--) {
-                const b = bombs[i]; b.timer--;
-                if (b.timer <= 0) {
-                    shakeTime = 20;
-                    if (socket && socket.connected) {
-                        for (const [sid, rp] of remotePlayers) {
-                            if (!rp.alive) continue;
-                            if (Math.hypot(b.x - rp.x, b.y - rp.y) < b.radius) {
-                                socket.emit("shoot-hit", {
-                                    targetSocketId: sid,
-                                    bullet: { x: rp.x, y: rp.y, dmg: 40 }
-                                });
-                            }
-                        }
-                    }
-                    bombs.splice(i, 1);
-                }
-            }
-
-            // Crates
             for (let i = crates.length - 1; i >= 0; i--) {
                 const c = crates[i];
                 if (Math.hypot(c.x - player.x, c.y - player.y) < player.radius + 25) {
@@ -700,13 +623,11 @@
                         let slot = player.inventory.indexOf(null); if (slot === -1) slot = player.currentSlot;
                         player.inventory[slot] = c.type; player.currentSlot = slot; player.ammo = weapons[c.type].maxAmmo; player.isReloading = false;
                         updateWeaponUI(); updateCameraZoom();
-                        if (weapons[c.type].name === 'SNIPER') zoomUi.style.display = 'flex'; else zoomUi.style.display = 'none';
                     }
                     crates.splice(i, 1);
                 }
             }
 
-            // Send my position 15x/sec
             if (socket && socket.connected) {
                 const now = Date.now();
                 if (now - lastPositionSend > 66) {
@@ -725,7 +646,7 @@
             ctx.fillStyle = '#fff'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             if (c === 'vest') { ctx.fillStyle = '#88c0d0'; ctx.fillText('🛡️', x, y); }
             else if (c === 'medkit') { ctx.fillStyle = '#bf616a'; ctx.fillText('➕', x, y); }
-            else { let col = '#ebcb8b'; if (c === 'sniper') col = '#d08770'; else if (c === 'shotgun') col = '#b48ead'; else if (c === 'smg') col = '#5e81ac'; else if (c === 'rifle') col = '#bf616a'; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+            else { ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fillStyle = '#ebcb8b'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
         }
 
         function draw() {
@@ -739,7 +660,6 @@
             const theme = window.currentTheme || {};
             const wallCol = theme.wallColor || '#34495e';
             const wallBorder = theme.wallBorder || '#2c3e50';
-            const wallAccent = theme.wallAccent || '#1abc9c';
             const bushCol = theme.bushColor || '#27ae60';
             const groundTint = theme.groundTint || '#2b4a66';
             const groundLight = theme.groundLight || '#7fa9c7';
@@ -750,13 +670,11 @@
             for (let i = 0; i < MAP_H; i += 100) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(MAP_W, i); ctx.stroke(); }
             ctx.globalAlpha = 1.0; ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 10; ctx.strokeRect(0, 0, MAP_W, MAP_H);
 
-            walls.forEach(w => { ctx.fillStyle = wallCol; ctx.fillRect(w.x, w.y, w.w, w.h); ctx.strokeStyle = wallBorder; ctx.lineWidth = 4; ctx.strokeRect(w.x, w.y, w.w, w.h); ctx.strokeStyle = wallAccent; ctx.lineWidth = 2; ctx.strokeRect(w.x + 5, w.y + 5, w.w - 10, w.h - 10); });
-            bushes.forEach(b => { ctx.fillStyle = bushCol; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = bushCol; ctx.lineWidth = 4; ctx.stroke(); ctx.globalAlpha = 1.0; });
+            walls.forEach(w => { ctx.fillStyle = wallCol; ctx.fillRect(w.x, w.y, w.w, w.h); ctx.strokeStyle = wallBorder; ctx.lineWidth = 4; ctx.strokeRect(w.x, w.y, w.w, w.h); });
+            bushes.forEach(b => { ctx.fillStyle = bushCol; ctx.globalAlpha = 0.6; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1.0; });
             crates.forEach(c => { ctx.fillStyle = '#2e3440'; ctx.fillRect(c.x - 18, c.y - 18, 36, 36); ctx.strokeStyle = '#4c566a'; ctx.lineWidth = 4; ctx.strokeRect(c.x - 18, c.y - 18, 36, 36); drawCrateIcon(c.type, c.x, c.y); });
-            bombs.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.timer > 0 ? 10 : b.radius, 0, Math.PI*2); ctx.fillStyle = b.timer > 0 ? '#ff0000' : 'rgba(255, 100, 0, 0.4)'; ctx.fill(); });
             bullets.forEach(b => { ctx.strokeStyle = b.color; ctx.lineWidth = b.radius; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(b.x - b.vx * 1.5, b.y - b.vy * 1.5); ctx.lineTo(b.x, b.y); ctx.stroke(); });
 
-            // Remote players
             for (const [sid, rp] of remotePlayers) {
                 if (!rp.alive) continue;
                 C.drawStickman(ctx, rp.x, rp.y, rp.angle || 0, { isPlayer: false, weaponType: 'pistol', inBush: false });
@@ -765,89 +683,19 @@
                 const nameW = ctx.measureText(rp.username).width;
                 ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(rp.x - nameW/2 - 6, rp.y - 55, nameW + 12, 20);
                 ctx.fillStyle = rp.team === 1 ? '#60a5fa' : '#f87171'; ctx.fillText(rp.username, rp.x, rp.y - 40);
-                ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(rp.x + 18, rp.y - 56, 34, 18);
-                ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 12px monospace';
-                ctx.fillText('K:' + (rp.kills || 0), rp.x + 35, rp.y - 43);
                 ctx.restore();
             }
 
-            // Me
             if (isAlive) {
                 C.drawStickman(ctx, player.x, player.y, player.aimAngle, { isPlayer: true, weaponType: player.inventory[player.currentSlot] || 'pistol', playerInBush: player.inBush, playerColor: player.color });
-                if (player.invincible) { ctx.beginPath(); ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI*2); ctx.strokeStyle = 'rgba(241, 196, 15, 0.6)'; ctx.lineWidth = 4; ctx.stroke(); }
             }
 
             ctx.restore();
-
-            if (player.inventory[player.currentSlot] === 'sniper' && window.gameInstance.zoomLevel > 1 && isAlive) {
-                ctx.strokeStyle = 'rgba(255, 50, 50, 0.6)'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(canvas.width/2 - 30, canvas.height/2); ctx.lineTo(canvas.width/2 + 30, canvas.height/2); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height/2 - 30); ctx.lineTo(canvas.width/2, canvas.height/2 + 30); ctx.stroke();
-                ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 40, 0, Math.PI*2); ctx.stroke();
-            }
         }
 
-
-    // ✅ NUCLEAR RESET — forces all player state to clean defaults
-    function hardResetPlayer(x, y) {
-        // Position
-        player.x = x;
-        player.y = y;
-        player.vx = 0;
-        player.vy = 0;
-        player.health = 100;
-        player.armor = 0;
-        player.invincible = false;
-        player.invincibleTimer = 0;
-        player.isReloading = false;
-        player.reloadTimer = 0;
-        player.shootTimer = 0;
-        player.inBush = false;
-        player.aimAngle = 0;
-
-        // Flags
-        isAlive = true;
-        respawnCountdown = 0;
-
-        // Input state — CRITICAL
-        moveAnalogActive = false;
-        moveVector = { x: 0, y: 0 };
-        shootAnalogActive = false;
-        shootVector = { x: 0, y: 0 };
-        keys.w = false;
-        keys.a = false;
-        keys.s = false;
-        keys.d = false;
-
-        // Joystick visuals
-        const jKnob = document.getElementById("joystickKnob");
-        const sKnob = document.getElementById("shootKnob");
-        if (jKnob) jKnob.style.transform = "translate(-50%, -50%)";
-        if (sKnob) sKnob.style.transform = "translate(-50%, -50%)";
-
-        // HUD
-        const hf = document.getElementById("healthFill");
-        const af = document.getElementById("armorFill");
-        if (hf) hf.style.width = "100%";
-        if (af) af.style.width = "0%";
-
-        // Camera SNAP
-        if (window.gameInstance && window.gameInstance.camera) {
-            window.gameInstance.camera.x = x;
-            window.gameInstance.camera.y = y;
-        }
-
-        console.log("🔥 HARD RESET complete. Player at:", x, y);
-    }
-
-        function gameLoop() { 
-            try {
-                update(); 
-                draw(); 
-            } catch (err) {
-                console.error("❌ GAME LOOP CRASHED:", err);
-            }
-            requestAnimationFrame(gameLoop); 
+        function gameLoop() {
+            try { update(); draw(); } catch(e) { console.error("Loop error:", e); }
+            requestAnimationFrame(gameLoop);
         }
 
         C.setupJoystick(joystickBase, joystickKnob, () => { moveAnalogActive = true; }, (x, y) => { moveVector = { x, y }; }, () => { moveAnalogActive = false; moveVector = { x: 0, y: 0 }; });
@@ -856,10 +704,6 @@
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase(); if (['w','a','s','d'].includes(key)) keys[key] = true;
             if (key === ' ') shootBullet();
-            if (key === '1') { player.currentSlot = 0; updateWeaponUI(); updateCameraZoom(); }
-            if (key === '2') { player.currentSlot = 1; updateWeaponUI(); updateCameraZoom(); }
-            if (key === '3') { player.currentSlot = 2; updateWeaponUI(); updateCameraZoom(); }
-            if (key === 'b') window.triggerBomb(); if (key === 'x') window.triggerReload();
         });
         window.addEventListener('keyup', (e) => { const key = e.key.toLowerCase(); if (['w','a','s','d'].includes(key)) keys[key] = false; });
         canvas.addEventListener('mousemove', (e) => { const rect = canvas.getBoundingClientRect(); mouseX = e.clientX - rect.left; mouseY = e.clientY - rect.top; });
