@@ -289,48 +289,8 @@
             console.log("🔄 player-respawned:", data);
 
             if (data.socketId === mySocketId) {
-                // ── MOVE PLAYER TO SPAWN POINT ──
-                player.x = data.x;
-                player.y = data.y;
-                player.vx = 0;
-                player.vy = 0;
-                player.health = 100;
-                player.armor = 0;
-                player.invincible = false;
-                player.invincibleTimer = 0;
-                isAlive = true;
-                respawnCountdown = 0;
-
-                // ── SNAP CAMERA TO SPAWN POINT (no lerp) ──
-                if (window.gameInstance && window.gameInstance.camera) {
-                    window.gameInstance.camera.x = data.x;
-                    window.gameInstance.camera.y = data.y;
-                    console.log("📍 Camera snapped to:", data.x, data.y);
-                }
-
-                // ── RESET HUD ──
-                healthFill.style.width = "100%";
-                armorFill.style.width = "0%";
-
-                // ── FORCE-UNLOCK JOYSTICKS ──
-                moveAnalogActive = false;
-                moveVector = { x: 0, y: 0 };
-                shootAnalogActive = false;
-                shootVector = { x: 0, y: 0 };
-
-                // ── RESET JOYSTICK VISUAL KNOBS ──
-                const jKnob = document.getElementById("joystickKnob");
-                const sKnob = document.getElementById("shootKnob");
-                if (jKnob) jKnob.style.transform = "translate(-50%, -50%)";
-                if (sKnob) sKnob.style.transform = "translate(-50%, -50%)";
-
-                // ── RESET KEYBOARD INPUT ──
-                keys.w = false;
-                keys.a = false;
-                keys.s = false;
-                keys.d = false;
-
-                // ── HIDE OVERLAY ──
+                // ✅ Use the nuclear reset — fixed everything at once
+                hardResetPlayer(data.x, data.y);
                 hideRespawnOverlay();
                 console.log("✅ Respawn complete at", data.x, data.y);
             } else {
@@ -358,8 +318,12 @@
                 bulletId: data.bulletId
             });
             // ✅ Play the correct gun sound for the remote shot
+            const remoteWeapon = data.bullet.weapon || "pistol";
+            console.log("🔫 Remote shot fired with weapon:", remoteWeapon);
             if (window.gameInstance && window.gameInstance.playRemoteSound) {
-                window.gameInstance.playRemoteSound(data.bullet.weapon);
+                window.gameInstance.playRemoteSound(remoteWeapon);
+            } else {
+                console.log("❌ playRemoteSound not defined!");
             }
         });
 
@@ -476,6 +440,7 @@
 
         const sound = new C.SoundManager();
         sound.unlockOnFirstTouch();
+        sound.preloadAll();  // ✅ Preload ALL gun sounds immediately
 
         const weapons = C.WEAPONS;
         let walls = window.walls || [];
@@ -806,6 +771,59 @@
                 ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 40, 0, Math.PI*2); ctx.stroke();
             }
         }
+
+
+    // ✅ NUCLEAR RESET — forces all player state to clean defaults
+    function hardResetPlayer(x, y) {
+        // Position
+        player.x = x;
+        player.y = y;
+        player.vx = 0;
+        player.vy = 0;
+        player.health = 100;
+        player.armor = 0;
+        player.invincible = false;
+        player.invincibleTimer = 0;
+        player.isReloading = false;
+        player.reloadTimer = 0;
+        player.shootTimer = 0;
+        player.inBush = false;
+        player.aimAngle = 0;
+
+        // Flags
+        isAlive = true;
+        respawnCountdown = 0;
+
+        // Input state — CRITICAL
+        moveAnalogActive = false;
+        moveVector = { x: 0, y: 0 };
+        shootAnalogActive = false;
+        shootVector = { x: 0, y: 0 };
+        keys.w = false;
+        keys.a = false;
+        keys.s = false;
+        keys.d = false;
+
+        // Joystick visuals
+        const jKnob = document.getElementById("joystickKnob");
+        const sKnob = document.getElementById("shootKnob");
+        if (jKnob) jKnob.style.transform = "translate(-50%, -50%)";
+        if (sKnob) sKnob.style.transform = "translate(-50%, -50%)";
+
+        // HUD
+        const hf = document.getElementById("healthFill");
+        const af = document.getElementById("armorFill");
+        if (hf) hf.style.width = "100%";
+        if (af) af.style.width = "0%";
+
+        // Camera SNAP
+        if (window.gameInstance && window.gameInstance.camera) {
+            window.gameInstance.camera.x = x;
+            window.gameInstance.camera.y = y;
+        }
+
+        console.log("🔥 HARD RESET complete. Player at:", x, y);
+    }
 
         function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
 

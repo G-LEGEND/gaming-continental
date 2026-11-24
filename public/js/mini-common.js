@@ -145,7 +145,27 @@ window.MiniCommon = (function() {
                 });
                 this.unlocked = true;
                 document.body.removeEventListener("touchstart", unlock);
-            }.bind(this), { once: true });
+            }
+
+        // ✅ NEW: Preload all audio files so first play doesn't fail
+        preloadAll() {
+            if (!this.sounds) return;
+            Object.values(this.sounds).forEach(audio => {
+                try {
+                    audio.load();
+                    audio.volume = 0;
+                    // Force browser to cache the file
+                    const p = audio.play();
+                    if (p && p.catch) p.catch(() => {});
+                    setTimeout(() => {
+                        audio.pause();
+                        audio.currentTime = 0;
+                        audio.volume = 0.5;
+                    }, 50);
+                } catch(e) {}
+            });
+        }
+.bind(this), { once: true });
         }
     }
 
