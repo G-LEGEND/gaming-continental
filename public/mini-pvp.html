@@ -233,10 +233,12 @@
                 socketId: data.socketId,
                 username: data.username,
                 team: data.team,
-                x: 1200, y: 900, angle: 0,
-                health: 100, kills: 0, alive: true
+                x: data.x || 300, y: data.y || 300, angle: 0,
+                health: data.health || 100,
+                kills: data.kills || 0,
+                alive: data.alive !== false
             });
-            console.log("➕ Joined:", data.username);
+            console.log("➕ Joined:", data.username, "at", data.x, data.y);
             updateScoreboard([...remotePlayers.values()].concat([{ username, kills: serverKills, team: 1 }]));
         });
 
@@ -289,6 +291,11 @@
                 player.health = 100;
                 isAlive = true;
                 respawnCountdown = 0;
+                // ✅ Reset joystick state so controls work immediately
+                moveAnalogActive = false;
+                moveVector = { x: 0, y: 0 };
+                shootAnalogActive = false;
+                shootVector = { x: 0, y: 0 };
                 hideRespawnOverlay();
             } else {
                 const p = remotePlayers.get(data.socketId);
@@ -472,16 +479,36 @@
             camera.zoom = C.computeCameraZoom(canvas.width, canvas.height, player.inventory[player.currentSlot], window.gameInstance.zoomLevel);
         }
 
+        // ✅ Deterministic seeded random — both players see the same crates
+        function seededRandom(seed) {
+            let state = seed;
+            return function() {
+                state = (state * 1664525 + 1013904223) % 4294967296;
+                return state / 4294967296;
+            };
+        }
+        let crateSeed = 0;
+        function resetCrateSeed() {
+            // Use roomCode as seed so both players generate the same crates
+            let h = 0;
+            for (let i = 0; i < roomCode.length; i++) {
+                h = ((h << 5) - h) + roomCode.charCodeAt(i);
+                h |= 0;
+            }
+            crateSeed = Math.abs(h);
+        }
+
         function spawnCrate() {
+            const rng = seededRandom(crateSeed++);
             let x, y, valid = false, attempts = 0;
             while(!valid && attempts < 50) {
-                x = Math.random() * (MAP_W - 200) + 100; y = Math.random() * (MAP_H - 200) + 100;
+                x = rng() * (MAP_W - 200) + 100; y = rng() * (MAP_H - 200) + 100;
                 valid = true;
                 for(let w of walls) { if(x > w.x - 30 && x < w.x + w.w + 30 && y > w.y - 30 && y < w.y + w.h + 30) { valid = false; break; } }
                 attempts++;
             }
             if(valid) {
-                const r = Math.random(); let type = 'smg';
+                const r = rng(); let type = 'smg';
                 if(r > 0.85) type = 'vest'; else if(r > 0.7) type = 'medkit'; else if(r > 0.55) type = 'sniper'; else if(r > 0.4) type = 'shotgun'; else if(r > 0.25) type = 'rifle';
                 crates.push({ x, y, type });
             }
@@ -511,6 +538,7 @@
             player.inventory = ['pistol', null, null]; player.currentSlot = 0; player.ammo = weapons['pistol'].maxAmmo; player.isReloading = false;
             window.gameInstance.zoomLevel = 1; zoomUi.style.display = 'none'; shakeTime = 0;
             bullets = []; bombs = []; crates = [];
+            resetCrateSeed();
             for(let i=0; i<10; i++) spawnCrate();
             healthFill.style.width = '100%'; armorFill.style.width = '0%'; scoreDisplay.innerText = '💀 0';
             updateWeaponUI(); updateCameraZoom();
@@ -602,8 +630,8 @@
                 } else {
                     // Remote bullet — check if it hits ME
                     if (isAlive && Math.hypot(b.x - player.x, b.y - player.y) < b.radius + player.radius) {
-                        // Just remove the bullet. Server will send "took-damage" to us.
                         bullets.splice(i, 1);
+                        // The SHOOTER will detect the hit via their own check and tell the server
                     }
                 }
             }

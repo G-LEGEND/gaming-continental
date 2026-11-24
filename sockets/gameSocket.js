@@ -107,12 +107,20 @@ function attachGameSocket(io) {
         socket.join(roomCode);
 
         // Add or update player
+        // ✅ Spawn each player at a different corner so they don't overlap
+        const spawnCorners = [
+          { x: 300, y: 300 }, { x: 2100, y: 300 },
+          { x: 300, y: 1500 }, { x: 2100, y: 1500 },
+          { x: 1200, y: 300 }, { x: 1200, y: 1500 }
+        ];
+        const spawn = spawnCorners[room.players.size % spawnCorners.length];
+
         const existing = room.players.get(socket.id);
         const playerState = existing || {
           userId: userId || null,
           username,
           team: team || 1,
-          x: 1200, y: 900, angle: 0,       // default spawn
+          x: spawn.x, y: spawn.y, angle: 0,
           health: 100,
           kills: 0,
           alive: true,
@@ -133,7 +141,12 @@ function attachGameSocket(io) {
           socketId: socket.id,
           userId: playerState.userId,
           username: playerState.username,
-          team: playerState.team
+          team: playerState.team,
+          x: playerState.x,
+          y: playerState.y,
+          health: playerState.health,
+          kills: playerState.kills,
+          alive: playerState.alive
         }, socket.id);
 
         // Auto-end timer if endsAt is in future
