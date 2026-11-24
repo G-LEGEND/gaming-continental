@@ -139,22 +139,23 @@ window.MiniCommon = (function() {
             }
         }
         unlockOnFirstTouch() {
+            const self = this;
             document.body.addEventListener("touchstart", function unlock() {
-                Object.values(this.sounds).forEach(s => {
+                Object.values(self.sounds).forEach(s => {
                     s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(() => {});
                 });
-                this.unlocked = true;
+                self.unlocked = true;
                 document.body.removeEventListener("touchstart", unlock);
-            }
+            }.bind(this), { once: true });
+        }
 
-        // ✅ NEW: Preload all audio files so first play doesn't fail
+        // ✅ Preload all audio files so first play doesn't fail
         preloadAll() {
             if (!this.sounds) return;
             Object.values(this.sounds).forEach(audio => {
                 try {
                     audio.load();
                     audio.volume = 0;
-                    // Force browser to cache the file
                     const p = audio.play();
                     if (p && p.catch) p.catch(() => {});
                     setTimeout(() => {
@@ -164,8 +165,6 @@ window.MiniCommon = (function() {
                     }, 50);
                 } catch(e) {}
             });
-        }
-.bind(this), { once: true });
         }
     }
 
