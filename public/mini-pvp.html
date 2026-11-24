@@ -286,28 +286,55 @@
         });
 
         socket.on("player-respawned", (data) => {
+            console.log("🔄 Respawn event:", data);
+
             if (data.socketId === mySocketId) {
-                player.x = data.x; player.y = data.y;
+                // ── FORCE MOVE PLAYER TO SPAWN POINT ──
+                player.x = data.x;
+                player.y = data.y;
+                player.vx = 0;
+                player.vy = 0;
                 player.health = 100;
                 player.armor = 0;
-                healthFill.style.width = "100%";
-                armorFill.style.width = "0%";
+                player.invincible = false;
+                player.invincibleTimer = 0;
                 isAlive = true;
                 respawnCountdown = 0;
-                // ✅ Snap camera to new position so screen follows player
+
+                // ── FORCE SNAP CAMERA TO SPAWN POINT ──
                 if (window.gameInstance && window.gameInstance.camera) {
                     window.gameInstance.camera.x = data.x;
                     window.gameInstance.camera.y = data.y;
+                    console.log("📍 Camera snapped to:", data.x, data.y);
                 }
-                // ✅ Unlock joysticks so player can move immediately
+
+                // ── RESET HUD ──
+                healthFill.style.width = "100%";
+                armorFill.style.width = "0%";
+
+                // ── FORCE-UNLOCK JOYSTICKS (in case finger is still held) ──
                 moveAnalogActive = false;
                 moveVector = { x: 0, y: 0 };
                 shootAnalogActive = false;
                 shootVector = { x: 0, y: 0 };
-                document.getElementById("joystickKnob").style.transform = "translate(-50%, -50%)";
-                document.getElementById("shootKnob").style.transform = "translate(-50%, -50%)";
+
+                // ── RESET JOYSTICK VISUAL KNOBS ──
+                const jKnob = document.getElementById("joystickKnob");
+                const sKnob = document.getElementById("shootKnob");
+                if (jKnob) jKnob.style.transform = "translate(-50%, -50%)";
+                if (sKnob) sKnob.style.transform = "translate(-50%, -50%)";
+
+                // ── RESET KEYBOARD INPUT ──
+                keys.w = false;
+                keys.a = false;
+                keys.s = false;
+                keys.d = false;
+
+                // ── HIDE OVERLAY ──
                 hideRespawnOverlay();
+                console.log("✅ Respawn complete at", data.x, data.y);
             } else {
+                // Other player respawned — update their sprite
                 const p = remotePlayers.get(data.socketId);
                 if (p) {
                     p.x = data.x; p.y = data.y;
