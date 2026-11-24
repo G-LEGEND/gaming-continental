@@ -285,36 +285,34 @@
             showRespawnOverlay();
         });
 
-        respawnCountdown = 0;
+        socket.on("player-respawned", (data) => {
+            console.log("🔄 player-respawned:", data);
 
-// 1. UNLOCK CONTROLS (Fixes Problem 2)
-// Make sure the player object knows it's alive and can move again
-if (window.gameInstance && window.gameInstance.player) {
-    window.gameInstance.player.x = data.x;
-    window.gameInstance.player.y = data.y;
-    window.gameInstance.player.health = data.health || 100;
-    // If you have an 'isDead' or 'canMove' flag, set it here:
-    // window.gameInstance.player.isDead = false;
-}
+            if (data.socketId === mySocketId) {
+                // ── MOVE PLAYER TO SPAWN POINT ──
+                player.x = data.x;
+                player.y = data.y;
+                player.vx = 0;
+                player.vy = 0;
+                player.health = 100;
+                player.armor = 0;
+                player.invincible = false;
+                player.invincibleTimer = 0;
+                isAlive = true;
+                respawnCountdown = 0;
 
-// 2. FORCE SNAP CAMERA (Fixes Problem 1)
-if (window.gameInstance && window.gameInstance.camera) {
-    window.gameInstance.camera.x = data.x;
-    window.gameInstance.camera.y = data.y;
-    
-    // If the camera uses lerping, snap it completely
-    // (this prevents line 651 from dragging it back to the old spot)
-    window.gameInstance.camera.targetX = data.x;
-    window.gameInstance.camera.targetY = data.y;
-    
-    console.log("📍 Player and Camera snapped to:", data.x, data.y);
-}
+                // ── SNAP CAMERA TO SPAWN POINT (no lerp) ──
+                if (window.gameInstance && window.gameInstance.camera) {
+                    window.gameInstance.camera.x = data.x;
+                    window.gameInstance.camera.y = data.y;
+                    console.log("📍 Camera snapped to:", data.x, data.y);
+                }
 
                 // ── RESET HUD ──
                 healthFill.style.width = "100%";
                 armorFill.style.width = "0%";
 
-                // ── FORCE-UNLOCK JOYSTICKS (in case finger is still held) ──
+                // ── FORCE-UNLOCK JOYSTICKS ──
                 moveAnalogActive = false;
                 moveVector = { x: 0, y: 0 };
                 shootAnalogActive = false;
@@ -339,8 +337,10 @@ if (window.gameInstance && window.gameInstance.camera) {
                 // Other player respawned — update their sprite
                 const p = remotePlayers.get(data.socketId);
                 if (p) {
-                    p.x = data.x; p.y = data.y;
-                    p.health = 100; p.alive = true;
+                    p.x = data.x;
+                    p.y = data.y;
+                    p.health = 100;
+                    p.alive = true;
                     p.kills = data.kills;
                 }
             }
