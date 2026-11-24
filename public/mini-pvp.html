@@ -209,21 +209,23 @@
             });
         });
 
+        let hasJoinedOnce = false;
         socket.on("room-state", (state) => {
             state.players.forEach(p => {
                 if (p.socketId === mySocketId) {
-                    // ✅ THIS IS ME — sync my position with the server's spawn point
-                    if (window.gameInstance && window.gameInstance.player) {
+                    // ✅ Apply server spawn ONLY on first join — never overwrite mid-game
+                    if (!hasJoinedOnce && window.gameInstance && window.gameInstance.player) {
                         window.gameInstance.player.x = p.x;
                         window.gameInstance.player.y = p.y;
                         window.gameInstance.camera.x = p.x;
                         window.gameInstance.camera.y = p.y;
-                        console.log("🎯 My spawn synced:", p.x, p.y);
+                        console.log("🎯 Initial spawn synced:", p.x, p.y);
                     }
                 } else {
                     remotePlayers.set(p.socketId, p);
                 }
             });
+            hasJoinedOnce = true;
             updateScoreboard([...remotePlayers.values()].concat([{ username, kills: serverKills, team: 1 }]));
         });
 
@@ -281,46 +283,50 @@
             showRespawnOverlay();
         });
 
+        // ✅ Fires ONLY for the player who actually died and respawned
+        socket.on("you-respawned", (data) => {
+            console.log("🔄 you-respawned:", data);
+
+            window.gameInstance.player.x = data.x;
+            window.gameInstance.player.y = data.y;
+            window.gameInstance.player.health = 100;
+            window.gameInstance.player.armor = 0;
+            window.gameInstance.player.invincible = true;
+            window.gameInstance.player.invincibleTimer = 90;
+            window.gameInstance.camera.x = data.x;
+            window.gameInstance.camera.y = data.y;
+
+            isAlive = true;
+            window.gameInstance.isAlive = true;
+            respawnCountdown = 0;
+            serverKills = data.kills || serverKills;
+
+            document.getElementById("healthFill").style.width = "100%";
+            document.getElementById("armorFill").style.width = "0%";
+            document.getElementById("scoreDisplay").innerText = `💀 ${serverKills}`;
+
+            // Reset joysticks
+            window.gameInstance.moveAnalogActive = false;
+            window.gameInstance.moveVector = { x: 0, y: 0 };
+            window.gameInstance.shootAnalogActive = false;
+            window.gameInstance.shootVector = { x: 0, y: 0 };
+
+            const jKnob = document.getElementById("joystickKnob");
+            const sKnob = document.getElementById("shootKnob");
+            if (jKnob) jKnob.style.transform = "translate(-50%, -50%)";
+            if (sKnob) sKnob.style.transform = "translate(-50%, -50%)";
+
+            hideRespawnOverlay();
+            console.log("✅ Respawn complete:", data.x, data.y);
+        });
+
+        // ✅ Fires only for OTHER players — moves their sprite, never your player
         socket.on("player-respawned", (data) => {
-            console.log("🔄 player-respawned:", data);
-            if (data.socketId === mySocketId) {
-                // Reset player
-                window.gameInstance.player.x = data.x;
-                window.gameInstance.player.y = data.y;
-                window.gameInstance.player.health = 100;
-                window.gameInstance.player.armor = 0;
-                window.gameInstance.player.invincible = false;
-                window.gameInstance.player.invincibleTimer = 0;
-                window.gameInstance.camera.x = data.x;
-                window.gameInstance.camera.y = data.y;
-
-                isAlive = true;
-                window.gameInstance.isAlive = true;
-                respawnCountdown = 0;
-
-                document.getElementById("healthFill").style.width = "100%";
-                document.getElementById("armorFill").style.width = "0%";
-
-                // Reset joysticks
-                window.gameInstance.moveAnalogActive = false;
-                window.gameInstance.moveVector = { x: 0, y: 0 };
-                window.gameInstance.shootAnalogActive = false;
-                window.gameInstance.shootVector = { x: 0, y: 0 };
-
-                const jKnob = document.getElementById("joystickKnob");
-                const sKnob = document.getElementById("shootKnob");
-                if (jKnob) jKnob.style.transform = "translate(-50%, -50%)";
-                if (sKnob) sKnob.style.transform = "translate(-50%, -50%)";
-
-                hideRespawnOverlay();
-                console.log("✅ Respawn complete:", data.x, data.y);
-            } else {
-                const p = remotePlayers.get(data.socketId);
-                if (p) {
-                    p.x = data.x; p.y = data.y;
-                    p.health = 100; p.alive = true;
-                    p.kills = data.kills;
-                }
+            const p = remotePlayers.get(data.socketId);
+            if (p) {
+                p.x = data.x; p.y = data.y;
+                p.health = 100; p.alive = true;
+                p.kills = data.kills;
             }
         });
 

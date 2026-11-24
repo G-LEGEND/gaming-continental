@@ -13,14 +13,16 @@
 //   'leave-room'    {}
 //
 // Message protocol (server → client):
-//   'room-state'    { players: [...], endsAt, timeLimit }
-//   'player-joined' { socketId, userId, username, team }
-//   'player-left'   { socketId }
-//   'player-moved'  { socketId, x, y, angle, health, alive }
-//   'player-shot'   { socketId, bullet }
-//   'player-hit'    { victimSocketId, killerSocketId, killerKills, respawnInMs }
-//   'player-respawned' { socketId, x, y, health, kills }
-//   'game-ended'    { reason, results }
+//   'room-state'      { players: [...], endsAt, timeLimit }
+//   'player-joined'   { socketId, userId, username, team, x, y, health, kills, alive }
+//   'player-left'     { socketId }
+//   'player-moved'    { socketId, x, y, angle, health, alive }
+//   'bullet-from-remote' { socketId, username, bulletId, bullet }
+//   'player-hit'      { killerSocketId, killerUsername, killerKills, respawnInMs }   (victim only)
+//   'player-died'     { victimSocketId, victimUsername, killerSocketId, killerUsername, killerKills } (others)
+//   'you-respawned'   { socketId, x, y, health, kills }   (victim only)
+//   'player-respawned'{ socketId, username, x, y, health, kills }   (others)
+//   'game-ended'      { reason }
 // ============================================================
 
 const MiniRoom = require("../models/MiniRoom");
@@ -106,7 +108,6 @@ function attachGameSocket(io) {
         currentRoomCode = roomCode;
         socket.join(roomCode);
 
-        // Add or update player
         // ✅ Spawn each player at a different corner so they don't overlap
         const spawnCorners = [
           { x: 300, y: 300 }, { x: 2100, y: 300 },
@@ -201,14 +202,12 @@ function attachGameSocket(io) {
       broadcastToRoom(io, currentRoomCode, "bullet-from-remote", {
         socketId: socket.id,
         username: p.username,
-        bulletId: data.bulletId, // Pass the unique bullet ID
+        bulletId: data.bulletId,
         bullet: data.bullet
       }, socket.id);
     });
 
     // ---------- SHOOT-HIT (attacker claims a hit) ----------
-    // Attacker says: "my bullet hit targetSocketId"
-    // Server validates distance, then applies kill.
     socket.on("shoot-hit", ({ targetSocketId, bullet }) => {
       if (!currentRoomCode) return;
       const room = rooms.get(currentRoomCode);
@@ -218,11 +217,11 @@ function attachGameSocket(io) {
       const victim = room.players.get(targetSocketId);
       if (!killer || !victim) return;
       if (!killer.alive) return;
-      if (!victim.alive) return;  // already dead
+      if (!victim.alive) return;
 
       // Basic distance check — reject if too far (anti-cheat)
       const dist = Math.hypot((killer.x || 0) - (victim.x || 0), (killer.y || 0) - (victim.y || 0));
-      const MAX_HIT_RANGE = 2000;  // generous — bullets travel far
+      const MAX_HIT_RANGE = 2000;
       if (dist > MAX_HIT_RANGE) {
         console.log(`[socket] Rejected hit: ${killer.username}→${victim.username} at dist ${dist.toFixed(0)}`);
         return;
@@ -264,8 +263,6 @@ function attachGameSocket(io) {
     });
 
     // ---------- HIT REPORT (victim confirms) ----------
-    // A client can only report a hit ON ITSELF, from another player.
-    // This makes "I hit you" claims server-validated by the victim.
     socket.on("hit-reported", ({ killerSocketId, killerKills, bullet }) => {
       if (!currentRoomCode) return;
       const room = rooms.get(currentRoomCode);
@@ -276,14 +273,12 @@ function attachGameSocket(io) {
       if (!victim || !killer) return;
       if (!killer.alive) return;
 
-      // Increment killer's kills (server-authoritative)
       killer.kills = (killer.kills || 0) + 1;
       victim.alive = false;
       victim.health = 0;
 
       console.log(`[socket] ${killer.username} killed ${victim.username}. Kills: ${killer.kills}`);
 
-      // Notify victim with 3s respawn countdown + killer's kills
       io.to(socket.id).emit("player-hit", {
         killerSocketId,
         killerUsername: killer.username,
@@ -291,7 +286,6 @@ function attachGameSocket(io) {
         respawnInMs: 3000
       });
 
-      // Notify everyone else (so they update scoreboard + remove victim sprite)
       broadcastToRoom(io, currentRoomCode, "player-died", {
         victimSocketId: socket.id,
         victimUsername: victim.username,
@@ -300,7 +294,6 @@ function attachGameSocket(io) {
         killerKills: killer.kills
       }, socket.id);
 
-      // Update DB kills (async, no block)
       MiniRoom.findOne({ roomCode: currentRoomCode }).then((doc) => {
         if (!doc) return;
         const dbKiller = doc.players.find(pl => pl.username === killer.username);
@@ -310,6 +303,8 @@ function attachGameSocket(io) {
     });
 
     // ---------- RESPAWN ----------
+    // ✅ FIXED: only the dead player gets 'you-respawned'.
+    //    Everyone else gets 'player-respawned' to update just that sprite.
     socket.on("respawn", () => {
       if (!currentRoomCode) return;
       const room = rooms.get(currentRoomCode);
@@ -333,14 +328,22 @@ function attachGameSocket(io) {
       p.health = 100;
       p.alive = true;
 
-      // Notify all (including self)
-      io.to(currentRoomCode).emit("player-respawned", {
+      // 1) Victim-only authoritative respawn
+      io.to(socket.id).emit("you-respawned", {
+        socketId: socket.id,
+        x: p.x, y: p.y,
+        health: p.health,
+        kills: p.kills
+      });
+
+      // 2) Everyone else just moves that player's sprite
+      broadcastToRoom(io, currentRoomCode, "player-respawned", {
         socketId: socket.id,
         username: p.username,
         x: p.x, y: p.y,
         health: p.health,
         kills: p.kills
-      });
+      }, socket.id);
     });
 
     // ---------- LEAVE ----------
@@ -376,7 +379,6 @@ function attachGameSocket(io) {
       }
       room.players.delete(socket.id);
 
-      // If room is empty, clean up
       if (room.players.size === 0) {
         if (room.gameEndTimer) clearTimeout(room.gameEndTimer);
         rooms.delete(currentRoomCode);
