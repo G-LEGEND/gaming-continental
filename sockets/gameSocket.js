@@ -208,7 +208,8 @@ function attachGameSocket(io) {
     });
 
     // ---------- SHOOT-HIT (attacker claims a hit) ----------
-    socket.on("shoot-hit", ({ targetSocketId, bullet }) => {
+    // Per-bullet dedup + HP accumulation. A kill only fires when HP reaches 0.
+    socket.on("shoot-hit", ({ targetSocketId, bulletId, bullet }) => {
       if (!currentRoomCode) return;
       const room = rooms.get(currentRoomCode);
       if (!room) return;
@@ -219,7 +220,19 @@ function attachGameSocket(io) {
       if (!killer.alive) return;
       if (!victim.alive) return;
 
-      // Basic distance check — reject if too far (anti-cheat)
+      // Deduplicate: each bulletId can only register ONCE per target
+      if (bulletId) {
+        if (!victim._hitBullets) victim._hitBullets = new Set();
+        if (victim._hitBullets.has(bulletId)) return;
+        victim._hitBullets.add(bulletId);
+        // Cap the set size so it doesn't grow forever
+        if (victim._hitBullets.size > 500) {
+          const first = victim._hitBullets.values().next().value;
+          victim._hitBullets.delete(first);
+        }
+      }
+
+      // Distance check (anti-cheat)
       const dist = Math.hypot((killer.x || 0) - (victim.x || 0), (killer.y || 0) - (victim.y || 0));
       const MAX_HIT_RANGE = 2000;
       if (dist > MAX_HIT_RANGE) {
@@ -227,14 +240,25 @@ function attachGameSocket(io) {
         return;
       }
 
-      // Apply kill
+      // Apply DAMAGE (not instant kill)
+      const dmg = Number(bullet?.dmg) || 10;
+      victim.health = Math.max(0, (victim.health ?? 100) - dmg);
+
+      // Tell victim their new HP (for HUD + shake)
+      io.to(targetSocketId).emit("took-damage", {
+        newHealth: victim.health,
+        bySocketId: socket.id,
+        byUsername: killer.username
+      });
+
+      // Only register a kill when HP hits 0
+      if (victim.health > 0) return;
+
       killer.kills = (killer.kills || 0) + 1;
       victim.alive = false;
-      victim.health = 0;
 
       console.log(`[socket] KILL: ${killer.username} killed ${victim.username} (${killer.kills} kills)`);
 
-      // Notify victim — 3s respawn countdown + killer's kills
       io.to(targetSocketId).emit("player-hit", {
         killerSocketId: socket.id,
         killerUsername: killer.username,
@@ -242,7 +266,6 @@ function attachGameSocket(io) {
         respawnInMs: 3000
       });
 
-      // Notify everyone else — update scoreboard
       broadcastToRoom(io, currentRoomCode, "player-died", {
         victimSocketId: targetSocketId,
         victimUsername: victim.username,
@@ -251,7 +274,6 @@ function attachGameSocket(io) {
         killerKills: killer.kills
       });
 
-      // Update DB kills (async)
       MiniRoom.findOne({ roomCode: currentRoomCode }).then((doc) => {
         if (!doc) return;
         const dbKiller = doc.players.find(pl => pl.username === killer.username);
@@ -327,6 +349,7 @@ function attachGameSocket(io) {
       p.y = spawn.y;
       p.health = 100;
       p.alive = true;
+      if (p._hitBullets) p._hitBullets.clear();  // fresh HP pool each life
 
       // 1) Victim-only authoritative respawn
       io.to(socket.id).emit("you-respawned", {
