@@ -289,8 +289,20 @@
             console.log("🔄 player-respawned:", data);
 
             if (data.socketId === mySocketId) {
-                // ✅ Use the nuclear reset — fixed everything at once
-                hardResetPlayer(data.x, data.y);
+                // ✅ Force move player and camera
+                player.x = data.x;
+                player.y = data.y;
+                player.vx = 0; player.vy = 0;
+                player.health = 100; player.armor = 0;
+                isAlive = true;
+                if (window.gameInstance && window.gameInstance.camera) {
+                    window.gameInstance.camera.x = data.x;
+                    window.gameInstance.camera.y = data.y;
+                }
+                // ✅ Unlock joysticks
+                moveAnalogActive = false; moveVector = {x:0,y:0};
+                shootAnalogActive = false; shootVector = {x:0,y:0};
+                
                 hideRespawnOverlay();
                 console.log("✅ Respawn complete at", data.x, data.y);
             } else {
@@ -320,10 +332,13 @@
             // ✅ Play the correct gun sound for the remote shot
             const remoteWeapon = data.bullet.weapon || "pistol";
             console.log("🔫 Remote shot fired with weapon:", remoteWeapon);
-            if (window.gameInstance && window.gameInstance.playRemoteSound) {
-                window.gameInstance.playRemoteSound(remoteWeapon);
-            } else {
-                console.log("❌ playRemoteSound not defined!");
+            if (window.gameInstance) {
+                const validWeapons = ["pistol", "smg", "shotgun", "sniper", "rifle", "machine"];
+                const key = validWeapons.includes(remoteWeapon) ? remoteWeapon : "pistol";
+                // Force play locally in case gameInstance fails
+                const soundObj = new Audio(`/sounds/shoot_${key}.mp3`);
+                soundObj.volume = 0.4;
+                soundObj.play().catch(e => console.log("Audio blocked:", e));
             }
         });
 
@@ -825,7 +840,15 @@
         console.log("🔥 HARD RESET complete. Player at:", x, y);
     }
 
-        function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
+        function gameLoop() { 
+            try {
+                update(); 
+                draw(); 
+            } catch (err) {
+                console.error("❌ GAME LOOP CRASHED:", err);
+            }
+            requestAnimationFrame(gameLoop); 
+        }
 
         C.setupJoystick(joystickBase, joystickKnob, () => { moveAnalogActive = true; }, (x, y) => { moveVector = { x, y }; }, () => { moveAnalogActive = false; moveVector = { x: 0, y: 0 }; });
         C.setupJoystick(shootBase, shootKnob, () => { shootAnalogActive = true; shootBullet(); }, (x, y) => { shootVector = { x, y }; }, () => { shootAnalogActive = false; shootVector = { x: 0, y: 0 }; });
