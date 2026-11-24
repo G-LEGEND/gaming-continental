@@ -289,13 +289,23 @@
             if (data.socketId === mySocketId) {
                 player.x = data.x; player.y = data.y;
                 player.health = 100;
+                player.armor = 0;
+                healthFill.style.width = "100%";
+                armorFill.style.width = "0%";
                 isAlive = true;
                 respawnCountdown = 0;
-                // ✅ Reset joystick state so controls work immediately
+                // ✅ Snap camera to new position so screen follows player
+                if (window.gameInstance && window.gameInstance.camera) {
+                    window.gameInstance.camera.x = data.x;
+                    window.gameInstance.camera.y = data.y;
+                }
+                // ✅ Unlock joysticks so player can move immediately
                 moveAnalogActive = false;
                 moveVector = { x: 0, y: 0 };
                 shootAnalogActive = false;
                 shootVector = { x: 0, y: 0 };
+                document.getElementById("joystickKnob").style.transform = "translate(-50%, -50%)";
+                document.getElementById("shootKnob").style.transform = "translate(-50%, -50%)";
                 hideRespawnOverlay();
             } else {
                 const p = remotePlayers.get(data.socketId);
@@ -318,6 +328,10 @@
                 fromSocketId: data.socketId,
                 bulletId: data.bulletId
             });
+            // ✅ Play the correct gun sound for the remote shot
+            if (window.gameInstance && window.gameInstance.playRemoteSound) {
+                window.gameInstance.playRemoteSound(data.bullet.weapon);
+            }
         });
 
         socket.on("game-ended", (data) => {
@@ -345,8 +359,12 @@
             if (respawnCountdown <= 0) {
                 clearInterval(tickRespawn);
                 if (socket && socket.connected) socket.emit("respawn");
-                // Immediately hide overlay to prevent hang while waiting for server
                 hideRespawnOverlay();
+                // ✅ Extra safety: force-unlock joysticks
+                moveAnalogActive = false;
+                moveVector = { x: 0, y: 0 };
+                shootAnalogActive = false;
+                shootVector = { x: 0, y: 0 };
             }
         }, 1000);
     }
@@ -457,8 +475,14 @@
 
         window.gameInstance = {
             zoomLevel: 1, player,
+            camera: camera,
             reloadWeapon: () => { if (!player.isReloading) { const w = getCurrentWeapon(); if (player.ammo < w.maxAmmo) { player.isReloading = true; player.reloadTimer = 90; } } },
-            dropBomb: () => { if (isAlive) bombs.push({ x: player.x, y: player.y, timer: 90, radius: 250 }); }
+            dropBomb: () => { if (isAlive) bombs.push({ x: player.x, y: player.y, timer: 90, radius: 250 }); },
+            playRemoteSound: (weaponName) => {
+                const validWeapons = ["pistol", "smg", "shotgun", "sniper", "rifle", "machine"];
+                const key = validWeapons.includes(weaponName) ? weaponName : "pistol";
+                sound.play(key, 0.4);  // 0.4 volume = slightly quieter than own shots
+            }
         };
 
         const svgs = {
