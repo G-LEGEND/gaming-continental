@@ -305,7 +305,7 @@ app.post("/admin/users/:id/balance", requireAdmin, async (req, res) => {
       userId: user._id,
       type: action === "add" ? "deposit" : "withdraw",
       amount: action === "add" ? numericAmount : -numericAmount,
-      description: reason || `Admin ${action === "add" ? "added" : "removed"} balance manually`,
+      description: reason || (action === "add" ? "Money added to your balance" : "Money deducted from your balance"),
       status: "completed",
       createdAt: new Date()
     });
@@ -387,7 +387,7 @@ app.post("/withdraw", async (req, res) => {
       createdAt: new Date(),
     });
 
-    res.json({ message: "Withdrawal request submitted ✅", withdraw });
+    res.json({ message: "Withdraw successfully", withdraw });
   } catch (err) {
     res.status(500).json({ error: "Failed to process withdrawal" });
   }

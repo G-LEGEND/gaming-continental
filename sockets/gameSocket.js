@@ -220,6 +220,9 @@ function attachGameSocket(io) {
       if (!killer.alive) return;
       if (!victim.alive) return;
 
+      // ✅ Friendly fire OFF in team modes (teamSize > 1). FFA + 1v1 = everyone hostile.
+      if (room.teamSize > 1 && killer.team === victim.team) return;
+
       // Deduplicate: each bulletId can only register ONCE per target
       if (bulletId) {
         if (!victim._hitBullets) victim._hitBullets = new Set();

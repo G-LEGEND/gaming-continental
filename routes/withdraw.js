@@ -65,14 +65,14 @@ router.post("/", async (req, res) => {
       userId: user._id,
       type: "withdraw",
       amount: -amount, // Negative for withdrawal
-      description: `Withdrawal request to ${user.bankDetails.bankName}`,
+      description: `Withdrawal to ${user.bankDetails.bankName}`,
       status: "pending",
       paymentMethod: method,
       transactionId: withdraw._id.toString()
     });
 
     res.json({ 
-      message: "Withdrawal request submitted successfully", 
+      message: "Withdrawal successfully", 
       withdraw 
     });
   } catch (err) {
@@ -153,13 +153,13 @@ router.post("/approve/:id", requireAdmin, async (req, res) => {
       },
       {
         status: "completed",
-        description: `Withdrawal approved - ${withdrawal.amount} sent to ${withdrawal.accountDetails?.bankName || 'bank'}`
+        description: `Withdrawal successfully - ${withdrawal.amount} sent to ${withdrawal.accountDetails?.bankName || 'bank'}`
       }
     );
 
     console.log(`✅ Withdrawal ${id} approved successfully`);
     res.json({ 
-      message: "Withdrawal approved successfully ✅", 
+      message: "Withdrawal successfully ✅", 
       withdrawal 
     });
   } catch (err) {

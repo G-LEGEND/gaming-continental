@@ -282,7 +282,7 @@ router.post("/admin/add-balance", requireAdmin, async (req, res) => {
       userId,
       type: "admin_addition",
       amount: amount,
-      description: description || "Admin balance addition",
+      description: description || "Money added to your balance",
       status: "completed",
       createdAt: new Date()
     });

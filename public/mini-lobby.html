@@ -278,7 +278,9 @@
     try {
       const res = await fetch(`${API_BASE}/mini/start/${currentRoom.roomCode}`, { method: "POST" });
       if (res.ok) {
-        window.location.href = `/mini-pvp.html?code=${currentRoom.roomCode}`;
+        // ✅ Route by mode: team modes → mini-team.html, else mini-pvp.html
+        const page = currentRoom.teamSize > 1 ? "mini-team.html" : "mini-pvp.html";
+        window.location.href = `/${page}?code=${currentRoom.roomCode}`;
       }
     } catch (err) {
       showToast("Failed to start game");
@@ -311,7 +313,9 @@
         const d = await r.json();
         if (d.room && d.room.status === "active") {
           clearInterval(pollInterval);
-          window.location.href = `/mini-pvp.html?code=${code}`;
+          // ✅ Route by mode: team modes → mini-team.html, else mini-pvp.html
+          const page = d.room.teamSize > 1 ? "mini-team.html" : "mini-pvp.html";
+          window.location.href = `/${page}?code=${code}`;
         }
       }, 2000);
     } catch (err) {

@@ -80,7 +80,7 @@
       <div id="successMessage" class="success-message"></div>
       <button id="submitBtn" type="submit">
         <svg class="svg-icon white" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-        Submit Withdrawal Request
+         Withdrawal
       </button>
     </form>
   </div>
@@ -221,7 +221,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Withdrawal failed");
 
-      showFormMessage("Withdrawal request submitted! Admin will process it shortly.", false);
+      showFormMessage("Withdraw successfully", false);
       document.getElementById("amount").value = "";
       
       await forceRefreshUserData();

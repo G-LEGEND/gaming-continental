@@ -405,7 +405,12 @@
                 payoutEl.innerText = `You won ₦${Number(myPayout.amount).toFixed(2)}! (${myPayout.position})`;
                 payoutEl.style.color = "#22c55e";
             } else {
-                payoutEl.innerText = `You didn't place in the money.`;
+                // ✅ Friendly loss message per mode
+                const teamSize = currentRoomData?.teamSize;
+                let lossMsg = "You lost this round.";
+                if (teamSize > 1) lossMsg = "Your team lost this round.";
+                else if (teamSize === 0) lossMsg = "You didn't place in the top 3.";
+                payoutEl.innerText = lossMsg;
                 payoutEl.style.color = "#ef4444";
             }
         } catch(e) {

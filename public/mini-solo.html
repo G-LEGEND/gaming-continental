@@ -156,7 +156,9 @@
     }
     loadRoom();
 
+    let pendingKills = 0;
     async function reportKill() {
+        pendingKills++;
         try {
             const res = await fetch(`${API_BASE}/mini/kill/${roomCode}`, {
                 method: "POST",
@@ -170,6 +172,10 @@
                 updateKillsHint();
             }
         } catch(e) { console.log("kill report failed", e); }
+        finally { pendingKills--; }
+    }
+    async function waitForPendingKills() {
+        while (pendingKills > 0) await new Promise(r => setTimeout(r, 50));
     }
 
     window.setZoom = function(level, el) {
@@ -307,11 +313,13 @@
             updateWeaponUI(); updateCameraZoom();
         }
 
-        window.endTheMatch = function endTheMatch(reason, didWin) {
+        window.endTheMatch = async function endTheMatch(reason, didWin) {
             if (gameEnded) return;
             gameEnded = true; gameOver = true;
             document.getElementById("gameOverScreen").classList.remove("hidden");
             document.getElementById("gameOverText").innerText = reason;
+            // ✅ Wait for last kill POST to hit the server before settling
+            await waitForPendingKills();
             settleMatch(didWin);
         }
 

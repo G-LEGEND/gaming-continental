@@ -177,7 +177,8 @@ router.post("/end/:roomCode", async (req, res) => {
 
       const timeUp = room.endsAt && Date.now() >= new Date(room.endsAt).getTime();
       const killsRequired = requiredKills(room.timeLimit);
-      won = timeUp && player.isAlive && player.kills >= killsRequired;
+      const stillAlive = player.isAlive !== false;  // default true, only /die flips it
+      won = timeUp && stillAlive && (player.kills || 0) >= killsRequired;
 
       if (won) {
         const winAmount = Number(room.stake) * Number(room.odds);
@@ -322,9 +323,12 @@ router.post("/kill/:roomCode", async (req, res) => {
     if (!killer) return res.status(404).json({ error: "Killer not in room" });
     if (!killer.isAlive) return res.status(400).json({ error: "Killer is dead" });
 
-    const last = killer.lastKillAt ? new Date(killer.lastKillAt).getTime() : 0;
-    if (Date.now() - last < 2000)
-      return res.status(429).json({ error: "Too fast — suspicious activity" });
+    // ✅ Only throttle in PvP. Solo bot kills can come faster than 2s.
+    if (room.mode !== "solo_vs_bot") {
+      const last = killer.lastKillAt ? new Date(killer.lastKillAt).getTime() : 0;
+      if (Date.now() - last < 2000)
+        return res.status(429).json({ error: "Too fast — suspicious activity" });
+    }
 
     killer.kills += 1;
     killer.lastKillAt = new Date();
