@@ -179,8 +179,8 @@ function attachGameSocket(io) {
       p.x = data.x;
       p.y = data.y;
       p.angle = data.angle;
-      p.health = data.health;
-      p.alive = data.alive;
+      // ✅ Server-authoritative alive: only respawn() can flip alive=true again.
+      if (p.alive) p.health = data.health;
       p.lastSeen = Date.now();
 
       // Broadcast to others (not back to sender)

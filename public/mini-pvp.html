@@ -256,7 +256,7 @@
 
         socket.on("player-died", (data) => {
             const victim = remotePlayers.get(data.victimSocketId);
-            if (victim) { victim.alive = false; victim.health = 0; }
+            if (victim) { victim.alive = false; victim.health = 0; victim.deadAt = Date.now(); }
             const killer = remotePlayers.get(data.killerSocketId);
             if (killer) killer.kills = data.killerKills;
             if (data.killerUsername === username) {
@@ -325,7 +325,7 @@
             const p = remotePlayers.get(data.socketId);
             if (p) {
                 p.x = data.x; p.y = data.y;
-                p.health = 100; p.alive = true;
+                p.health = 100; p.alive = true; p.deadAt = 0;
                 p.kills = data.kills;
             }
         });
@@ -605,7 +605,7 @@ const svgs = {
                     if (socket && socket.connected) {
                         let hitAny = false;
                         for (const [sid, rp] of remotePlayers) {
-                            if (!rp.alive) continue;
+                            if (!rp.alive || rp.deadAt) continue;
                             if (Math.hypot(b.x - rp.x, b.y - rp.y) < b.radius + 18) {
                                 socket.emit("shoot-hit", {
                                     targetSocketId: sid,
